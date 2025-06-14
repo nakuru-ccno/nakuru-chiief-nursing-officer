@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,10 +42,16 @@ const Login = () => {
           return;
         }
 
-        console.log("Supabase login successful, redirecting to dashboard");
-        // Clear any demo role data
-        localStorage.removeItem("role");
-        localStorage.removeItem("adminUsers");
+        console.log("Supabase login successful");
+        
+        // Check if this is an admin user and set the role
+        if (userData.username === "admin@nakuru.go.ke" || 
+            data.user?.user_metadata?.name === "System Administrator") {
+          console.log("Setting admin role in localStorage");
+          localStorage.setItem("role", "System Administrator");
+        }
+
+        console.log("Redirecting to dashboard");
         navigate("/dashboard", { replace: true });
         setLoading(false);
         return;
