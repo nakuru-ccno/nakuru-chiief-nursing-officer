@@ -16,20 +16,14 @@ export default function Index() {
           Welcome to the Nakuru County Chief Nurse Officer's daily administrative portal. Log in to record activities, track reports, and generate exports with official branding.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16">
-          <Link to="/activities" className="bg-white rounded-lg shadow border p-8 flex flex-col items-center hover:shadow-lg transition group">
-            <span className="text-5xl mb-3 text-[#fd3572]">🗂️</span>
-            <div className="text-lg font-bold mb-1 text-[#be2251] group-hover:underline">Add Daily Activity</div>
-            <div className="text-gray-500 text-center text-sm">Enter and manage daily administrative activities.</div>
-          </Link>
-          <Link to="/reports" className="bg-white rounded-lg shadow border p-8 flex flex-col items-center hover:shadow-lg transition group">
-            <span className="text-5xl mb-3 text-[#fd3572]">📋</span>
-            <div className="text-lg font-bold mb-1 text-[#be2251] group-hover:underline">View & Export Reports</div>
-            <div className="text-gray-500 text-center text-sm">Browse or export summary reports for official use.</div>
-          </Link>
           <Link to="/login" className="bg-white rounded-lg shadow border p-8 flex flex-col items-center hover:shadow-lg transition group">
             <span className="text-5xl mb-3 text-[#fd3572]">🔑</span>
-            <div className="text-lg font-bold mb-1 text-[#be2251] group-hover:underline">Chief Nurse Officer Login</div>
-            <div className="text-gray-500 text-center text-sm">Access admin or nurse dashboards by logging in.</div>
+            <div className="text-lg font-bold mb-1 text-[#be2251] group-hover:underline">
+              Chief Nurse Officer Login
+            </div>
+            <div className="text-gray-500 text-center text-sm">
+              Access admin or nurse dashboards by logging in.
+            </div>
           </Link>
         </div>
         <div className="text-center text-[#fd3572] font-bold tracking-wide text-lg mt-10">
