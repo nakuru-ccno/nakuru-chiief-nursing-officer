@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import CountyHeader from "@/components/CountyHeader";
 import { Button } from "@/components/ui/button";
@@ -117,8 +116,8 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Ensure header is visible and properly styled */}
-      <div className="sticky top-0 z-50">
+      {/* Fixed header that should always be visible */}
+      <div className="w-full bg-black shadow-lg">
         <CountyHeader />
       </div>
 
