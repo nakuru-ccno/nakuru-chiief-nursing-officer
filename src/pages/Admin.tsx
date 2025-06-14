@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import CountyHeader from "@/components/CountyHeader";
 import { Button } from "@/components/ui/button";
@@ -49,7 +48,12 @@ const Admin = () => {
         return;
       }
 
-      setActivities(data || []);
+      // Remove duplicates based on ID
+      const uniqueActivities = data?.filter((activity, index, self) => 
+        index === self.findIndex(a => a.id === activity.id)
+      ) || [];
+
+      setActivities(uniqueActivities);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
@@ -93,11 +97,15 @@ const Admin = () => {
   };
 
   const handleActivityUpdated = (updatedActivity: any) => {
-    setActivities(prev => 
-      prev.map(activity => 
+    setActivities(prev => {
+      const updatedList = prev.map(activity => 
         activity.id === updatedActivity.id ? updatedActivity : activity
-      )
-    );
+      );
+      // Remove duplicates again after update
+      return updatedList.filter((activity, index, self) => 
+        index === self.findIndex(a => a.id === activity.id)
+      );
+    });
     setEditingActivity(null);
   };
 
