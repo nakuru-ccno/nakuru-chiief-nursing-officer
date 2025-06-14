@@ -84,14 +84,15 @@ const Dashboard = () => {
 
   const fetchAllUsers = async () => {
     try {
-      console.log('Fetching all users...');
+      console.log('Fetching all users from profiles table...');
       
-      // First try to fetch from profiles table
+      // Always fetch from profiles table first - this is our source of truth
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      if (!profileError && profiles) {
+      if (!profileError && profiles && profiles.length > 0) {
         console.log('Successfully fetched profiles:', profiles);
         const formattedUsers: User[] = profiles.map((profile: Profile) => ({
           id: profile.id,
@@ -103,161 +104,39 @@ const Dashboard = () => {
         }));
 
         setAllUsers(formattedUsers);
-        localStorage.setItem('systemUsers', JSON.stringify(formattedUsers));
+        console.log('Users set from profiles table:', formattedUsers.length);
         return;
       }
 
-      console.log('Profile fetch failed, trying auth admin:', profileError);
-
-      // Fallback: try to get auth users if we have admin privileges
-      try {
-        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-        
-        if (authError) {
-          console.error('Auth admin error:', authError);
-          // Use local storage as fallback
-          const savedUsers = localStorage.getItem('systemUsers');
-          if (savedUsers) {
-            setAllUsers(JSON.parse(savedUsers));
-          }
-          return;
-        }
-
-        const formattedUsers: User[] = authData.users.map(user => ({
-          id: user.id,
-          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
-          email: user.email || 'No email',
-          role: user.user_metadata?.role || 'User',
-          status: user.email_confirmed_at ? 'Active' : 'Pending',
-          lastLogin: user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Never'
-        }));
-
-        setAllUsers(formattedUsers);
-        localStorage.setItem('systemUsers', JSON.stringify(formattedUsers));
-      } catch (adminError) {
-        console.error('Admin access error:', adminError);
-        // Use local storage as final fallback
-        const savedUsers = localStorage.getItem('systemUsers');
-        if (savedUsers) {
-          setAllUsers(JSON.parse(savedUsers));
-        }
-      }
+      console.log('No profiles found or error:', profileError);
+      
+      // If no profiles, set empty array
+      setAllUsers([]);
 
     } catch (error) {
       console.error('Error in fetchAllUsers:', error);
-      // Use local storage as fallback
-      const savedUsers = localStorage.getItem('systemUsers');
-      if (savedUsers) {
-        setAllUsers(JSON.parse(savedUsers));
-      }
+      setAllUsers([]);
     }
   };
 
   const handleAddUser = async (newUserData: { name: string; email: string; role: string; password: string }) => {
     try {
-      console.log('Adding new user:', newUserData);
-
-      // Try to create user through Supabase Auth Admin API with auto-confirmation
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newUserData.email,
-        password: newUserData.password,
-        email_confirm: true, // This bypasses email confirmation
-        user_metadata: {
-          full_name: newUserData.name,
-          role: newUserData.role
-        }
+      console.log('Handling add user, refreshing user list...');
+      
+      // Simply refresh the user list from the database
+      // The AddUserDialog already handles creating the user in both auth and profiles table
+      await fetchAllUsers();
+      
+      toast({
+        title: "Success",
+        description: "User added successfully!"
       });
-
-      if (authError) {
-        console.error('Supabase auth admin error:', authError);
-        
-        // Fallback: Add user locally and to profiles table
-        const newUser: User = {
-          id: `local_${Date.now()}`,
-          name: newUserData.name,
-          email: newUserData.email,
-          role: newUserData.role,
-          status: 'Active',
-          lastLogin: 'Never'
-        };
-
-        // Try to insert into profiles table
-        try {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([{
-              id: newUser.id,
-              email: newUser.email,
-              full_name: newUser.name,
-              role: newUser.role,
-              created_at: new Date().toISOString()
-            }]);
-
-          if (profileError) {
-            console.error('Profile insert error:', profileError);
-          }
-        } catch (insertError) {
-          console.error('Insert error:', insertError);
-        }
-
-        // Update local state and storage
-        const updatedUsers = [...allUsers, newUser];
-        setAllUsers(updatedUsers);
-        localStorage.setItem('systemUsers', JSON.stringify(updatedUsers));
-
-        toast({
-          title: "User Added",
-          description: "User added to local system with fallback method."
-        });
-        return;
-      }
-
-      // If Supabase auth admin succeeded
-      if (authData.user) {
-        const newUser: User = {
-          id: authData.user.id,
-          name: newUserData.name,
-          email: newUserData.email,
-          role: newUserData.role,
-          status: 'Active', // Admin-created users are automatically active
-          lastLogin: 'Never'
-        };
-
-        // Try to insert into profiles table
-        try {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([{
-              id: authData.user.id,
-              email: newUserData.email,
-              full_name: newUserData.name,
-              role: newUserData.role,
-              created_at: new Date().toISOString()
-            }]);
-
-          if (profileError) {
-            console.error('Profile insert error:', profileError);
-          }
-        } catch (insertError) {
-          console.error('Insert error:', insertError);
-        }
-
-        // Update local state and storage
-        const updatedUsers = [...allUsers, newUser];
-        setAllUsers(updatedUsers);
-        localStorage.setItem('systemUsers', JSON.stringify(updatedUsers));
-
-        toast({
-          title: "Success",
-          description: "User created successfully and can login immediately!"
-        });
-      }
 
     } catch (error) {
       console.error('Error in handleAddUser:', error);
       toast({
         title: "Error",
-        description: "Failed to create user. Please try again.",
+        description: "Failed to refresh user list.",
         variant: "destructive"
       });
     }

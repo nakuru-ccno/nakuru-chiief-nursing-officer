@@ -61,8 +61,10 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
     }
 
     try {
-      // Create user through Supabase Auth Admin API with auto-confirmation
-      const { data, error } = await supabase.auth.admin.createUser({
+      console.log('Creating user with admin API...');
+      
+      // Always try to create user through Supabase Auth Admin API with auto-confirmation
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: formData.email,
         password: formData.password,
         email_confirm: true, // This bypasses email confirmation
@@ -72,82 +74,45 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
         }
       });
 
-      if (error) {
-        console.error('Supabase auth admin error:', error);
-        
-        // Fallback: Use regular signUp method
-        const { data: fallbackData, error: fallbackError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              full_name: formData.name,
-              role: formData.role
-            }
-          }
+      if (authError) {
+        console.error('Supabase auth admin error:', authError);
+        toast({
+          title: "Error",
+          description: "Failed to create user account: " + authError.message,
+          variant: "destructive"
         });
+        return;
+      }
 
-        if (fallbackError) {
+      // If successful, insert into profiles table
+      if (authData.user) {
+        console.log('User created successfully, inserting into profiles...');
+        
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: authData.user.id,
+            email: formData.email,
+            full_name: formData.name,
+            role: formData.role,
+            created_at: new Date().toISOString()
+          }]);
+
+        if (profileError) {
+          console.error('Profile insert error:', profileError);
+          // Even if profile insert fails, the user was created in auth
           toast({
-            title: "Error",
-            description: fallbackError.message,
+            title: "Warning",
+            description: "User created but profile data may not be complete",
             variant: "destructive"
           });
-          return;
+        } else {
+          console.log('Profile inserted successfully');
+          toast({
+            title: "Success",
+            description: "User created successfully and can login immediately!"
+          });
         }
-
-        // Try to auto-confirm through profiles table insert
-        if (fallbackData.user) {
-          try {
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .insert([{
-                id: fallbackData.user.id,
-                email: formData.email,
-                full_name: formData.name,
-                role: formData.role,
-                created_at: new Date().toISOString()
-              }]);
-
-            if (profileError) {
-              console.error('Profile insert error:', profileError);
-            }
-          } catch (insertError) {
-            console.error('Insert error:', insertError);
-          }
-        }
-
-        toast({
-          title: "User Created",
-          description: "User created but may need email verification for full access."
-        });
-      } else {
-        // Success with admin API - user is auto-confirmed
-        if (data.user) {
-          try {
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .insert([{
-                id: data.user.id,
-                email: formData.email,
-                full_name: formData.name,
-                role: formData.role,
-                created_at: new Date().toISOString()
-              }]);
-
-            if (profileError) {
-              console.error('Profile insert error:', profileError);
-            }
-          } catch (insertError) {
-            console.error('Insert error:', insertError);
-          }
-        }
-
-        toast({
-          title: "Success",
-          description: "User created successfully and can login immediately!"
-        });
       }
 
       // Call the parent handler for local state management
