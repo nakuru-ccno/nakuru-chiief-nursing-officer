@@ -26,12 +26,21 @@ type Activity = {
 export default function Reports() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<string>("");
   const { toast } = useToast();
 
   // Load activities from Supabase on component mount
   useEffect(() => {
     fetchActivities();
+    getCurrentUser();
   }, []);
+
+  const getCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setCurrentUser(user.email || "User");
+    }
+  };
 
   const fetchActivities = async () => {
     try {
@@ -125,6 +134,14 @@ export default function Reports() {
     return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return "Good Morning";
+    if (hour >= 12 && hour < 17) return "Good Afternoon";
+    if (hour >= 17 && hour < 22) return "Good Evening";
+    return "Good Night";
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -147,7 +164,7 @@ export default function Reports() {
       {/* Hero Section with Gradient */}
       <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Good Evening, John Gitahi!</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{getGreeting()}, {currentUser}!</h1>
           <p className="text-lg sm:text-xl mb-2">County of Unlimited Opportunities</p>
           <p className="text-sm sm:text-base opacity-90">📍 HQ</p>
         </div>
@@ -258,6 +275,7 @@ export default function Reports() {
                             {activity.type}
                           </Badge>
                           <span className="text-xs text-gray-500">{activity.duration} min</span>
+                          <span className="text-xs text-gray-500">by {activity.submitted_by || 'Unknown User'}</span>
                         </div>
                       </div>
                       <div className="text-right">
