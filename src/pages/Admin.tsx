@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import AddUserDialog from "@/components/admin/AddUserDialog";
+import EditUserDialog from "@/components/admin/EditUserDialog";
+import DeleteUserDialog from "@/components/admin/DeleteUserDialog";
 import { useToast } from "@/hooks/use-toast";
 
 // Mock data for demo purposes
@@ -37,6 +39,8 @@ const initialUsers = [
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [users, setUsers] = useState(initialUsers);
+  const [editingUser, setEditingUser] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(null);
   const { toast } = useToast();
 
   // Load users from localStorage on component mount
@@ -107,6 +111,45 @@ const Admin = () => {
       title: "Success",
       description: "User created successfully in the local system"
     });
+  };
+
+  const handleEditUser = (user) => {
+    console.log('Edit user clicked:', user);
+    setEditingUser(user);
+  };
+
+  const handleDeleteUser = (user) => {
+    console.log('Delete user clicked:', user);
+    setDeletingUser(user);
+  };
+
+  const handleUpdateUser = (updatedUserData) => {
+    setUsers(prev => prev.map(user => 
+      user.id === editingUser.id 
+        ? { ...user, ...updatedUserData, lastLogin: user.lastLogin }
+        : user
+    ));
+    
+    console.log('User updated:', updatedUserData);
+    setEditingUser(null);
+    
+    toast({
+      title: "Success",
+      description: "User updated successfully"
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    setUsers(prev => prev.filter(user => user.id !== deletingUser.id));
+    
+    console.log('User deleted:', deletingUser);
+    
+    toast({
+      title: "Success",
+      description: "User deleted successfully"
+    });
+    
+    setDeletingUser(null);
   };
 
   const renderDashboardContent = () => (
@@ -282,8 +325,21 @@ const Admin = () => {
                     <td className="p-3">{user.lastLogin}</td>
                     <td className="p-3">
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline">Edit</Button>
-                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-800">Delete</Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleEditUser(user)}
+                        >
+                          Edit
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-red-600 hover:text-red-800"
+                          onClick={() => handleDeleteUser(user)}
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -293,6 +349,22 @@ const Admin = () => {
           </div>
         </CardContent>
       </Card>
+
+      {editingUser && (
+        <EditUserDialog
+          user={editingUser}
+          onUpdateUser={handleUpdateUser}
+          onCancel={() => setEditingUser(null)}
+        />
+      )}
+
+      {deletingUser && (
+        <DeleteUserDialog
+          user={deletingUser}
+          onConfirmDelete={handleConfirmDelete}
+          onCancel={() => setDeletingUser(null)}
+        />
+      )}
     </div>
   );
 
