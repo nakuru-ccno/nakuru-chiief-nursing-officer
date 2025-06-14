@@ -143,6 +143,8 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel }: EditUserDialogProps) =
               <SelectContent>
                 <SelectItem value="Chief Nurse Officer">Chief Nurse Officer</SelectItem>
                 <SelectItem value="Nurse Officer">Nurse Officer</SelectItem>
+                <SelectItem value="Senior Nurse">Senior Nurse</SelectItem>
+                <SelectItem value="Staff Nurse">Staff Nurse</SelectItem>
                 <SelectItem value="System Administrator">System Administrator</SelectItem>
               </SelectContent>
             </Select>

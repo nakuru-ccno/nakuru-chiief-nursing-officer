@@ -4,9 +4,12 @@ import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, TrendingUp, Calendar, Clock, Users, Settings, FileText, UserPlus, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AddUserDialog from "@/components/admin/AddUserDialog";
+import EditUserDialog from "@/components/admin/EditUserDialog";
+import DeleteUserDialog from "@/components/admin/DeleteUserDialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface Activity {
@@ -47,6 +50,8 @@ const Dashboard = () => {
   });
   const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   // Get current user
@@ -137,6 +142,88 @@ const Dashboard = () => {
       toast({
         title: "Error",
         description: "Failed to refresh user list.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditUser = async (userData: { name: string; email: string; role: string; password?: string }) => {
+    if (!editingUser) return;
+
+    try {
+      console.log('Updating user profile:', editingUser.id, userData);
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: userData.name,
+          email: userData.email,
+          role: userData.role
+        })
+        .eq('id', editingUser.id);
+
+      if (updateError) {
+        console.error('Error updating profile:', updateError);
+        toast({
+          title: "Error",
+          description: `Failed to update user: ${updateError.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "User updated successfully!"
+      });
+
+      setEditingUser(null);
+      await fetchAllUsers();
+
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while updating the user.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+
+    try {
+      console.log('Deleting user profile:', deletingUser.id);
+      
+      const { error: deleteError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', deletingUser.id);
+
+      if (deleteError) {
+        console.error('Error deleting profile:', deleteError);
+        toast({
+          title: "Error",
+          description: `Failed to delete user: ${deleteError.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "User deleted successfully!"
+      });
+
+      setDeletingUser(null);
+      await fetchAllUsers();
+
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while deleting the user.",
         variant: "destructive"
       });
     }
@@ -342,49 +429,55 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           {allUsers.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left p-3 font-semibold text-[#be2251]">Name</th>
-                    <th className="text-left p-3 font-semibold text-[#be2251]">Email</th>
-                    <th className="text-left p-3 font-semibold text-[#be2251]">Role</th>
-                    <th className="text-left p-3 font-semibold text-[#be2251]">Status</th>
-                    <th className="text-left p-3 font-semibold text-[#be2251]">Last Login</th>
-                    <th className="text-left p-3 font-semibold text-[#be2251]">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allUsers.map((user) => (
-                    <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="p-3">{user.name}</td>
-                      <td className="p-3">{user.email}</td>
-                      <td className="p-3">{user.role}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-1 rounded-full text-sm ${
-                          user.status === 'Active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {user.status}
-                        </span>
-                      </td>
-                      <td className="p-3">{user.lastLogin}</td>
-                      <td className="p-3">
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Login</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.role}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-sm ${
+                        user.status === 'Active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {user.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>{user.lastLogin}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setEditingUser(user)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setDeletingUser(user)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : (
             <div className="text-center py-8 text-gray-500">
               <Users className="mx-auto h-12 w-12 text-gray-300 mb-4" />
@@ -394,6 +487,35 @@ const Dashboard = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      {editingUser && (
+        <EditUserDialog
+          user={{
+            id: parseInt(editingUser.id),
+            name: editingUser.name,
+            email: editingUser.email,
+            role: editingUser.role,
+            status: editingUser.status
+          }}
+          onUpdateUser={handleEditUser}
+          onCancel={() => setEditingUser(null)}
+        />
+      )}
+
+      {/* Delete User Dialog */}
+      {deletingUser && (
+        <DeleteUserDialog
+          user={{
+            id: parseInt(deletingUser.id),
+            name: deletingUser.name,
+            email: deletingUser.email,
+            role: deletingUser.role
+          }}
+          onConfirmDelete={handleDeleteUser}
+          onCancel={() => setDeletingUser(null)}
+        />
+      )}
     </div>
   );
 
