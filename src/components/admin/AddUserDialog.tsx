@@ -107,55 +107,29 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
       if (authData.user) {
         console.log('User created successfully:', authData.user.id);
         
-        // Create the profile using a different approach to avoid permission issues
+        // Create profile in the profiles table
         console.log('Creating user profile...');
         
-        // Wait a moment for auth to settle
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Create profile with proper error handling
-        const profileData = {
-          id: authData.user.id,
-          email: formData.email,
-          full_name: formData.name,
-          role: formData.role,
-          created_at: new Date().toISOString(),
-          last_sign_in_at: null
-        };
-
-        console.log('Attempting to create profile:', profileData);
-
-        const { data: profileResult, error: profileError } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .insert(profileData)
+          .insert({
+            id: authData.user.id,
+            email: formData.email,
+            full_name: formData.name,
+            role: formData.role
+          })
           .select()
           .single();
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
-          
-          // Try alternative approach - check if profile already exists
-          const { data: existingProfile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authData.user.id)
-            .single();
-
-          if (!existingProfile) {
-            toast({
-              title: "User Created",
-              description: "User account created successfully. Profile may need manual setup.",
-              variant: "default"
-            });
-          } else {
-            console.log('Profile already exists');
-            toast({
-              title: "Success",
-              description: "User created successfully!"
-            });
-          }
+          toast({
+            title: "Warning",
+            description: "User created but profile setup may be incomplete. Please refresh the page to see the user.",
+            variant: "default"
+          });
         } else {
-          console.log('Profile created successfully:', profileResult);
+          console.log('Profile created successfully:', profileData);
           toast({
             title: "Success",
             description: "User created successfully! They will need to confirm their email before logging in."
