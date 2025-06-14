@@ -12,6 +12,7 @@ interface AddUserDialogProps {
     name: string;
     email: string;
     role: string;
+    password: string;
   }) => void;
 }
 
@@ -20,14 +21,15 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    role: ""
+    role: "",
+    password: ""
   });
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.role) {
+    if (!formData.name || !formData.email || !formData.role || !formData.password) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -47,8 +49,18 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
       return;
     }
 
+    // Password validation
+    if (formData.password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive"
+      });
+      return;
+    }
+
     onAddUser(formData);
-    setFormData({ name: "", email: "", role: "" });
+    setFormData({ name: "", email: "", role: "", password: "" });
     setOpen(false);
     
     toast({
@@ -93,6 +105,18 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
               placeholder="Enter email address"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => handleInputChange("password", e.target.value)}
+              placeholder="Enter password"
               required
             />
           </div>

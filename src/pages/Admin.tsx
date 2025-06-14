@@ -65,7 +65,7 @@ const Admin = () => {
     }
   };
 
-  const handleAddUser = (newUserData: { name: string; email: string; role: string }) => {
+  const handleAddUser = (newUserData: { name: string; email: string; role: string; password: string }) => {
     const newUser = {
       id: users.length + 1,
       name: newUserData.name,
@@ -76,7 +76,7 @@ const Admin = () => {
     };
     
     setUsers(prev => [...prev, newUser]);
-    console.log('New user added:', newUser);
+    console.log('New user added:', newUser, 'with password:', newUserData.password);
   };
 
   const renderDashboardContent = () => (
