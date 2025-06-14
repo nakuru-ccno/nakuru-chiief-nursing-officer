@@ -1,7 +1,12 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { Edit, Trash2 } from "lucide-react";
+import EditActivityDialog from "./EditActivityDialog";
+import DeleteActivityDialog from "./DeleteActivityDialog";
 
 interface Activity {
   id: string;
@@ -12,12 +17,15 @@ interface Activity {
   description?: string;
   facility?: string;
   duration?: number;
+  date: string;
 }
 
 const LiveActivityFeed: React.FC = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('Connecting...');
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null);
 
   // Enhanced real-time activity fetching with better error handling
   const fetchActivities = async () => {
@@ -230,71 +238,133 @@ const LiveActivityFeed: React.FC = () => {
     return 'bg-gray-400';
   };
 
+  const handleEditActivity = (activity: Activity) => {
+    setEditingActivity(activity);
+  };
+
+  const handleDeleteActivity = (activity: Activity) => {
+    setDeletingActivity(activity);
+  };
+
+  const handleActivityUpdated = (updatedActivity: Activity) => {
+    setActivities(prev => 
+      prev.map(activity => 
+        activity.id === updatedActivity.id ? updatedActivity : activity
+      )
+    );
+    setEditingActivity(null);
+  };
+
+  const handleActivityDeleted = (deletedId: string) => {
+    setActivities(prev => prev.filter(activity => activity.id !== deletedId));
+    setDeletingActivity(null);
+  };
+
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base sm:text-lg font-bold text-[#be2251] flex items-center gap-2">
-          Live Activity Feed
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-          {isConnected && <span className="text-xs text-green-600 font-normal">LIVE</span>}
-        </CardTitle>
-        <p className="text-xs sm:text-sm text-gray-600">
-          {connectionStatus} • {activities.length} recent activities • Cross-device synchronized
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-2 max-h-96 overflow-y-auto px-3 sm:px-6">
-        {activities.length > 0 ? (
-          activities.map((activity) => (
-            <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg gap-2 border-l-4 border-l-gray-300 hover:border-l-[#fd3572] transition-colors">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <div className="relative flex-shrink-0">
-                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#fd3572] text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">
-                    {getUserDisplayName(activity.submitted_by).charAt(0).toUpperCase()}
+    <>
+      <Card className="h-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg font-bold text-[#be2251] flex items-center gap-2">
+            Live Activity Feed
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+            {isConnected && <span className="text-xs text-green-600 font-normal">LIVE</span>}
+          </CardTitle>
+          <p className="text-xs sm:text-sm text-gray-600">
+            {connectionStatus} • {activities.length} recent activities • Admin Controls Enabled
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-96 overflow-y-auto px-3 sm:px-6">
+          {activities.length > 0 ? (
+            activities.map((activity) => (
+              <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg gap-2 border-l-4 border-l-gray-300 hover:border-l-[#fd3572] transition-colors group">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <div className="relative flex-shrink-0">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#fd3572] text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">
+                      {getUserDisplayName(activity.submitted_by).charAt(0).toUpperCase()}
+                    </div>
+                    <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${getPriorityIndicator(activity)} rounded-full border-2 border-white`}></div>
                   </div>
-                  <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${getPriorityIndicator(activity)} rounded-full border-2 border-white`}></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-medium truncate">
+                      <span className="font-bold text-[#be2251]">{getUserDisplayName(activity.submitted_by)}</span> 
+                      <span className="text-gray-600"> created activity</span>
+                    </p>
+                    <p className="text-xs text-gray-900 font-medium truncate">{activity.title}</p>
+                    {activity.description && (
+                      <p className="text-xs text-gray-500 truncate">{activity.description}</p>
+                    )}
+                    {activity.facility && (
+                      <p className="text-xs text-gray-400">📍 {activity.facility}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium truncate">
-                    <span className="font-bold text-[#be2251]">{getUserDisplayName(activity.submitted_by)}</span> 
-                    <span className="text-gray-600"> created activity</span>
-                  </p>
-                  <p className="text-xs text-gray-900 font-medium truncate">{activity.title}</p>
-                  {activity.description && (
-                    <p className="text-xs text-gray-500 truncate">{activity.description}</p>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Badge className={`${getTypeColor(activity.type)} text-xs`}>
+                    {activity.type}
+                  </Badge>
+                  {activity.duration && (
+                    <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                      {activity.duration}min
+                    </span>
                   )}
-                  {activity.facility && (
-                    <p className="text-xs text-gray-400">📍 {activity.facility}</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Badge className={`${getTypeColor(activity.type)} text-xs`}>
-                  {activity.type}
-                </Badge>
-                {activity.duration && (
-                  <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
-                    {activity.duration}min
+                  <span className="text-xs text-gray-500 whitespace-nowrap font-medium">
+                    {formatTime(activity.created_at)}
                   </span>
-                )}
-                <span className="text-xs text-gray-500 whitespace-nowrap font-medium">
-                  {formatTime(activity.created_at)}
-                </span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      onClick={() => handleEditActivity(activity)}
+                      size="sm"
+                      variant="outline"
+                      className="h-6 w-6 p-0 border-blue-300 text-blue-600 hover:bg-blue-50"
+                    >
+                      <Edit size={12} />
+                    </Button>
+                    <Button
+                      onClick={() => handleDeleteActivity(activity)}
+                      size="sm"
+                      variant="outline"
+                      className="h-6 w-6 p-0 border-red-300 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <div className={`w-3 h-3 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full mx-auto mb-4`}></div>
+              <p className="text-sm font-medium">
+                {isConnected ? 'No activities yet' : 'Connecting to live feed...'}
+              </p>
+              <p className="text-xs mt-2">
+                {isConnected ? 'User activities will appear here in real-time across all devices' : connectionStatus}
+              </p>
             </div>
-          ))
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <div className={`w-3 h-3 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full mx-auto mb-4`}></div>
-            <p className="text-sm font-medium">
-              {isConnected ? 'No activities yet' : 'Connecting to live feed...'}
-            </p>
-            <p className="text-xs mt-2">
-              {isConnected ? 'User activities will appear here in real-time across all devices' : connectionStatus}
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Edit Activity Dialog */}
+      {editingActivity && (
+        <EditActivityDialog
+          activity={editingActivity}
+          open={!!editingActivity}
+          onClose={() => setEditingActivity(null)}
+          onActivityUpdated={handleActivityUpdated}
+        />
+      )}
+
+      {/* Delete Activity Dialog */}
+      {deletingActivity && (
+        <DeleteActivityDialog
+          activity={deletingActivity}
+          open={!!deletingActivity}
+          onClose={() => setDeletingActivity(null)}
+          onActivityDeleted={handleActivityDeleted}
+        />
+      )}
+    </>
   );
 };
 
