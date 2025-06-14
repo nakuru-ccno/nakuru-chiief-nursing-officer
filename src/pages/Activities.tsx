@@ -1,548 +1,453 @@
 
 import React, { useState, useEffect } from "react";
-import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
+import MainNavbar from "@/components/MainNavbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Clock, MapPin, User, Plus, Trash2, Edit, Wifi, WifiOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search, Filter, MoreVertical, Edit, Trash2, Calendar } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-type Activity = {
+interface Activity {
   id: string;
-  date: string;
-  facility: string;
   title: string;
   type: string;
+  date: string;
   duration: number;
+  facility: string;
   description: string;
   submitted_by: string;
-  submitted_at: string;
-};
+  created_at: string;
+}
 
-const ACTIVITY_TYPES = [
-  "Administrative",
-  "Meetings",
-  "Training",
-  "Documentation",
-  "Supervision",
-  "Other",
-];
-
-const SORT_OPTIONS = [
-  { value: "newest", label: "Date (Newest)" },
-  { value: "oldest", label: "Date (Oldest)" },
-  { value: "title", label: "Title (A-Z)" },
-  { value: "type", label: "Type" },
-];
-
-export default function Activities() {
-  const [activeTab, setActiveTab] = useState("list");
-  const [form, setForm] = useState({
+const Activities = () => {
+  const { toast } = useToast();
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const [formData, setFormData] = useState({
     title: "",
     type: "",
     date: new Date().toISOString().split('T')[0],
     duration: "",
     facility: "HQ",
-    description: "",
+    description: ""
   });
-  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [sortBy, setSortBy] = useState("newest");
-  const { toast } = useToast();
 
-  useEffect(() => {
-    fetchActivities();
-  }, []);
-
+  // Real-time activities fetching from Supabase
   const fetchActivities = async () => {
     try {
-      setIsLoading(true);
+      console.log('🔄 Fetching activities from Supabase for cross-device sync...');
+      
       const { data, error } = await supabase
         .from('activities')
         .select('*')
-        .order('submitted_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching activities:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load activities from database",
-          variant: "destructive",
-        });
+        setIsConnected(false);
         return;
       }
 
-      setActivities((data as Activity[]) || []);
+      console.log('✅ Activities page - Data synced across devices:', data?.length || 0);
+      
+      const formattedActivities: Activity[] = (data || []).map(activity => ({
+        id: activity.id,
+        title: activity.title,
+        type: activity.type,
+        date: activity.date,
+        duration: activity.duration || 0,
+        facility: activity.facility || 'HQ',
+        description: activity.description || '',
+        submitted_by: activity.submitted_by || 'User',
+        created_at: activity.created_at
+      }));
+
+      setActivities(formattedActivities);
+      setIsConnected(true);
+
     } catch (error) {
       console.error('Error fetching activities:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load activities",
-        variant: "destructive",
-      });
+      setIsConnected(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleChange = (name: string, value: string) => {
-    setForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  // Set up real-time subscription for cross-device sync
+  useEffect(() => {
+    let channel: any;
+
+    const setupRealtimeSync = () => {
+      console.log('🚀 Setting up real-time sync for activities page...');
+      
+      // Initial fetch
+      fetchActivities();
+
+      // Set up real-time subscription
+      channel = supabase
+        .channel('activities-page-sync')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'activities'
+          },
+          (payload) => {
+            console.log('📱 Real-time update in activities page:', payload.eventType);
+            fetchActivities();
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 Activities page sync status:', status);
+          setIsConnected(status === 'SUBSCRIBED');
+        });
+    };
+
+    setupRealtimeSync();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title || !form.type || !form.date || !form.duration) {
+    
+    if (!formData.title || !formData.type || !formData.duration) {
       toast({
-        title: "Error",
-        description: "Please fill in all required fields",
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
         variant: "destructive",
       });
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
-      const activityData = {
-        title: form.title,
-        type: form.type,
-        date: form.date,
-        duration: parseInt(form.duration),
-        facility: form.facility,
-        description: form.description,
-        submitted_by: "Demo User",
+      const { data: { user } } = await supabase.auth.getUser();
+      const submittedBy = user?.email?.split('@')[0] || user?.email || 'User';
+
+      const newActivity = {
+        title: formData.title,
+        type: formData.type,
+        date: formData.date,
+        duration: parseInt(formData.duration),
+        facility: formData.facility,
+        description: formData.description,
+        submitted_by: submittedBy
       };
 
-      if (editingActivity) {
-        const { error } = await supabase
-          .from('activities')
-          .update(activityData)
-          .eq('id', editingActivity.id);
+      console.log('💾 Saving activity to Supabase for cross-device sync...');
+      
+      const { data, error } = await supabase
+        .from('activities')
+        .insert([newActivity])
+        .select()
+        .single();
 
-        if (error) throw error;
-
+      if (error) {
+        console.error('Error saving activity:', error);
         toast({
-          title: "Success",
-          description: "Activity updated successfully!",
+          title: "Error",
+          description: "Failed to save activity. Please try again.",
+          variant: "destructive",
         });
-        setEditingActivity(null);
-      } else {
-        const { error } = await supabase
-          .from('activities')
-          .insert([activityData]);
-
-        if (error) throw error;
-
-        toast({
-          title: "Success",
-          description: "Activity added successfully!",
-        });
+        return;
       }
 
-      await fetchActivities();
-      handleCancel();
-      setActiveTab("list");
+      console.log('✅ Activity saved and synced across devices:', data);
+
+      toast({
+        title: "Success!",
+        description: "Activity saved and synced across all devices.",
+      });
+
+      // Reset form
+      setFormData({
+        title: "",
+        type: "",
+        date: new Date().toISOString().split('T')[0],
+        duration: "",
+        facility: "HQ",
+        description: ""
+      });
+
     } catch (error) {
       console.error('Error saving activity:', error);
       toast({
         title: "Error",
-        description: "Error saving activity. Please try again.",
+        description: "Failed to save activity. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const handleEdit = (activity: Activity) => {
-    setEditingActivity(activity);
-    setForm({
-      title: activity.title,
-      type: activity.type,
-      date: activity.date,
-      duration: activity.duration.toString(),
-      facility: activity.facility,
-      description: activity.description,
-    });
-    setActiveTab("add");
-  };
-
-  const handleDelete = async (activityId: string) => {
+  const deleteActivity = async (id: string) => {
     try {
+      console.log('🗑️ Deleting activity from Supabase for cross-device sync...');
+      
       const { error } = await supabase
         .from('activities')
         .delete()
-        .eq('id', activityId);
+        .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting activity:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete activity. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
 
+      console.log('✅ Activity deleted and synced across devices');
+      
       toast({
-        title: "Success",
-        description: "Activity deleted successfully!",
+        title: "Success!",
+        description: "Activity deleted and synced across all devices.",
       });
-      await fetchActivities();
+
     } catch (error) {
       console.error('Error deleting activity:', error);
       toast({
         title: "Error",
-        description: "Error deleting activity. Please try again.",
+        description: "Failed to delete activity. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const handleCancel = () => {
-    setForm({
-      title: "",
-      type: "",
-      date: new Date().toISOString().split('T')[0],
-      duration: "",
-      facility: "HQ",
-      description: "",
-    });
-    setEditingActivity(null);
+  const getTypeColor = (type: string) => {
+    const colors = {
+      Administrative: "bg-purple-100 text-purple-800",
+      Meetings: "bg-blue-100 text-blue-800",
+      Training: "bg-green-100 text-green-800",
+      Documentation: "bg-yellow-100 text-yellow-800",
+      Supervision: "bg-orange-100 text-orange-800",
+      General: "bg-gray-100 text-gray-800",
+    };
+    return colors[type as keyof typeof colors] || "bg-gray-100 text-gray-800";
   };
 
-  // Filter and sort activities
-  const filteredActivities = activities
-    .filter(activity => {
-      const matchesSearch = activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           activity.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = filterType === "all" || activity.type === filterType;
-      return matchesSearch && matchesType;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "oldest":
-          return new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime();
-        case "title":
-          return a.title.localeCompare(b.title);
-        case "type":
-          return a.type.localeCompare(b.type);
-        case "newest":
-        default:
-          return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
-      }
-    });
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <CountyHeader />
+        <MainNavbar />
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Syncing activities across devices...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <CountyHeader />
       <MainNavbar />
       
-      <div className="max-w-6xl mx-auto px-6 pt-8 pb-12">
-        {/* Header */}
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header with Sync Status */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-[#be2251] mb-2">Daily Activities</h2>
-          <p className="text-gray-600">Manage and track your administrative activities</p>
+          <h1 className="text-3xl font-bold text-[#be2251] mb-2 flex items-center gap-3">
+            Daily Activities
+            {isConnected ? (
+              <Wifi className="text-green-500" size={24} />
+            ) : (
+              <WifiOff className="text-red-500" size={24} />
+            )}
+          </h1>
+          <div className="flex items-center gap-2">
+            <span className={`text-sm px-3 py-1 rounded-full ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {isConnected ? 'Synced across all devices' : 'Syncing...'}
+            </span>
+            <span className="text-sm text-gray-600">• {activities.length} activities</span>
+          </div>
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <Button
-            onClick={() => {
-              setActiveTab("add");
-              if (!editingActivity) handleCancel();
-            }}
-            className={`flex items-center gap-2 ${
-              activeTab === "add" 
-                ? "bg-[#be2251] text-white" 
-                : "bg-white text-[#be2251] border border-[#be2251] hover:bg-[#be2251] hover:text-white"
-            }`}
-          >
-            <Plus size={16} />
-            {editingActivity ? "Edit Activity" : "Add Activity"}
-          </Button>
-          
-          <Button
-            onClick={() => setActiveTab("list")}
-            className={`flex items-center gap-2 ${
-              activeTab === "list" 
-                ? "bg-[#be2251] text-white" 
-                : "bg-white text-[#be2251] border border-[#be2251] hover:bg-[#be2251] hover:text-white"
-            }`}
-          >
-            <Filter size={16} />
-            Filter & Search Activities
-          </Button>
-        </div>
-
-        {/* Search and Filter Bar - Always Visible */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search activities..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  {ACTIVITY_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Content based on active tab */}
-        {activeTab === "add" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Add Activity Form */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-bold text-[#be2251]">
-                {editingActivity ? "Edit Activity" : "Add New Activity"}
+              <CardTitle className="text-xl font-bold text-[#be2251] flex items-center gap-2">
+                <Plus size={20} />
+                Add New Activity
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="title" className="text-sm font-medium">
-                    Activity Title <span className="text-red-500">*</span>
-                  </Label>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="title">Activity Title *</Label>
                   <Input
                     id="title"
-                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
                     placeholder="Enter activity title"
-                    value={form.title}
-                    onChange={(e) => handleChange('title', e.target.value)}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="type" className="text-sm font-medium">
-                    Activity Type <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={form.type} onValueChange={(value) => handleChange('type', value)}>
+                <div>
+                  <Label htmlFor="type">Activity Type *</Label>
+                  <Select value={formData.type} onValueChange={(value) => setFormData({...formData, type: value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select activity type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {ACTIVITY_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="Administrative">Administrative</SelectItem>
+                      <SelectItem value="Meetings">Meetings</SelectItem>
+                      <SelectItem value="Training">Training</SelectItem>
+                      <SelectItem value="Documentation">Documentation</SelectItem>
+                      <SelectItem value="Supervision">Supervision</SelectItem>
+                      <SelectItem value="General">General</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="date" className="text-sm font-medium">
-                      Date <span className="text-red-500">*</span>
-                    </Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="date">Date</Label>
                     <Input
                       id="date"
                       type="date"
-                      value={form.date}
-                      onChange={(e) => handleChange('date', e.target.value)}
-                      required
+                      value={formData.date}
+                      onChange={(e) => setFormData({...formData, date: e.target.value})}
                     />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="duration" className="text-sm font-medium">
-                      Duration (minutes) <span className="text-red-500">*</span>
-                    </Label>
+                  <div>
+                    <Label htmlFor="duration">Duration (minutes) *</Label>
                     <Input
                       id="duration"
                       type="number"
-                      min="1"
-                      placeholder="Enter duration in minutes"
-                      value={form.duration}
-                      onChange={(e) => handleChange('duration', e.target.value)}
+                      value={formData.duration}
+                      onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                      placeholder="e.g., 60"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="facility" className="text-sm font-medium">
-                    Facility
-                  </Label>
-                  <Input
-                    id="facility"
-                    type="text"
-                    value={form.facility}
-                    onChange={(e) => handleChange('facility', e.target.value)}
-                  />
+                <div>
+                  <Label htmlFor="facility">Facility</Label>
+                  <Select value={formData.facility} onValueChange={(value) => setFormData({...formData, facility: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="HQ">HQ</SelectItem>
+                      <SelectItem value="Nakuru Referral">Nakuru Referral</SelectItem>
+                      <SelectItem value="Kabarak Subcounty">Kabarak Subcounty</SelectItem>
+                      <SelectItem value="Molo Subcounty">Molo Subcounty</SelectItem>
+                      <SelectItem value="Njoro Subcounty">Njoro Subcounty</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-sm font-medium">
-                    Description
-                  </Label>
+                <div>
+                  <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
-                    placeholder="Describe the activity details..."
-                    value={form.description}
-                    onChange={(e) => handleChange('description', e.target.value)}
-                    rows={4}
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    placeholder="Describe the activity..."
+                    rows={3}
                   />
                 </div>
 
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="bg-[#fd3572] hover:bg-[#be2251] text-white font-medium px-6"
-                  >
-                    {isSubmitting ? 'Saving...' : editingActivity ? 'Update Activity' : 'Add Activity'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      handleCancel();
-                      setActiveTab("list");
-                    }}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-6"
-                  >
-                    Cancel
-                  </Button>
-                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-gradient-to-r from-[#fd3572] to-[#be2251] hover:from-[#be2251] hover:to-[#fd3572]"
+                >
+                  Save Activity
+                </Button>
               </form>
             </CardContent>
           </Card>
-        )}
 
-        {activeTab === "list" && (
+          {/* Activities List */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-bold text-[#be2251] flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Calendar size={20} />
-                  {filteredActivities.length} of {activities.length} activities
-                </span>
+              <CardTitle className="text-xl font-bold text-[#be2251] flex items-center gap-2">
+                Recent Activities
+                <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="text-center py-8 text-gray-500">
-                  <p>Loading activities...</p>
-                </div>
-              ) : filteredActivities.length > 0 ? (
-                <div className="space-y-3">
-                  {filteredActivities.map((activity) => (
-                    <div key={activity.id} className="p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium text-[#be2251]">{activity.title}</h4>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              activity.type === 'Administrative' ? 'bg-purple-100 text-purple-800' :
-                              activity.type === 'Meetings' ? 'bg-blue-100 text-blue-800' :
-                              activity.type === 'Training' ? 'bg-green-100 text-green-800' :
-                              activity.type === 'Documentation' ? 'bg-yellow-100 text-yellow-800' :
-                              activity.type === 'Supervision' ? 'bg-orange-100 text-orange-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {activity.type}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{activity.description}</p>
-                          <div className="flex gap-4 text-xs text-gray-500">
-                            <span>Date: {new Date(activity.date).toLocaleDateString()}</span>
-                            <span>Duration: {activity.duration} mins</span>
-                            <span>Facility: {activity.facility}</span>
-                          </div>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {activities.length > 0 ? (
+                  activities.map((activity) => (
+                    <div key={activity.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-[#be2251]">{activity.title}</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteActivity(activity.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Badge className={getTypeColor(activity.type)}>
+                          {activity.type}
+                        </Badge>
+                        
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <Calendar size={14} />
+                            {new Date(activity.date).toLocaleDateString()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock size={14} />
+                            {activity.duration} min
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin size={14} />
+                            {activity.facility}
+                          </span>
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical size={16} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white border shadow-lg">
-                            <DropdownMenuItem onClick={() => handleEdit(activity)} className="flex items-center gap-2">
-                              <Edit size={14} />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(activity.id)} 
-                              className="flex items-center gap-2 text-red-600"
-                            >
-                              <Trash2 size={14} />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+
+                        {activity.description && (
+                          <p className="text-sm text-gray-700">{activity.description}</p>
+                        )}
+
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <User size={12} />
+                          {activity.submitted_by}
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No activities found matching your criteria.</p>
-                  {searchTerm || filterType !== "all" ? (
-                    <button
-                      onClick={() => {
-                        setSearchTerm("");
-                        setFilterType("all");
-                      }}
-                      className="mt-2 text-[#be2251] hover:underline"
-                    >
-                      Clear filters
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setActiveTab("add")}
-                      className="mt-2 text-[#be2251] hover:underline"
-                    >
-                      Add your first activity
-                    </button>
-                  )}
-                </div>
-              )}
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Plus size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>No activities yet. Add your first activity!</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
-        )}
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default Activities;
