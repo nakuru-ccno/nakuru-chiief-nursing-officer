@@ -61,21 +61,22 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
     }
 
     try {
-      console.log('Creating user with admin API...');
+      console.log('Creating user with regular signup...');
       
-      // Always try to create user through Supabase Auth Admin API with auto-confirmation
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Use regular signup instead of admin API
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        email_confirm: true, // This bypasses email confirmation
-        user_metadata: {
-          full_name: formData.name,
-          role: formData.role
+        options: {
+          data: {
+            full_name: formData.name,
+            role: formData.role
+          }
         }
       });
 
       if (authError) {
-        console.error('Supabase auth admin error:', authError);
+        console.error('Supabase auth signup error:', authError);
         toast({
           title: "Error",
           description: "Failed to create user account: " + authError.message,
@@ -100,7 +101,6 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
 
         if (profileError) {
           console.error('Profile insert error:', profileError);
-          // Even if profile insert fails, the user was created in auth
           toast({
             title: "Warning",
             description: "User created but profile data may not be complete",
@@ -110,7 +110,7 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
           console.log('Profile inserted successfully');
           toast({
             title: "Success",
-            description: "User created successfully and can login immediately!"
+            description: "User created successfully! They will need to confirm their email before logging in."
           });
         }
       }
