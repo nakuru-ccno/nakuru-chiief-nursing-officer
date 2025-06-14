@@ -8,10 +8,16 @@ const MainNavbar = () => {
   const isLoggedIn = !!localStorage.getItem("role");
   const userRole = localStorage.getItem("role") || "";
 
+  // Debug logging
+  console.log("MainNavbar - Current role:", userRole);
+  console.log("MainNavbar - Is logged in:", isLoggedIn);
+  
   // Check if user is admin - enhanced detection
   const isAdmin = userRole === 'admin' || 
                   userRole === 'System Administrator' || 
                   userRole.toLowerCase().includes('admin');
+
+  console.log("MainNavbar - Is admin:", isAdmin);
 
   // Navigation items for regular users
   const userNavItems = [
@@ -22,7 +28,7 @@ const MainNavbar = () => {
 
   // Navigation items for admins - always show admin navigation
   const adminNavItems = [
-    { to: "/admin", label: "Dashboard", icon: Home },
+    { to: "/admin", label: "Admin Dashboard", icon: Home },
     { to: "/live-admin", label: "Users", icon: Users },
     { to: "/reports", label: "Reports", icon: FileText },
     { to: "/activities", label: "Settings", icon: Settings },
@@ -30,6 +36,8 @@ const MainNavbar = () => {
 
   // Always show admin navigation for admin users, regardless of current route
   const navItems = isAdmin ? adminNavItems : userNavItems;
+  
+  console.log("MainNavbar - Selected nav items:", navItems.map(item => item.label));
 
   return (
     <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg border-b border-gray-700">
