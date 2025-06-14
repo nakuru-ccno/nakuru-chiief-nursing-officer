@@ -60,7 +60,7 @@ export default function Dashboard() {
 
   const allActivities = getAllActivities();
   const totalActivities = allActivities.length;
-  const totalDuration = allActivities.reduce((sum: number, activity: Activity) => sum + (activity.duration || 0), 0);
+  const totalDuration = allActivities.reduce((sum: number, activity: Activity) => sum + (Number(activity.duration) || 0), 0);
   const averageDuration = totalActivities > 0 ? Math.round(totalDuration / totalActivities) : 0;
 
   // Get activity type distribution
@@ -70,7 +70,7 @@ export default function Dashboard() {
   }, {} as Record<string, number>);
 
   const mostCommonType = Object.entries(typeDistribution).reduce(
-    (max, [type, count]) => count > max.count ? { type, count } : max,
+    (max, [type, count]) => (count as number) > max.count ? { type, count: count as number } : max,
     { type: 'None', count: 0 }
   );
 
