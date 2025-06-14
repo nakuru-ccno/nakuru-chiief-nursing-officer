@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface EditUserDialogProps {
   user: {
@@ -13,31 +14,49 @@ interface EditUserDialogProps {
     role: string;
     status: string;
   };
-  onUpdateUser: (userData: { name: string; email: string; role: string; password?: string }) => void;
+  onUpdateUser: (userData: { full_name: string; email: string; role: string; password?: string }) => void;
   onCancel: () => void;
+  predefinedRoles?: string[];
 }
 
-const EditUserDialog = ({ user, onUpdateUser, onCancel }: EditUserDialogProps) => {
+const EditUserDialog = ({ user, onUpdateUser, onCancel, predefinedRoles = [] }: EditUserDialogProps) => {
   const [formData, setFormData] = useState({
     name: user.name,
     email: user.email,
     role: user.role,
+    customRole: "",
     password: "",
     confirmPassword: "",
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showCustomRole, setShowCustomRole] = useState(!predefinedRoles.includes(user.role));
+
+  const defaultRoles = predefinedRoles.length > 0 ? predefinedRoles : [
+    "System Administrator",
+    "Nakuru County Chief Nursing Officer", 
+    "Nakuru County Deputy Chief Nursing Officer",
+    "Chief Nurse Officer",
+    "Nurse Officer",
+    "Senior Nurse",
+    "Staff Nurse"
+  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
     }
   };
 
   const handleRoleChange = (value: string) => {
-    setFormData(prev => ({ ...prev, role: value }));
+    if (value === "custom") {
+      setShowCustomRole(true);
+      setFormData(prev => ({ ...prev, role: "", customRole: user.role }));
+    } else {
+      setShowCustomRole(false);
+      setFormData(prev => ({ ...prev, role: value, customRole: "" }));
+    }
     if (errors.role) {
       setErrors(prev => ({ ...prev, role: "" }));
     }
@@ -56,11 +75,11 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel }: EditUserDialogProps) =
       newErrors.email = "Please enter a valid email address";
     }
 
-    if (!formData.role) {
+    const finalRole = showCustomRole ? formData.customRole : formData.role;
+    if (!finalRole.trim()) {
       newErrors.role = "Role is required";
     }
 
-    // Password validation (only if password is provided)
     if (formData.password || formData.confirmPassword) {
       if (formData.password.length < 6) {
         newErrors.password = "Password must be at least 6 characters";
@@ -81,10 +100,12 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel }: EditUserDialogProps) =
       return;
     }
 
+    const finalRole = showCustomRole ? formData.customRole.trim() : formData.role;
+
     const updateData = {
-      name: formData.name.trim(),
+      full_name: formData.name.trim(),
       email: formData.email.trim(),
-      role: formData.role,
+      role: finalRole,
       ...(formData.password && { password: formData.password })
     };
 
@@ -96,14 +117,12 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel }: EditUserDialogProps) =
     <Dialog open={true} onOpenChange={onCancel}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[#be2251]">Edit User</DialogTitle>
+          <DialogTitle className="text-[#be2251]">Edit User - Nakuru County</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
-            </label>
+            <Label htmlFor="name">Full Name</Label>
             <Input
               id="name"
               name="name"
@@ -117,9 +136,7 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel }: EditUserDialogProps) =
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
-            </label>
+            <Label htmlFor="email">Email Address</Label>
             <Input
               id="email"
               name="email"
@@ -133,28 +150,41 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel }: EditUserDialogProps) =
           </div>
 
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-              Role
-            </label>
-            <Select value={formData.role} onValueChange={handleRoleChange}>
+            <Label htmlFor="role">Role</Label>
+            <Select 
+              value={showCustomRole ? "custom" : formData.role} 
+              onValueChange={handleRoleChange}
+            >
               <SelectTrigger className={errors.role ? "border-red-500" : ""}>
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Chief Nurse Officer">Chief Nurse Officer</SelectItem>
-                <SelectItem value="Nurse Officer">Nurse Officer</SelectItem>
-                <SelectItem value="Senior Nurse">Senior Nurse</SelectItem>
-                <SelectItem value="Staff Nurse">Staff Nurse</SelectItem>
-                <SelectItem value="System Administrator">System Administrator</SelectItem>
+                {defaultRoles.map(role => (
+                  <SelectItem key={role} value={role}>{role}</SelectItem>
+                ))}
+                <SelectItem value="custom">Custom Role...</SelectItem>
               </SelectContent>
             </Select>
             {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
           </div>
 
+          {showCustomRole && (
+            <div>
+              <Label htmlFor="customRole">Custom Role</Label>
+              <Input
+                id="customRole"
+                name="customRole"
+                type="text"
+                value={formData.customRole}
+                onChange={handleInputChange}
+                placeholder="Enter custom role title"
+                className={errors.role ? "border-red-500" : ""}
+              />
+            </div>
+          )}
+
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              New Password (optional)
-            </label>
+            <Label htmlFor="password">New Password (optional)</Label>
             <Input
               id="password"
               name="password"
@@ -168,9 +198,7 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel }: EditUserDialogProps) =
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm New Password
-            </label>
+            <Label htmlFor="confirmPassword">Confirm New Password</Label>
             <Input
               id="confirmPassword"
               name="confirmPassword"

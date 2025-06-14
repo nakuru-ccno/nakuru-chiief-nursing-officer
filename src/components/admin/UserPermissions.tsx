@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import UserManagement from "./UserManagement";
 
 const UserPermissions = () => {
   const [permissions, setPermissions] = useState({
@@ -17,12 +18,15 @@ const UserPermissions = () => {
   });
   const { toast } = useToast();
 
+  // Updated roles for Nakuru County
   const roles = [
+    "System Administrator",
+    "Nakuru County Chief Nursing Officer",
+    "Nakuru County Deputy Chief Nursing Officer", 
     "Chief Nurse Officer",
     "Nurse Officer", 
     "Senior Nurse",
-    "Staff Nurse",
-    "System Administrator"
+    "Staff Nurse"
   ];
 
   const handleSave = () => {
@@ -35,6 +39,10 @@ const UserPermissions = () => {
 
   return (
     <div className="space-y-6">
+      {/* User Management Section */}
+      <UserManagement />
+
+      {/* Permission Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="text-[#be2251]">Default User Settings</CardTitle>
@@ -92,7 +100,7 @@ const UserPermissions = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-[#be2251]">Current Role Hierarchy</CardTitle>
+          <CardTitle className="text-[#be2251]">Nakuru County Role Hierarchy</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">

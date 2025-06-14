@@ -1,248 +1,211 @@
 
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { UserPlus } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 interface AddUserDialogProps {
-  onAddUser: () => void;
+  onAddUser: (userData: { full_name: string; email: string; role: string; password: string }) => void;
+  onCancel: () => void;
+  predefinedRoles: string[];
 }
 
-const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
-  const [open, setOpen] = useState(false);
+const AddUserDialog = ({ onAddUser, onCancel, predefinedRoles }: AddUserDialogProps) => {
   const [formData, setFormData] = useState({
-    name: "",
+    full_name: "",
     email: "",
     role: "",
-    password: ""
+    customRole: "",
+    password: "",
+    confirmPassword: "",
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showCustomRole, setShowCustomRole] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.name || !formData.email || !formData.role || !formData.password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid email address",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Password validation
-    if (formData.password.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      console.log('Creating user with signup (no email verification)...');
-      
-      // Create user without email confirmation by using the admin auth methods
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          emailRedirectTo: undefined, // Disable email verification
-          data: {
-            full_name: formData.name,
-            role: formData.role,
-            email_confirmed: true // Mark email as confirmed
-          }
-        }
-      });
-
-      if (authError) {
-        console.error('Signup error:', authError);
-        
-        // Handle specific error cases
-        if (authError.message.includes('rate limit') || authError.message.includes('429')) {
-          toast({
-            title: "Error",
-            description: "Too many signup attempts. Please wait a moment and try again.",
-            variant: "destructive"
-          });
-        } else if (authError.message.includes('already registered')) {
-          toast({
-            title: "Error", 
-            description: "This email is already registered. Please use a different email.",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: `Failed to create user: ${authError.message}`,
-            variant: "destructive"
-          });
-        }
-        return;
-      }
-
-      if (authData.user) {
-        console.log('User created successfully:', authData.user.id);
-        
-        // Create/update profile in the profiles table
-        console.log('Creating user profile...');
-        
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: authData.user.id,
-            email: formData.email,
-            full_name: formData.name,
-            role: formData.role,
-            created_at: new Date().toISOString()
-          });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          toast({
-            title: "Warning",
-            description: "User created but profile setup may be incomplete. Please refresh the page to see the user.",
-            variant: "default"
-          });
-        } else {
-          console.log('Profile created successfully');
-          toast({
-            title: "Success",
-            description: "User created successfully! They can log in immediately without email verification."
-          });
-        }
-
-        // Call the parent handler to refresh the list
-        onAddUser();
-        setFormData({ name: "", email: "", role: "", password: "" });
-        setOpen(false);
-      }
-
-    } catch (error) {
-      console.error('Unexpected error creating user:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: "" }));
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleRoleChange = (value: string) => {
+    if (value === "custom") {
+      setShowCustomRole(true);
+      setFormData(prev => ({ ...prev, role: "", customRole: "" }));
+    } else {
+      setShowCustomRole(false);
+      setFormData(prev => ({ ...prev, role: value, customRole: "" }));
+    }
+    if (errors.role) {
+      setErrors(prev => ({ ...prev, role: "" }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (!formData.full_name.trim()) {
+      newErrors.full_name = "Full name is required";
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    const finalRole = showCustomRole ? formData.customRole : formData.role;
+    if (!finalRole.trim()) {
+      newErrors.role = "Role is required";
+    }
+
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    const finalRole = showCustomRole ? formData.customRole.trim() : formData.role;
+    
+    const userData = {
+      full_name: formData.full_name.trim(),
+      email: formData.email.trim(),
+      role: finalRole,
+      password: formData.password
+    };
+
+    console.log("Adding user with data:", userData);
+    onAddUser(userData);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white flex items-center gap-2">
-          <UserPlus size={16} />
-          Add New User
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={true} onOpenChange={onCancel}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[#be2251]">Add New User</DialogTitle>
-          <p className="text-sm text-gray-600">Create a new user account (no email verification required)</p>
+          <DialogTitle className="text-[#be2251]">Add New User - Nakuru County</DialogTitle>
         </DialogHeader>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
+          <div>
+            <Label htmlFor="full_name">Full Name</Label>
             <Input
-              id="name"
+              id="full_name"
+              name="full_name"
               type="text"
-              value={formData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
+              value={formData.full_name}
+              onChange={handleInputChange}
               placeholder="Enter full name"
-              required
-              disabled={isLoading}
+              className={errors.full_name ? "border-red-500" : ""}
             />
+            {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name}</p>}
           </div>
-          
-          <div className="space-y-2">
+
+          <div>
             <Label htmlFor="email">Email Address</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
+              onChange={handleInputChange}
               placeholder="Enter email address"
-              required
-              disabled={isLoading}
+              className={errors.email ? "border-red-500" : ""}
             />
+            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={formData.password}
-              onChange={(e) => handleInputChange("password", e.target.value)}
-              placeholder="Enter password (min 6 characters)"
-              required
-              disabled={isLoading}
-            />
-          </div>
-          
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="role">Role</Label>
-            <Select 
-              value={formData.role} 
-              onValueChange={(value) => handleInputChange("role", value)}
-              disabled={isLoading}
-            >
-              <SelectTrigger>
+            <Select onValueChange={handleRoleChange}>
+              <SelectTrigger className={errors.role ? "border-red-500" : ""}>
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Chief Nurse Officer">Chief Nurse Officer</SelectItem>
-                <SelectItem value="Nurse Officer">Nurse Officer</SelectItem>
-                <SelectItem value="Senior Nurse">Senior Nurse</SelectItem>
-                <SelectItem value="Staff Nurse">Staff Nurse</SelectItem>
-                <SelectItem value="System Administrator">System Administrator</SelectItem>
+                {predefinedRoles.map(role => (
+                  <SelectItem key={role} value={role}>{role}</SelectItem>
+                ))}
+                <SelectItem value="custom">Custom Role...</SelectItem>
               </SelectContent>
             </Select>
+            {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
           </div>
-          
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setOpen(false)}
-              disabled={isLoading}
+
+          {showCustomRole && (
+            <div>
+              <Label htmlFor="customRole">Custom Role</Label>
+              <Input
+                id="customRole"
+                name="customRole"
+                type="text"
+                value={formData.customRole}
+                onChange={handleInputChange}
+                placeholder="Enter custom role title"
+                className={errors.role ? "border-red-500" : ""}
+              />
+            </div>
+          )}
+
+          <div>
+            <Label htmlFor="password">Initial Password</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              placeholder="Enter initial password"
+              className={errors.password ? "border-red-500" : ""}
+            />
+            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+          </div>
+
+          <div>
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              placeholder="Confirm password"
+              className={errors.confirmPassword ? "border-red-500" : ""}
+            />
+            {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="submit"
+              className="flex-1 bg-[#be2251] hover:bg-[#fd3572] text-white"
+            >
+              Add User
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="flex-1"
             >
               Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              className="bg-[#fd3572] hover:bg-[#be2251] text-white"
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating..." : "Add User"}
             </Button>
           </div>
         </form>
