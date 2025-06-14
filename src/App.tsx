@@ -1,8 +1,11 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -12,12 +15,38 @@ import Dashboard from "./pages/Dashboard";
 import Register from "./pages/Register";
 import Admin from "./pages/Admin";
 
-// Demo-only auth check
-const isAuthenticated = () => !!localStorage.getItem("role");
-
 function ProtectedRoute() {
   const location = useLocation();
-  return isAuthenticated() ? <Outlet /> : <Navigate to="/login" replace state={{ from: location }} />;
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      // Check for Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setIsAuthenticated(true);
+        return;
+      }
+
+      // Check for demo role
+      const demoRole = localStorage.getItem("role");
+      if (demoRole) {
+        setIsAuthenticated(true);
+        return;
+      }
+
+      setIsAuthenticated(false);
+    };
+
+    checkAuth();
+  }, []);
+
+  if (isAuthenticated === null) {
+    // Still checking authentication
+    return <div>Loading...</div>;
+  }
+
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace state={{ from: location }} />;
 }
 
 const queryClient = new QueryClient();
