@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 type Activity = {
   id: string;
@@ -17,8 +19,8 @@ type Activity = {
   type: string;
   duration: number;
   description: string;
-  submittedBy: string;
-  submittedAt: string;
+  submitted_by: string;
+  submitted_at: string;
 };
 
 const ACTIVITY_TYPES = [
@@ -43,22 +45,47 @@ export default function Activities() {
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("");
+  const { toast } = useToast();
 
-  // Load activities from localStorage on component mount
+  // Load activities from Supabase on component mount
   useEffect(() => {
-    const savedActivities = localStorage.getItem('userActivities');
-    if (savedActivities) {
-      try {
-        const parsedActivities = JSON.parse(savedActivities);
-        setActivities(parsedActivities);
-        console.log('Loaded activities from localStorage:', parsedActivities);
-      } catch (error) {
-        console.error('Error parsing saved activities:', error);
-      }
-    }
+    fetchActivities();
   }, []);
+
+  const fetchActivities = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .order('submitted_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching activities:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load activities",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setActivities(data || []);
+      console.log('Loaded activities from Supabase:', data);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load activities",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleChange = (name: string, value: string) => {
     setForm(prev => ({
@@ -70,32 +97,47 @@ export default function Activities() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.type || !form.date || !form.duration) {
-      alert('Please fill in all required fields');
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const newActivity: Activity = {
-        id: Date.now().toString(),
+      const newActivity = {
         title: form.title,
         type: form.type,
         date: form.date,
         duration: parseInt(form.duration),
         facility: form.facility,
         description: form.description,
-        submittedBy: "Demo User", // In real app, get from auth
-        submittedAt: new Date().toISOString()
+        submitted_by: "Demo User", // In real app, get from auth
       };
 
-      // Add to activities list
-      const updatedActivities = [newActivity, ...activities];
-      setActivities(updatedActivities);
+      const { data, error } = await supabase
+        .from('activities')
+        .insert([newActivity])
+        .select()
+        .single();
 
-      // Save to localStorage for persistence
-      localStorage.setItem('userActivities', JSON.stringify(updatedActivities));
-      console.log('Activity saved:', newActivity);
+      if (error) {
+        console.error('Error saving activity:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save activity",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Activity saved to Supabase:', data);
+      
+      // Refresh activities list
+      await fetchActivities();
 
       // Reset form
       setForm({
@@ -107,10 +149,17 @@ export default function Activities() {
         description: "",
       });
 
-      alert('Activity added successfully!');
+      toast({
+        title: "Success",
+        description: "Activity added successfully!",
+      });
     } catch (error) {
       console.error('Error saving activity:', error);
-      alert('Error saving activity. Please try again.');
+      toast({
+        title: "Error",
+        description: "Error saving activity. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -351,7 +400,11 @@ export default function Activities() {
                 <p className="text-sm text-gray-600">Your recorded activities</p>
               </CardHeader>
               <CardContent>
-                {filteredActivities.length > 0 ? (
+                {isLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Loading activities...</p>
+                  </div>
+                ) : filteredActivities.length > 0 ? (
                   <div className="space-y-3">
                     {filteredActivities.map((activity) => (
                       <div key={activity.id} className="p-4 border rounded-lg bg-gray-50">
