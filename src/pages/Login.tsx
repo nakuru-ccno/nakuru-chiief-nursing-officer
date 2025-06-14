@@ -33,6 +33,28 @@ const Login = () => {
     setLoading(true);
 
     try {
+      // Check locally created admin users first
+      const savedUsers = localStorage.getItem('adminUsers');
+      if (savedUsers) {
+        try {
+          const adminUsers = JSON.parse(savedUsers);
+          const foundUser = adminUsers.find((user: any) => 
+            user.email === userData.username && userData.password === userData.password
+          );
+          
+          if (foundUser) {
+            console.log("Local admin user login successful for:", foundUser.name);
+            // Set a demo role for locally created users
+            localStorage.setItem("role", "chief_nurse");
+            navigate("/dashboard", { replace: true });
+            setLoading(false);
+            return;
+          }
+        } catch (parseError) {
+          console.error('Error parsing saved users:', parseError);
+        }
+      }
+
       // If username field is an email, use Supabase Auth.
       if (isEmail(userData.username)) {
         console.log("Attempting Supabase login");
@@ -72,7 +94,7 @@ const Login = () => {
           navigate("/dashboard", { replace: true });
         }
       } else {
-        console.log("Demo login failed - credentials not found");
+        console.log("Login failed - credentials not found");
         setError("Invalid credentials. Please try again.");
       }
     } catch (err) {
