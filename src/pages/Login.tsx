@@ -75,69 +75,96 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col justify-center items-center">
-      <CountyHeader />
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white rounded shadow-md p-8 w-full max-w-md mt-10"
-      >
-        <h2 className="text-xl font-bold mb-4 text-[#fd3572]">
-          Chief Nurse Officer Login
-        </h2>
-        {error && (
-          <div className="mb-2 text-red-600 font-semibold">{error}</div>
-        )}
-        <div className="mb-4">
-          <label className="block font-semibold mb-1">
-            Username{` `}
-            <span className="text-xs text-gray-400">(or email)</span>
-          </label>
-          <input
-            name="username"
-            onChange={handleChange}
-            value={userData.username}
-            className="w-full px-3 py-2 border rounded bg-gray-50"
-            autoFocus
-            required
-            autoComplete="username"
-            disabled={loading}
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* Header with County Info */}
+      <div className="w-full bg-white border-b border-gray-200 py-6">
+        <div className="max-w-md mx-auto flex flex-col items-center">
+          <img
+            src="/lovable-uploads/00cc8120-039e-4419-8b2b-e07e69d6fdd8.png"
+            alt="Nakuru County Logo"
+            className="h-20 w-20 mb-4"
           />
+          <h1 className="text-2xl font-bold text-[#be2251] mb-1">Nakuru County</h1>
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">
+            Chief Nurse Officer Daily Activity Register
+          </h2>
+          <p className="text-sm text-gray-600 italic">
+            County of Unlimited Opportunities
+          </p>
         </div>
-        <div className="mb-6">
-          <label className="block font-semibold mb-1">Password</label>
-          <input
-            type="password"
-            name="password"
-            onChange={handleChange}
-            value={userData.password}
-            className="w-full px-3 py-2 border rounded bg-gray-50"
-            required
-            autoComplete="current-password"
-            disabled={loading}
-          />
+      </div>
+
+      {/* Login Form */}
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+            
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                onChange={handleChange}
+                value={userData.username}
+                placeholder="Enter your username"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:border-transparent"
+                autoFocus
+                required
+                autoComplete="username"
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                onChange={handleChange}
+                value={userData.password}
+                placeholder="Enter your password"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:border-transparent"
+                required
+                autoComplete="current-password"
+                disabled={loading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-[#be2251] text-white font-semibold py-3 px-4 rounded-md hover:bg-[#fd3572] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{" "}
+              <a
+                href="/register"
+                className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors"
+              >
+                Create Account
+              </a>
+            </p>
+          </div>
         </div>
-        <button
-          type="submit"
-          className="w-full bg-[#fd3572] text-white font-bold rounded py-2 transition hover:bg-[#be2251]"
-          disabled={loading}
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
-        <div className="mt-4 text-sm text-center">
-          <span>Don't have an account? </span>
-          <a href="/register" className="text-[#be2251] font-semibold hover:underline">Register</a>
-        </div>
-      </form>
-      <div className="mt-4 text-xs text-gray-200 opacity-60">
-        <span>
-          For demo: <strong>admin</strong>/<strong>StrongP@ssword1!</strong> (admin) or <strong>nurse</strong>/<strong>NursePower2!</strong> (chief nurse)
-        </span>
-        <br/>
-        <span>
-          For real account: use your registered <strong>email</strong> / password.
-        </span>
       </div>
     </div>
   );
 };
+
 export default Login;
