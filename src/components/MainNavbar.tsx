@@ -1,17 +1,32 @@
 
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Activity, FileText, LogIn, LogOut } from "lucide-react";
-
-const navItems = [
-  { to: "/dashboard", label: "Home", icon: Home },
-  { to: "/activities", label: "Activities", icon: Activity },
-  { to: "/reports", label: "Reports", icon: FileText },
-];
+import { Home, Activity, FileText, LogIn, LogOut, Settings, Monitor } from "lucide-react";
 
 const MainNavbar = () => {
   const location = useLocation();
   const isLoggedIn = !!localStorage.getItem("role");
+  const userRole = localStorage.getItem("role") || "";
+
+  // Navigation items for regular users
+  const userNavItems = [
+    { to: "/dashboard", label: "Dashboard", icon: Home },
+    { to: "/activities", label: "Activities", icon: Activity },
+    { to: "/reports", label: "Reports", icon: FileText },
+  ];
+
+  // Navigation items for admins
+  const adminNavItems = [
+    { to: "/admin", label: "Admin Panel", icon: Settings },
+    { to: "/live-admin", label: "Live Admin", icon: Monitor },
+    { to: "/activities", label: "Activities", icon: Activity },
+    { to: "/reports", label: "Reports", icon: FileText },
+  ];
+
+  // Choose navigation items based on role
+  const navItems = (userRole === 'admin' || userRole === 'System Administrator') 
+    ? adminNavItems 
+    : userNavItems;
 
   return (
     <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg border-b border-gray-700">
