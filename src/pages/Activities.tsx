@@ -30,6 +30,7 @@ const Activities = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [formData, setFormData] = useState({
     title: "",
     type: "",
@@ -39,23 +40,49 @@ const Activities = () => {
     description: ""
   });
 
-  // Real-time activities fetching from Supabase
+  // Get current user
+  useEffect(() => {
+    getCurrentUser();
+  }, []);
+
+  const getCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.email) {
+      setCurrentUserEmail(user.email);
+      console.log('Activities page - Current user set:', user.email);
+    } else {
+      // Fallback for demo users
+      const demoUserEmail = localStorage.getItem("userEmail") || "demo@nakuru.go.ke";
+      setCurrentUserEmail(demoUserEmail);
+      console.log('Activities page - Demo user set:', demoUserEmail);
+    }
+  };
+
+  // Real-time activities fetching from Supabase - filtered by current user
   const fetchActivities = async () => {
+    if (!currentUserEmail) {
+      console.log('No current user email, skipping fetch');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      console.log('🔄 Fetching activities from Supabase for cross-device sync...');
+      console.log('🔄 Fetching user activities from Supabase for:', currentUserEmail);
       
+      // Filter by current user's email only
       const { data, error } = await supabase
         .from('activities')
         .select('*')
+        .eq('submitted_by', currentUserEmail)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching activities:', error);
+        console.error('Error fetching user activities:', error);
         setIsConnected(false);
         return;
       }
 
-      console.log('✅ Activities page - Data synced across devices:', data?.length || 0);
+      console.log('✅ Activities page - User activities loaded:', data?.length || 0, 'for user:', currentUserEmail);
       
       const formattedActivities: Activity[] = (data || []).map(activity => ({
         id: activity.id,
@@ -73,40 +100,48 @@ const Activities = () => {
       setIsConnected(true);
 
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error('Error fetching user activities:', error);
       setIsConnected(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Set up real-time subscription for cross-device sync
+  // Set up real-time subscription for current user's activities only
   useEffect(() => {
+    if (!currentUserEmail) return;
+
     let channel: any;
 
     const setupRealtimeSync = () => {
-      console.log('🚀 Setting up real-time sync for activities page...');
+      console.log('🚀 Setting up real-time sync for user activities:', currentUserEmail);
       
       // Initial fetch
       fetchActivities();
 
-      // Set up real-time subscription
+      // Set up real-time subscription filtered by current user
       channel = supabase
-        .channel('activities-page-sync')
+        .channel('user-activities-page-sync', {
+          config: {
+            broadcast: { self: true },
+            presence: { key: 'user-activities' }
+          }
+        })
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
-            table: 'activities'
+            table: 'activities',
+            filter: `submitted_by=eq.${currentUserEmail}`
           },
           (payload) => {
-            console.log('📱 Real-time update in activities page:', payload.eventType);
+            console.log('📱 Real-time update in user activities page:', payload.eventType);
             fetchActivities();
           }
         )
         .subscribe((status) => {
-          console.log('📡 Activities page sync status:', status);
+          console.log('📡 User activities page sync status:', status);
           setIsConnected(status === 'SUBSCRIBED');
         });
     };
@@ -115,10 +150,11 @@ const Activities = () => {
 
     return () => {
       if (channel) {
+        console.log('🧹 Cleaning up user activities sync subscriptions...');
         supabase.removeChannel(channel);
       }
     };
-  }, []);
+  }, [currentUserEmail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,7 +170,7 @@ const Activities = () => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const submittedBy = user?.email?.split('@')[0] || user?.email || 'User';
+      const submittedBy = user?.email || currentUserEmail || 'User';
 
       const newActivity = {
         title: formData.title,
@@ -146,7 +182,7 @@ const Activities = () => {
         submitted_by: submittedBy
       };
 
-      console.log('💾 Saving activity to Supabase for cross-device sync...');
+      console.log('💾 Saving user activity to Supabase...');
       
       const { data, error } = await supabase
         .from('activities')
@@ -164,11 +200,11 @@ const Activities = () => {
         return;
       }
 
-      console.log('✅ Activity saved and synced across devices:', data);
+      console.log('✅ User activity saved:', data);
 
       toast({
         title: "Success!",
-        description: "Activity saved and synced across all devices.",
+        description: "Activity saved successfully.",
       });
 
       // Reset form
@@ -193,12 +229,13 @@ const Activities = () => {
 
   const deleteActivity = async (id: string) => {
     try {
-      console.log('🗑️ Deleting activity from Supabase for cross-device sync...');
+      console.log('🗑️ Deleting user activity from Supabase...');
       
       const { error } = await supabase
         .from('activities')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('submitted_by', currentUserEmail); // Extra security check
 
       if (error) {
         console.error('Error deleting activity:', error);
@@ -210,11 +247,11 @@ const Activities = () => {
         return;
       }
 
-      console.log('✅ Activity deleted and synced across devices');
+      console.log('✅ User activity deleted');
       
       toast({
         title: "Success!",
-        description: "Activity deleted and synced across all devices.",
+        description: "Activity deleted successfully.",
       });
 
     } catch (error) {
@@ -248,7 +285,7 @@ const Activities = () => {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Syncing activities across devices...</p>
+              <p className="text-gray-600">Loading your activities...</p>
             </div>
           </div>
         </div>
@@ -265,7 +302,7 @@ const Activities = () => {
         {/* Header with Sync Status */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#be2251] mb-2 flex items-center gap-3">
-            Daily Activities
+            My Daily Activities
             {isConnected ? (
               <Wifi className="text-green-500" size={24} />
             ) : (
@@ -274,9 +311,10 @@ const Activities = () => {
           </h1>
           <div className="flex items-center gap-2">
             <span className={`text-sm px-3 py-1 rounded-full ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {isConnected ? 'Synced across all devices' : 'Syncing...'}
+              {isConnected ? 'Personal data synced' : 'Syncing...'}
             </span>
-            <span className="text-sm text-gray-600">• {activities.length} activities</span>
+            <span className="text-sm text-gray-600">• {activities.length} my activities</span>
+            <span className="text-sm text-gray-500">• User: {currentUserEmail}</span>
           </div>
         </div>
 
@@ -379,11 +417,11 @@ const Activities = () => {
             </CardContent>
           </Card>
 
-          {/* Activities List */}
+          {/* My Activities List */}
           <Card>
             <CardHeader>
               <CardTitle className="text-xl font-bold text-[#be2251] flex items-center gap-2">
-                Recent Activities
+                My Recent Activities
                 <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
               </CardTitle>
             </CardHeader>
