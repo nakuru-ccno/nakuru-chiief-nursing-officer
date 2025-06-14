@@ -10,6 +10,7 @@ import Activities from "./pages/Activities";
 import Reports from "./pages/Reports";
 import Dashboard from "./pages/Dashboard";
 import Register from "./pages/Register";
+import Admin from "./pages/Admin";
 
 // Demo-only auth check
 const isAuthenticated = () => !!localStorage.getItem("role");
@@ -34,6 +35,7 @@ const App = () => (
           {/* Protected route for dashboard and its children */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="/activities" element={<Activities />} />
             <Route path="/reports" element={<Reports />} />
           </Route>
