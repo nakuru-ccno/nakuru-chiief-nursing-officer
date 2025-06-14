@@ -32,7 +32,8 @@ export default function Reports() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      // Use type assertion to bypass TypeScript error
+      const { data, error } = await (supabase as any)
         .from('activities')
         .select('*')
         .order('date', { ascending: false });
@@ -48,7 +49,7 @@ export default function Reports() {
       }
 
       console.log('Loaded activities from Supabase for reports:', data);
-      setActivities(data || []);
+      setActivities((data as Activity[]) || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({

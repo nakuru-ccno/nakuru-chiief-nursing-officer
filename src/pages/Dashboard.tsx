@@ -32,7 +32,8 @@ export default function Dashboard() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      // Use type assertion to bypass TypeScript error
+      const { data, error } = await (supabase as any)
         .from('activities')
         .select('*')
         .order('submitted_at', { ascending: false });
@@ -50,10 +51,10 @@ export default function Dashboard() {
       console.log('Loaded activities from Supabase for dashboard:', data);
       
       // Store all activities for statistics
-      setAllActivities(data || []);
+      setAllActivities((data as Activity[]) || []);
       
       // Show only recent 5 activities for the dashboard
-      const recentActivities = (data || []).slice(0, 5);
+      const recentActivities = ((data as Activity[]) || []).slice(0, 5);
       setActivities(recentActivities);
     } catch (error) {
       console.error('Error fetching activities:', error);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -58,7 +57,8 @@ export default function Activities() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      // Use type assertion to bypass TypeScript error
+      const { data, error } = await (supabase as any)
         .from('activities')
         .select('*')
         .order('submitted_at', { ascending: false });
@@ -74,7 +74,7 @@ export default function Activities() {
       }
 
       console.log('Loaded activities from Supabase:', data);
-      setActivities(data || []);
+      setActivities((data as Activity[]) || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
@@ -118,7 +118,8 @@ export default function Activities() {
         submitted_by: "Demo User",
       };
 
-      const { data, error } = await supabase
+      // Use type assertion to bypass TypeScript error
+      const { data, error } = await (supabase as any)
         .from('activities')
         .insert([newActivity])
         .select();
