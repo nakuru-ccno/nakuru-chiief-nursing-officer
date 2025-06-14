@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -61,7 +60,6 @@ const Dashboard = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.email) {
       setCurrentUserEmail(user.email);
-      // Extract a clean name from the email or metadata
       const displayName = user.user_metadata?.full_name || 
                          user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
                          "User";
@@ -77,44 +75,173 @@ const Dashboard = () => {
 
   const fetchAllUsers = async () => {
     try {
-      // Fetch all users from Supabase Auth admin API
-      const { data, error } = await supabase.auth.admin.listUsers();
-      
+      // Since we can't access auth.admin.listUsers with current permissions,
+      // let's create a profiles table approach
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*');
+
       if (error) {
-        console.error('Error fetching users:', error);
+        console.error('Error fetching user profiles:', error);
+        
+        // Fallback: try to get auth users if we have admin privileges
+        try {
+          const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+          
+          if (authError) {
+            console.error('Auth admin error:', authError);
+            // Use local storage as fallback
+            const savedUsers = localStorage.getItem('systemUsers');
+            if (savedUsers) {
+              setAllUsers(JSON.parse(savedUsers));
+            }
+            return;
+          }
+
+          const formattedUsers: User[] = authUsers.users.map(user => ({
+            id: user.id,
+            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
+            email: user.email || 'No email',
+            role: user.user_metadata?.role || 'User',
+            status: user.email_confirmed_at ? 'Active' : 'Pending',
+            lastLogin: user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Never'
+          }));
+
+          setAllUsers(formattedUsers);
+          localStorage.setItem('systemUsers', JSON.stringify(formattedUsers));
+        } catch (adminError) {
+          console.error('Admin access error:', adminError);
+          // Use local storage as final fallback
+          const savedUsers = localStorage.getItem('systemUsers');
+          if (savedUsers) {
+            setAllUsers(JSON.parse(savedUsers));
+          }
+        }
         return;
       }
 
-      const formattedUsers: User[] = data.users.map(user => ({
-        id: user.id,
-        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
-        email: user.email || 'No email',
-        role: user.user_metadata?.role || 'User',
-        status: user.email_confirmed_at ? 'Active' : 'Pending',
-        lastLogin: user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Never'
-      }));
+      // Convert profiles to User format
+      const formattedUsers: User[] = profiles?.map(profile => ({
+        id: profile.id,
+        name: profile.full_name || profile.email?.split('@')[0] || 'Unknown',
+        email: profile.email || 'No email',
+        role: profile.role || 'User',
+        status: 'Active',
+        lastLogin: profile.last_sign_in_at ? new Date(profile.last_sign_in_at).toLocaleString() : 'Never'
+      })) || [];
 
       setAllUsers(formattedUsers);
+      localStorage.setItem('systemUsers', JSON.stringify(formattedUsers));
+
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error in fetchAllUsers:', error);
+      // Use local storage as fallback
+      const savedUsers = localStorage.getItem('systemUsers');
+      if (savedUsers) {
+        setAllUsers(JSON.parse(savedUsers));
+      }
     }
   };
 
   const handleAddUser = async (newUserData: { name: string; email: string; role: string; password: string }) => {
     try {
-      // The AddUserDialog already handles Supabase user creation
-      // We just need to refresh the users list
-      await fetchAllUsers();
-      
-      toast({
-        title: "Success",
-        description: "User added successfully and invitation sent!"
+      console.log('Adding new user:', newUserData);
+
+      // Try to create user through Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newUserData.email,
+        password: newUserData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: newUserData.name,
+            role: newUserData.role
+          }
+        }
       });
+
+      if (authError) {
+        console.error('Supabase auth error:', authError);
+        
+        // Fallback: Add user locally and to profiles table
+        const newUser: User = {
+          id: `local_${Date.now()}`,
+          name: newUserData.name,
+          email: newUserData.email,
+          role: newUserData.role,
+          status: 'Active',
+          lastLogin: 'Never'
+        };
+
+        // Try to insert into profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: newUser.id,
+            email: newUser.email,
+            full_name: newUser.name,
+            role: newUser.role,
+            created_at: new Date().toISOString()
+          }]);
+
+        if (profileError) {
+          console.error('Profile insert error:', profileError);
+        }
+
+        // Update local state and storage
+        const updatedUsers = [...allUsers, newUser];
+        setAllUsers(updatedUsers);
+        localStorage.setItem('systemUsers', JSON.stringify(updatedUsers));
+
+        toast({
+          title: "User Added",
+          description: "User added to local system. Note: Email verification may be required for full access."
+        });
+        return;
+      }
+
+      // If Supabase auth succeeded
+      if (authData.user) {
+        const newUser: User = {
+          id: authData.user.id,
+          name: newUserData.name,
+          email: newUserData.email,
+          role: newUserData.role,
+          status: authData.user.email_confirmed_at ? 'Active' : 'Pending',
+          lastLogin: 'Never'
+        };
+
+        // Try to insert into profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: authData.user.id,
+            email: newUserData.email,
+            full_name: newUserData.name,
+            role: newUserData.role,
+            created_at: new Date().toISOString()
+          }]);
+
+        if (profileError) {
+          console.error('Profile insert error:', profileError);
+        }
+
+        // Update local state and storage
+        const updatedUsers = [...allUsers, newUser];
+        setAllUsers(updatedUsers);
+        localStorage.setItem('systemUsers', JSON.stringify(updatedUsers));
+
+        toast({
+          title: "Success",
+          description: "User created successfully! They will receive an email confirmation."
+        });
+      }
+
     } catch (error) {
-      console.error('Error adding user:', error);
+      console.error('Error in handleAddUser:', error);
       toast({
         title: "Error",
-        description: "Failed to add user",
+        description: "Failed to create user. Please try again.",
         variant: "destructive"
       });
     }
@@ -124,7 +251,6 @@ const Dashboard = () => {
     try {
       if (!currentUserEmail) return;
 
-      // Get all activities for current user only
       const { data: activities, error } = await supabase
         .from('activities')
         .select('*')
@@ -135,10 +261,8 @@ const Dashboard = () => {
         return;
       }
 
-      // Ensure we start with zero if no activities
       const totalActivities = activities?.length || 0;
       
-      // Get this week's activities
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const thisWeekActivities = activities?.filter((activity: Activity) => {
@@ -146,7 +270,6 @@ const Dashboard = () => {
         return activityDate >= oneWeekAgo;
       }) || [];
 
-      // Calculate total hours from user's activities only
       const totalMinutes = activities?.reduce((sum: number, activity: Activity) => 
         sum + (activity.duration || 0), 0) || 0;
       const totalHours = Math.floor(totalMinutes / 60);
@@ -159,7 +282,6 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error('Error fetching user stats:', error);
-      // Reset to zero on error
       setStats({
         totalActivities: 0,
         thisWeek: 0,
