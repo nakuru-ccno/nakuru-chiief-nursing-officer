@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -18,6 +17,7 @@ interface Activity {
 
 const Dashboard = () => {
   const [currentUser, setCurrentUser] = useState<string>("User");
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [stats, setStats] = useState({
     totalActivities: 0,
     thisWeek: 0,
@@ -32,39 +32,43 @@ const Dashboard = () => {
 
   // Fetch user-specific data
   useEffect(() => {
-    if (currentUser !== "User") {
+    if (currentUserEmail) {
       fetchUserStats();
       fetchRecentActivities();
     }
-  }, [currentUser]);
+  }, [currentUserEmail]);
 
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      // Extract name from email (part before @) or use full email
-      const userName = user.email?.split('@')[0] || user.email || "User";
-      setCurrentUser(userName);
+    if (user?.email) {
+      setCurrentUserEmail(user.email);
+      // Extract a clean name from the email or metadata
+      const displayName = user.user_metadata?.full_name || 
+                         user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
+                         "User";
+      setCurrentUser(displayName);
     } else {
       setCurrentUser("User");
+      setCurrentUserEmail("");
     }
   };
 
   const fetchUserStats = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!currentUserEmail) return;
 
-      // Get all activities for current user
+      // Get all activities for current user only
       const { data: activities, error } = await supabase
         .from('activities')
         .select('*')
-        .eq('submitted_by', user.email);
+        .eq('submitted_by', currentUserEmail);
 
       if (error) {
         console.error('Error fetching user activities:', error);
         return;
       }
 
+      // Ensure we start with zero if no activities
       const totalActivities = activities?.length || 0;
       
       // Get this week's activities
@@ -75,7 +79,7 @@ const Dashboard = () => {
         return activityDate >= oneWeekAgo;
       }) || [];
 
-      // Calculate total hours
+      // Calculate total hours from user's activities only
       const totalMinutes = activities?.reduce((sum: number, activity: Activity) => 
         sum + (activity.duration || 0), 0) || 0;
       const totalHours = Math.floor(totalMinutes / 60);
@@ -88,29 +92,36 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error('Error fetching user stats:', error);
+      // Reset to zero on error
+      setStats({
+        totalActivities: 0,
+        thisWeek: 0,
+        totalHours: 0
+      });
     }
   };
 
   const fetchRecentActivities = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!currentUserEmail) return;
 
       const { data: activities, error } = await supabase
         .from('activities')
         .select('*')
-        .eq('submitted_by', user.email)
+        .eq('submitted_by', currentUserEmail)
         .order('created_at', { ascending: false })
         .limit(5);
 
       if (error) {
         console.error('Error fetching recent activities:', error);
+        setRecentActivities([]);
         return;
       }
 
       setRecentActivities(activities || []);
     } catch (error) {
       console.error('Error fetching recent activities:', error);
+      setRecentActivities([]);
     }
   };
 

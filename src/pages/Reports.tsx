@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -27,48 +26,68 @@ export default function Reports() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const { toast } = useToast();
 
   // Load activities from Supabase on component mount
   useEffect(() => {
-    fetchActivities();
     getCurrentUser();
   }, []);
 
+  useEffect(() => {
+    if (currentUserEmail) {
+      fetchActivities();
+    }
+  }, [currentUserEmail]);
+
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setCurrentUser(user.email || "User");
+    if (user?.email) {
+      setCurrentUserEmail(user.email);
+      // Extract a clean name from the email or metadata
+      const displayName = user.user_metadata?.full_name || 
+                         user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
+                         "User";
+      setCurrentUser(displayName);
+    } else {
+      setCurrentUser("User");
+      setCurrentUserEmail("");
     }
   };
 
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
+      if (!currentUserEmail) return;
+
+      // Only fetch activities for the current user
       const { data, error } = await supabase
         .from('activities')
         .select('*')
+        .eq('submitted_by', currentUserEmail)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching activities:', error);
+        console.error('Error fetching user activities:', error);
         toast({
           title: "Error",
-          description: "Failed to load activities from database",
+          description: "Failed to load your activities from database",
           variant: "destructive",
         });
+        setActivities([]);
         return;
       }
 
-      console.log('Loaded activities from Supabase for reports:', data);
+      console.log('Loaded user activities from Supabase for reports:', data);
       setActivities((data as Activity[]) || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
         title: "Error",
-        description: "Failed to load activities",
+        description: "Failed to load your activities",
         variant: "destructive",
       });
+      setActivities([]);
     } finally {
       setIsLoading(false);
     }
@@ -86,41 +105,18 @@ export default function Reports() {
 
     const ws = XLSX.utils.json_to_sheet(activities);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Activities");
-    XLSX.writeFile(wb, "nakuru-count-activities.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "My Activities");
+    XLSX.writeFile(wb, `my-activities-${new Date().toISOString().split('T')[0]}.xlsx`);
     
     toast({
       title: "Success",
-      description: "Activities exported to Excel successfully",
+      description: "Your activities exported to Excel successfully",
     });
   };
 
   const handleExportPDF = () => {
     window.print();
   };
-
-  // Calculate statistics
-  const totalActivities = activities.length;
-  const thisMonth = new Date();
-  thisMonth.setDate(1);
-  const thisMonthActivities = activities.filter(activity => {
-    const activityDate = new Date(activity.created_at);
-    return activityDate >= thisMonth;
-  }).length;
-
-  const totalHours = Math.floor(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
-  const averageMinutes = totalActivities > 0 ? Math.round(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
-
-  // Activity type distribution
-  const typeDistribution = activities.reduce((acc: any[], activity) => {
-    const existing = acc.find(item => item.type === activity.type);
-    if (existing) {
-      existing.count++;
-    } else {
-      acc.push({ type: activity.type, count: 1 });
-    }
-    return acc;
-  }, []);
 
   const getTypeColor = (type: string) => {
     const colors = {
@@ -142,6 +138,29 @@ export default function Reports() {
     return "Good Night";
   };
 
+  // Calculate statistics from user's activities only
+  const totalActivities = activities.length;
+  const thisMonth = new Date();
+  thisMonth.setDate(1);
+  const thisMonthActivities = activities.filter(activity => {
+    const activityDate = new Date(activity.created_at);
+    return activityDate >= thisMonth;
+  }).length;
+
+  const totalHours = Math.floor(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
+  const averageMinutes = totalActivities > 0 ? Math.round(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
+
+  // Activity type distribution for current user only
+  const typeDistribution = activities.reduce((acc: any[], activity) => {
+    const existing = acc.find(item => item.type === activity.type);
+    if (existing) {
+      existing.count++;
+    } else {
+      acc.push({ type: activity.type, count: 1 });
+    }
+    return acc;
+  }, []);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -149,7 +168,7 @@ export default function Reports() {
         <MainNavbar />
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
           <div className="text-center py-8 text-gray-500">
-            <p>Loading activities from database...</p>
+            <p>Loading your activities from database...</p>
           </div>
         </div>
       </div>
@@ -232,23 +251,29 @@ export default function Reports() {
 
           <Card className="col-span-1 lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-green-700">Activity Types Overview</CardTitle>
-              <p className="text-sm text-gray-600">Your activity distribution by category</p>
+              <CardTitle className="text-lg font-semibold text-green-700">Your Activity Types Overview</CardTitle>
+              <p className="text-sm text-gray-600">Your personal activity distribution by category</p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {typeDistribution.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                      <span className="text-sm font-medium capitalize">{item.type}</span>
+              {typeDistribution.length > 0 ? (
+                <div className="space-y-3">
+                  {typeDistribution.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <span className="text-sm font-medium capitalize">{item.type}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">{item.count} activities</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">{item.count} activities</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="text-sm">No activity types to display yet.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -256,7 +281,7 @@ export default function Reports() {
         {/* Recent Activities */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-green-700">Recent Activities</CardTitle>
+            <CardTitle className="text-lg font-semibold text-green-700">Your Recent Activities</CardTitle>
             <p className="text-sm text-gray-600">Your latest recorded activities</p>
           </CardHeader>
           <CardContent>
@@ -275,7 +300,6 @@ export default function Reports() {
                             {activity.type}
                           </Badge>
                           <span className="text-xs text-gray-500">{activity.duration} min</span>
-                          <span className="text-xs text-gray-500">by {activity.submitted_by || 'Unknown User'}</span>
                         </div>
                       </div>
                       <div className="text-right">
@@ -289,14 +313,14 @@ export default function Reports() {
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">No activities found to display in reports.</p>
+                <p className="text-sm">You haven't added any activities yet. Start by adding your first activity!</p>
               </div>
             )}
           </CardContent>
         </Card>
         
         <div className="text-sm italic text-gray-500 mt-6 text-center">
-          All submitted activities are synced across devices and visible here. Export for official reporting.
+          All your submitted activities are synced across devices and visible here. Export for official reporting.
         </div>
       </div>
     </div>
