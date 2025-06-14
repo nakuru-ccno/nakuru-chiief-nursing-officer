@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -46,7 +47,7 @@ export default function Activities() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("");
+  const [filterType, setFilterType] = useState("all");
   const { toast } = useToast();
 
   // Load activities from Supabase on component mount
@@ -180,7 +181,7 @@ export default function Activities() {
   const filteredActivities = activities.filter(activity => {
     const matchesSearch = activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          activity.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === "" || activity.type === filterType;
+    const matchesType = filterType === "all" || activity.type === filterType;
     return matchesSearch && matchesType;
   });
 
@@ -378,7 +379,7 @@ export default function Activities() {
                         <SelectValue placeholder="All types" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All types</SelectItem>
+                        <SelectItem value="all">All types</SelectItem>
                         {ACTIVITY_TYPES.map((type) => (
                           <SelectItem key={type} value={type}>
                             {type}
@@ -424,11 +425,11 @@ export default function Activities() {
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <p>No activities found matching your criteria.</p>
-                    {searchTerm || filterType ? (
+                    {searchTerm || filterType !== "all" ? (
                       <button
                         onClick={() => {
                           setSearchTerm("");
-                          setFilterType("");
+                          setFilterType("all");
                         }}
                         className="mt-2 text-[#be2251] hover:underline"
                       >
