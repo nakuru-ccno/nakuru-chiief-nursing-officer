@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import CountyHeader from "@/components/CountyHeader";
@@ -36,6 +35,7 @@ const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentUser, setCurrentUser] = useState<string>("");
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [userRole, setUserRole] = useState<string>("");
   const [activities, setActivities] = useState<ActivityData[]>([]);
   const [stats, setStats] = useState({
     totalActivities: 0,
@@ -47,10 +47,10 @@ const Dashboard = () => {
   const [isConnected, setIsConnected] = useState(false);
 
   // Check if user is admin
-  const userRole = localStorage.getItem("role") || "";
-  const isAdmin = userRole === 'admin' || 
-                  userRole === 'System Administrator' || 
-                  userRole.toLowerCase().includes('admin');
+  const storedRole = localStorage.getItem("role") || "";
+  const isAdmin = storedRole === 'admin' || 
+                  storedRole === 'System Administrator' || 
+                  storedRole.toLowerCase().includes('admin');
 
   // If user is admin, redirect them to admin page
   useEffect(() => {
@@ -59,6 +59,47 @@ const Dashboard = () => {
       return;
     }
   }, [isAdmin, navigate]);
+
+  // Get current user and their role
+  const getCurrentUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && user.email) {
+        const userName = user.email.split('@')[0] || user.email;
+        setCurrentUser(userName);
+        setCurrentUserEmail(user.email);
+        console.log('Current user set:', user.email);
+
+        // Fetch user's role from profiles table
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role, full_name')
+          .eq('email', user.email)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user profile:', error);
+          setUserRole('User'); // Default role
+        } else if (profile) {
+          setUserRole(profile.role || 'User');
+          // Use full name if available, otherwise use email prefix
+          setCurrentUser(profile.full_name || userName);
+          console.log('User role set:', profile.role);
+        }
+      } else {
+        // Fallback for demo users
+        const demoUserEmail = localStorage.getItem("userEmail") || "demo@nakuru.go.ke";
+        const demoUserName = demoUserEmail.split('@')[0];
+        setCurrentUser(demoUserName);
+        setCurrentUserEmail(demoUserEmail);
+        setUserRole('User'); // Default role for demo users
+        console.log('Demo user set:', demoUserEmail);
+      }
+    } catch (error) {
+      console.error('Error getting current user:', error);
+      setUserRole('User');
+    }
+  };
 
   // Fetch activities filtered by current user only
   const fetchActivities = async () => {
@@ -217,27 +258,10 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Get current user
+  // Get current user on component mount
   useEffect(() => {
     getCurrentUser();
   }, []);
-
-  const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && user.email) {
-      const userName = user.email.split('@')[0] || user.email;
-      setCurrentUser(userName);
-      setCurrentUserEmail(user.email);
-      console.log('Current user set:', user.email);
-    } else {
-      // Fallback for demo users
-      const demoUserEmail = localStorage.getItem("userEmail") || "demo@nakuru.go.ke";
-      const demoUserName = demoUserEmail.split('@')[0];
-      setCurrentUser(demoUserName);
-      setCurrentUserEmail(demoUserEmail);
-      console.log('Demo user set:', demoUserEmail);
-    }
-  };
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -245,6 +269,14 @@ const Dashboard = () => {
     if (hour >= 12 && hour < 17) return "Good Afternoon";
     if (hour >= 17 && hour < 22) return "Good Evening";
     return "Good Night";
+  };
+
+  // Format the user display name with role
+  const getUserDisplayName = () => {
+    if (userRole && userRole !== 'User') {
+      return `${currentUser}, ${userRole}`;
+    }
+    return currentUser;
   };
 
   const navItems = [
@@ -332,15 +364,18 @@ const Dashboard = () => {
       )}
 
       <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
+        {/* Header with role in greeting */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#be2251] mb-2 flex items-center gap-3">
-            {getGreeting()}, {currentUser}!
+            {getGreeting()}, {getUserDisplayName()}!
             <div className={`w-3 h-3 ${isConnected ? 'bg-green-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
           </h1>
           <div className="flex items-center gap-4 text-gray-600 mb-2">
             <span className="font-medium">County of Unlimited Opportunities</span>
             <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">My Personal Dashboard</span>
+            {userRole && userRole !== 'User' && (
+              <span className="bg-[#be2251] text-white px-3 py-1 rounded-full text-sm font-medium">{userRole}</span>
+            )}
           </div>
           <div className="flex items-center gap-4 text-gray-500 text-sm">
             <span>{currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
