@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import CountyHeader from "@/components/CountyHeader";
+import MainNavbar from "@/components/MainNavbar";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -117,10 +118,10 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Fixed header with proper positioning */}
-      <header className="sticky top-0 w-full bg-black shadow-lg z-50">
-        <CountyHeader />
-      </header>
+      {/* County Header */}
+      <CountyHeader />
+      {/* Navigation Bar */}
+      <MainNavbar />
 
       <main className="max-w-7xl mx-auto p-6">
         {/* Report Cards Section */}
