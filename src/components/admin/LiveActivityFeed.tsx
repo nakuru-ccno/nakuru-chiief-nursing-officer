@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,21 +52,27 @@ const LiveActivityFeed: React.FC = () => {
 
   // Enhanced real-time subscription with better connection monitoring
   useEffect(() => {
-    let retryTimeout: NodeJS.Timeout;
-    let channel: any;
+    let liveActivityChannel: any = null;
+    let autoRefreshInterval: NodeJS.Timeout;
 
-    const setupRealtimeConnection = () => {
-      console.log('Setting up enhanced real-time connection for cross-device sync...');
+    const setupLiveActivityConnection = () => {
+      console.log('Setting up LiveActivityFeed real-time connection...');
       
       // Initial fetch
       fetchActivities();
 
-      // Set up comprehensive real-time subscription with enhanced monitoring
-      channel = supabase
-        .channel('admin-activities-realtime-sync', {
+      // Remove any existing channel first
+      if (liveActivityChannel) {
+        supabase.removeChannel(liveActivityChannel);
+        liveActivityChannel = null;
+      }
+
+      // Set up real-time subscription with unique channel name
+      liveActivityChannel = supabase
+        .channel('live-activity-feed-realtime', {
           config: {
             broadcast: { self: true },
-            presence: { key: 'admin-dashboard' }
+            presence: { key: 'live-activity-feed' }
           }
         })
         .on(
@@ -78,7 +83,7 @@ const LiveActivityFeed: React.FC = () => {
             table: 'activities'
           },
           (payload) => {
-            console.log('🔥 Real-time: New activity inserted across all devices:', payload.new);
+            console.log('🔥 LiveActivityFeed: New activity inserted:', payload.new);
             const newActivity = payload.new as Activity;
             setActivities(prev => {
               // Prevent duplicates and maintain order
@@ -95,7 +100,7 @@ const LiveActivityFeed: React.FC = () => {
             table: 'activities'
           },
           (payload) => {
-            console.log('🔄 Real-time: Activity updated across all devices:', payload.new);
+            console.log('🔄 LiveActivityFeed: Activity updated:', payload.new);
             const updatedActivity = payload.new as Activity;
             setActivities(prev => 
               prev.map(activity => 
@@ -112,82 +117,70 @@ const LiveActivityFeed: React.FC = () => {
             table: 'activities'
           },
           (payload) => {
-            console.log('🗑️ Real-time: Activity deleted across all devices:', payload.old);
+            console.log('🗑️ LiveActivityFeed: Activity deleted:', payload.old);
             const deletedId = payload.old.id;
             setActivities(prev => prev.filter(activity => activity.id !== deletedId));
           }
         )
-        .subscribe((status, err) => {
-          console.log('📡 Real-time subscription status:', status);
+        .subscribe((status) => {
+          console.log('📡 LiveActivityFeed subscription status:', status);
           
           if (status === 'SUBSCRIBED') {
             setIsConnected(true);
             setConnectionStatus('Live - Synced across all devices');
-            console.log('✅ Successfully connected to real-time feed for cross-device sync');
+            console.log('✅ LiveActivityFeed real-time connection established');
           } else if (status === 'CHANNEL_ERROR') {
             setIsConnected(false);
             setConnectionStatus('Connection error - Retrying...');
-            console.error('❌ Real-time subscription error:', err);
+            console.error('❌ LiveActivityFeed subscription error');
             
             // Retry connection after 3 seconds
-            retryTimeout = setTimeout(() => {
-              console.log('🔄 Retrying real-time connection...');
-              setupRealtimeConnection();
+            setTimeout(() => {
+              console.log('🔄 Retrying LiveActivityFeed connection...');
+              setupLiveActivityConnection();
             }, 3000);
           } else if (status === 'CLOSED') {
             setIsConnected(false);
             setConnectionStatus('Connection closed - Reconnecting...');
-            console.log('🔌 Real-time connection closed, attempting reconnect...');
+            console.log('🔌 LiveActivityFeed connection closed, attempting reconnect...');
             
             // Retry connection after 2 seconds
-            retryTimeout = setTimeout(() => {
-              setupRealtimeConnection();
+            setTimeout(() => {
+              setupLiveActivityConnection();
             }, 2000);
           }
         });
     };
 
     // Initial setup
-    setupRealtimeConnection();
+    setupLiveActivityConnection();
 
-    // Enhanced auto-refresh for cross-device sync (every 30 seconds)
-    const autoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing for cross-device synchronization...');
+    // Auto-refresh for cross-device sync (every 30 seconds)
+    autoRefreshInterval = setInterval(() => {
+      console.log('🔄 LiveActivityFeed auto-refresh...');
       fetchActivities();
     }, 30000);
 
     // Visibility change handler for cross-device sync
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('📱 Tab became visible - refreshing for cross-device sync');
+        console.log('📱 LiveActivityFeed tab became visible - refreshing');
         fetchActivities();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Connection status monitoring
-    const connectionMonitor = setInterval(() => {
-      if (channel?.state === 'closed' || channel?.state === 'errored') {
-        console.log('🔍 Detected connection issues, attempting reconnect...');
-        setIsConnected(false);
-        setConnectionStatus('Reconnecting...');
-        setupRealtimeConnection();
-      }
-    }, 10000);
-
     return () => {
-      if (channel) {
-        console.log('🧹 Cleaning up real-time subscriptions...');
-        supabase.removeChannel(channel);
+      console.log('🧹 Cleaning up LiveActivityFeed subscriptions...');
+      if (liveActivityChannel) {
+        supabase.removeChannel(liveActivityChannel);
       }
       clearInterval(autoRefreshInterval);
-      clearInterval(connectionMonitor);
-      clearTimeout(retryTimeout);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       setIsConnected(false);
     };
-  }, []);
+  }, []); // Empty dependency array to prevent re-runs
 
   const getTypeColor = (type: string) => {
     const lowerType = type.toLowerCase();

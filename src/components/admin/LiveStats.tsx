@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -128,21 +127,28 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
   };
 
   useEffect(() => {
-    let channel: any;
-    let retryTimeout: NodeJS.Timeout;
+    let liveStatsChannel: any = null;
+    let autoRefreshInterval: NodeJS.Timeout;
+    let systemInterval: NodeJS.Timeout;
 
-    const setupRealtimeStatsSync = () => {
-      console.log('🚀 Setting up ADMIN real-time stats - monitoring all system activity...');
+    const setupLiveStatsSync = () => {
+      console.log('🚀 Setting up LiveStats real-time sync...');
       
       // Initial fetch
       fetchStats();
 
-      // Set up enhanced real-time subscription for admin (no user filtering)
-      channel = supabase
-        .channel('admin-stats-realtime-sync', {
+      // Remove any existing channel first
+      if (liveStatsChannel) {
+        supabase.removeChannel(liveStatsChannel);
+        liveStatsChannel = null;
+      }
+
+      // Set up real-time subscription for stats with unique channel name
+      liveStatsChannel = supabase
+        .channel('live-stats-realtime-sync', {
           config: {
             broadcast: { self: true },
-            presence: { key: 'admin-stats' }
+            presence: { key: 'live-stats' }
           }
         })
         .on(
@@ -154,40 +160,40 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
             // No filter - admin sees everything
           },
           (payload) => {
-            console.log('📈 Admin real-time stats update - system-wide:', payload.eventType);
+            console.log('📈 LiveStats real-time update:', payload.eventType);
             fetchStats(); // Refresh admin stats immediately on any system change
           }
         )
         .subscribe((status) => {
-          console.log('📡 Admin stats sync subscription status:', status);
+          console.log('📡 LiveStats subscription status:', status);
           
           if (status === 'SUBSCRIBED') {
             setIsConnected(true);
-            console.log('✅ Admin stats synchronization active - monitoring all system activity');
+            console.log('✅ LiveStats synchronization active');
           } else if (status === 'CHANNEL_ERROR') {
             setIsConnected(false);
-            console.error('❌ Admin stats sync error - retrying...');
+            console.error('❌ LiveStats sync error - retrying...');
             
-            retryTimeout = setTimeout(() => {
-              setupRealtimeStatsSync();
+            setTimeout(() => {
+              setupLiveStatsSync();
             }, 3000);
           }
         });
     };
 
     // Initial setup
-    setupRealtimeStatsSync();
+    setupLiveStatsSync();
 
-    // Enhanced auto-refresh for admin system monitoring
-    const autoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing admin system stats...');
+    // Auto-refresh for admin system monitoring
+    autoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing LiveStats...');
       fetchStats();
-    }, 20000);
+    }, 30000);
 
     // Visibility change handler for admin
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('📱 Admin tab visible - syncing system stats');
+        console.log('📱 LiveStats tab visible - syncing');
         fetchStats();
       }
     };
@@ -195,7 +201,7 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // System load update
-    const systemInterval = setInterval(() => {
+    systemInterval = setInterval(() => {
       setStats(prev => ({
         ...prev,
         systemLoad: Math.max(10, Math.min(90, prev.systemLoad + Math.floor(Math.random() * 10) - 5))
@@ -203,17 +209,16 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
     }, 5000);
 
     return () => {
-      if (channel) {
-        console.log('🧹 Cleaning up admin stats sync subscriptions...');
-        supabase.removeChannel(channel);
+      console.log('🧹 Cleaning up LiveStats subscriptions...');
+      if (liveStatsChannel) {
+        supabase.removeChannel(liveStatsChannel);
       }
       clearInterval(autoRefreshInterval);
       clearInterval(systemInterval);
-      clearTimeout(retryTimeout);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       setIsConnected(false);
     };
-  }, []);
+  }, []); // Empty dependency array to prevent re-runs
 
   useEffect(() => {
     onStatsUpdate?.(stats);

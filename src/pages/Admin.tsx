@@ -83,8 +83,86 @@ const Admin = () => {
 
   useEffect(() => {
     fetchAllData();
-    setupRealtimeSubscriptions();
-  }, []);
+    
+    // Set up a single real-time subscription for admin
+    let adminChannel: any = null;
+    let autoRefreshInterval: NodeJS.Timeout;
+
+    const setupAdminRealtimeSubscription = () => {
+      console.log('🚀 Setting up unified admin real-time subscription...');
+      
+      // Remove any existing channel first
+      if (adminChannel) {
+        supabase.removeChannel(adminChannel);
+        adminChannel = null;
+      }
+
+      // Create a single unified channel for all admin real-time updates
+      adminChannel = supabase
+        .channel('unified-admin-realtime', {
+          config: {
+            broadcast: { self: true },
+            presence: { key: 'admin-unified' }
+          }
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'activities'
+          },
+          (payload) => {
+            console.log('📊 Admin: Activity change detected:', payload.eventType);
+            fetchActivities();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'profiles'
+          },
+          (payload) => {
+            console.log('👥 Admin: User change detected:', payload.eventType);
+            fetchUsers();
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 Unified admin subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            setIsConnected(true);
+            console.log('✅ Unified admin real-time subscription active');
+          } else if (status === 'CHANNEL_ERROR') {
+            setIsConnected(false);
+            console.error('❌ Admin subscription error');
+          }
+        });
+
+      // Auto-refresh interval
+      autoRefreshInterval = setInterval(() => {
+        console.log('🔄 Admin auto-refresh...');
+        fetchAllData();
+        setLastSyncTime(new Date());
+      }, 30000);
+    };
+
+    // Initialize subscription
+    setupAdminRealtimeSubscription();
+
+    // Cleanup function
+    return () => {
+      console.log('🧹 Cleaning up admin subscriptions...');
+      if (adminChannel) {
+        supabase.removeChannel(adminChannel);
+      }
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+      }
+      setIsConnected(false);
+    };
+  }, []); // Empty dependency array to prevent re-runs
 
   const fetchAllData = async () => {
     await Promise.all([fetchActivities(), fetchUsers(), fetchActivityTypes()]);
@@ -113,12 +191,10 @@ const Admin = () => {
 
       setActivities(uniqueActivities);
       calculateStats(uniqueActivities);
-      setIsConnected(true);
       setLastSyncTime(new Date());
 
     } catch (error) {
       console.error('Error fetching activities:', error);
-      setIsConnected(false);
     }
   };
 
@@ -152,61 +228,6 @@ const Admin = () => {
       { id: '6', name: 'General', description: 'General activities', created_at: new Date().toISOString() }
     ];
     setActivityTypes(predefinedTypes);
-  };
-
-  const setupRealtimeSubscriptions = () => {
-    console.log('🚀 Setting up live admin dashboard subscriptions...');
-    
-    const channel = supabase
-      .channel('admin-live-dashboard', {
-        config: {
-          broadcast: { self: true },
-          presence: { key: 'admin-live' }
-        }
-      })
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'activities'
-        },
-        (payload) => {
-          console.log('📊 Live update received:', payload.eventType);
-          fetchActivities();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles'
-        },
-        (payload) => {
-          console.log('👥 User update received:', payload.eventType);
-          fetchUsers();
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Live admin subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          setIsConnected(true);
-          console.log('✅ Live admin dashboard active');
-        }
-      });
-
-    // Auto-refresh every 15 seconds for live dashboard
-    const refreshInterval = setInterval(() => {
-      console.log('🔄 Live dashboard auto-refresh...');
-      fetchAllData();
-      setLastSyncTime(new Date());
-    }, 15000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(refreshInterval);
-    };
   };
 
   const calculateStats = (activitiesData: Activity[]) => {
