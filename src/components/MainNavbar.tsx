@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Activity, FileText, LogIn, LogOut, Settings, Monitor } from "lucide-react";
+import { Home, Activity, FileText, LogIn, LogOut, Settings, Monitor, Users } from "lucide-react";
 
 const MainNavbar = () => {
   const location = useLocation();
@@ -11,16 +11,16 @@ const MainNavbar = () => {
   // Navigation items for regular users
   const userNavItems = [
     { to: "/dashboard", label: "Dashboard", icon: Home },
-    { to: "/activities", label: "Activities", icon: Activity },
+    { to: "/activities", label: "Daily Activities", icon: Activity },
     { to: "/reports", label: "Reports", icon: FileText },
   ];
 
   // Navigation items for admins
   const adminNavItems = [
-    { to: "/admin", label: "Admin Panel", icon: Settings },
-    { to: "/live-admin", label: "Live Admin", icon: Monitor },
-    { to: "/activities", label: "Activities", icon: Activity },
+    { to: "/admin", label: "Dashboard", icon: Home },
+    { to: "/live-admin", label: "Users", icon: Users },
     { to: "/reports", label: "Reports", icon: FileText },
+    { to: "/activities", label: "Settings", icon: Settings },
   ];
 
   // Choose navigation items based on role
