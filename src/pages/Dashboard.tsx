@@ -84,69 +84,15 @@ const Dashboard = () => {
 
   const fetchAllUsers = async () => {
     try {
-      // Fetch from profiles table using raw SQL query to avoid type issues
-      const { data: profiles, error } = await supabase
-        .rpc('get_profiles') // We'll create this function or use direct query
-        .then(() => null) // This will fail, so let's use a different approach
-        .catch(async () => {
-          // Direct query approach
-          const { data, error } = await supabase
-            .from('activities') // Use existing table to make the query work
-            .select('*')
-            .limit(0); // Get no results, just to test connection
-          
-          if (!error) {
-            // Now try a raw query for profiles
-            const { data: profileData, error: profileError } = await (supabase as any)
-              .from('profiles')
-              .select('*');
-            
-            return { data: profileData, error: profileError };
-          }
-          return { data: null, error };
-        });
+      console.log('Fetching all users...');
+      
+      // First try to fetch from profiles table
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('*');
 
-      if (error) {
-        console.error('Error fetching user profiles:', error);
-        
-        // Fallback: try to get auth users if we have admin privileges
-        try {
-          const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-          
-          if (authError) {
-            console.error('Auth admin error:', authError);
-            // Use local storage as fallback
-            const savedUsers = localStorage.getItem('systemUsers');
-            if (savedUsers) {
-              setAllUsers(JSON.parse(savedUsers));
-            }
-            return;
-          }
-
-          const formattedUsers: User[] = authUsers.users.map(user => ({
-            id: user.id,
-            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
-            email: user.email || 'No email',
-            role: user.user_metadata?.role || 'User',
-            status: user.email_confirmed_at ? 'Active' : 'Pending',
-            lastLogin: user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Never'
-          }));
-
-          setAllUsers(formattedUsers);
-          localStorage.setItem('systemUsers', JSON.stringify(formattedUsers));
-        } catch (adminError) {
-          console.error('Admin access error:', adminError);
-          // Use local storage as final fallback
-          const savedUsers = localStorage.getItem('systemUsers');
-          if (savedUsers) {
-            setAllUsers(JSON.parse(savedUsers));
-          }
-        }
-        return;
-      }
-
-      // Convert profiles to User format if we got data
-      if (profiles && Array.isArray(profiles)) {
+      if (!profileError && profiles) {
+        console.log('Successfully fetched profiles:', profiles);
         const formattedUsers: User[] = profiles.map((profile: Profile) => ({
           id: profile.id,
           name: profile.full_name || profile.email?.split('@')[0] || 'Unknown',
@@ -158,6 +104,43 @@ const Dashboard = () => {
 
         setAllUsers(formattedUsers);
         localStorage.setItem('systemUsers', JSON.stringify(formattedUsers));
+        return;
+      }
+
+      console.log('Profile fetch failed, trying auth admin:', profileError);
+
+      // Fallback: try to get auth users if we have admin privileges
+      try {
+        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+        
+        if (authError) {
+          console.error('Auth admin error:', authError);
+          // Use local storage as fallback
+          const savedUsers = localStorage.getItem('systemUsers');
+          if (savedUsers) {
+            setAllUsers(JSON.parse(savedUsers));
+          }
+          return;
+        }
+
+        const formattedUsers: User[] = authData.users.map(user => ({
+          id: user.id,
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
+          email: user.email || 'No email',
+          role: user.user_metadata?.role || 'User',
+          status: user.email_confirmed_at ? 'Active' : 'Pending',
+          lastLogin: user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Never'
+        }));
+
+        setAllUsers(formattedUsers);
+        localStorage.setItem('systemUsers', JSON.stringify(formattedUsers));
+      } catch (adminError) {
+        console.error('Admin access error:', adminError);
+        // Use local storage as final fallback
+        const savedUsers = localStorage.getItem('systemUsers');
+        if (savedUsers) {
+          setAllUsers(JSON.parse(savedUsers));
+        }
       }
 
     } catch (error) {
@@ -200,9 +183,9 @@ const Dashboard = () => {
           lastLogin: 'Never'
         };
 
-        // Try to insert into profiles table using raw approach
+        // Try to insert into profiles table
         try {
-          const { error: profileError } = await (supabase as any)
+          const { error: profileError } = await supabase
             .from('profiles')
             .insert([{
               id: newUser.id,
@@ -244,7 +227,7 @@ const Dashboard = () => {
 
         // Try to insert into profiles table
         try {
-          const { error: profileError } = await (supabase as any)
+          const { error: profileError } = await supabase
             .from('profiles')
             .insert([{
               id: authData.user.id,
