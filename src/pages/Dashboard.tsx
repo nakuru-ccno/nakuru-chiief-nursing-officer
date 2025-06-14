@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import CountyHeader from "@/components/CountyHeader";
@@ -58,29 +59,23 @@ const Dashboard = () => {
     }
   }, [isAdmin, navigate]);
 
-  // Real-time activities fetching from Supabase - filtered by current user
+  // Fetch ALL activities from Supabase (not filtered by user)
   const fetchActivities = async () => {
     try {
-      console.log('🔄 Fetching user-specific activities from Supabase...');
+      console.log('🔄 Fetching ALL activities from Supabase...');
       
-      if (!currentUserEmail) {
-        console.log('No current user email available yet');
-        return;
-      }
-
       const { data, error } = await supabase
         .from('activities')
         .select('*')
-        .eq('submitted_by', currentUserEmail) // Filter by current user
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching user activities:', error);
+        console.error('Error fetching all activities:', error);
         setIsConnected(false);
         return;
       }
 
-      console.log('✅ Dashboard - User activities loaded:', data?.length || 0, 'for user:', currentUserEmail);
+      console.log('✅ Dashboard - All activities loaded:', data?.length || 0);
       
       const formattedActivities: ActivityData[] = (data || []).map(activity => ({
         id: activity.id,
@@ -97,7 +92,7 @@ const Dashboard = () => {
       setActivities(formattedActivities);
       setIsConnected(true);
       
-      // Calculate user-specific stats
+      // Calculate stats from ALL activities
       const totalActivities = formattedActivities.length;
       
       const thisMonth = new Date();
@@ -119,29 +114,27 @@ const Dashboard = () => {
       });
 
     } catch (error) {
-      console.error('Error fetching user activities:', error);
+      console.error('Error fetching all activities:', error);
       setIsConnected(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Set up real-time subscription for user-specific activities
+  // Set up real-time subscription for ALL activities
   useEffect(() => {
     let channel: any;
     let retryTimeout: NodeJS.Timeout;
 
     const setupRealtimeSync = () => {
-      if (!currentUserEmail) return;
-      
-      console.log('🚀 Setting up real-time sync for user dashboard:', currentUserEmail);
+      console.log('🚀 Setting up real-time sync for all activities');
       
       // Initial fetch
       fetchActivities();
 
-      // Set up real-time subscription for user-specific activities
+      // Set up real-time subscription for ALL activities
       channel = supabase
-        .channel(`user-dashboard-sync-${currentUserEmail}`, {
+        .channel('user-dashboard-all-activities', {
           config: {
             broadcast: { self: true },
             presence: { key: 'user-dashboard' }
@@ -152,11 +145,11 @@ const Dashboard = () => {
           {
             event: '*', // Listen to all events
             schema: 'public',
-            table: 'activities',
-            filter: `submitted_by=eq.${currentUserEmail}` // Only listen to current user's activities
+            table: 'activities'
+            // No filter - listen to all activities
           },
           (payload) => {
-            console.log('📱 Real-time update received for user:', currentUserEmail, payload.eventType);
+            console.log('📱 Real-time update received for all activities:', payload.eventType);
             fetchActivities(); // Refresh data immediately on any change
           }
         )
@@ -165,7 +158,7 @@ const Dashboard = () => {
           
           if (status === 'SUBSCRIBED') {
             setIsConnected(true);
-            console.log('✅ User dashboard synchronized for:', currentUserEmail);
+            console.log('✅ User dashboard synchronized for all activities');
           } else if (status === 'CHANNEL_ERROR') {
             setIsConnected(false);
             console.error('❌ Dashboard sync error - retrying...');
@@ -177,23 +170,18 @@ const Dashboard = () => {
         });
     };
 
-    // Setup only if we have current user email
-    if (currentUserEmail) {
-      setupRealtimeSync();
-    }
+    setupRealtimeSync();
 
-    // Auto-refresh for user-specific data
+    // Auto-refresh for all activities
     const autoRefreshInterval = setInterval(() => {
-      if (currentUserEmail) {
-        console.log('🔄 Auto-refreshing user dashboard for:', currentUserEmail);
-        fetchActivities();
-      }
+      console.log('🔄 Auto-refreshing dashboard for all activities');
+      fetchActivities();
     }, 30000);
 
     // Visibility change handler
     const handleVisibilityChange = () => {
-      if (!document.hidden && currentUserEmail) {
-        console.log('📱 Tab visible - syncing user dashboard for:', currentUserEmail);
+      if (!document.hidden) {
+        console.log('📱 Tab visible - syncing all activities');
         fetchActivities();
       }
     };
@@ -210,7 +198,7 @@ const Dashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       setIsConnected(false);
     };
-  }, [currentUserEmail]); // Depend on currentUserEmail
+  }, []); // Remove dependency on currentUserEmail
 
   // Time updates
   useEffect(() => {
@@ -272,7 +260,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading your personal dashboard...</p>
+              <p className="text-gray-600">Loading dashboard...</p>
             </div>
           </div>
         </div>
@@ -320,7 +308,7 @@ const Dashboard = () => {
 
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2 py-1 rounded-full ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {isConnected ? 'Personal Data' : 'Loading...'}
+                  {isConnected ? 'All Activities' : 'Loading...'}
                 </span>
               </div>
             </div>
@@ -337,7 +325,7 @@ const Dashboard = () => {
           </h1>
           <div className="flex items-center gap-4 text-gray-600 mb-2">
             <span className="font-medium">County of Unlimited Opportunities</span>
-            <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">Personal Dashboard</span>
+            <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">All Activities Dashboard</span>
           </div>
           <div className="flex items-center gap-4 text-gray-500 text-sm">
             <span>{currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -347,18 +335,18 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Stats Grid - Now showing user-specific data */}
+        {/* Stats Grid - Now showing all activities data */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-bold text-[#be2251] flex items-center gap-2">
-                My Activities
+                Total Activities
                 <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.totalActivities}</div>
-              <p className="text-sm text-gray-600">Your total activities</p>
+              <p className="text-sm text-gray-600">All system activities</p>
             </CardContent>
           </Card>
 
@@ -368,7 +356,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.thisMonth}</div>
-              <p className="text-sm text-gray-600">Your activities this month</p>
+              <p className="text-sm text-gray-600">Activities this month</p>
             </CardContent>
           </Card>
 
@@ -378,13 +366,13 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.totalHours}</div>
-              <p className="text-sm text-gray-600">Hours you've logged</p>
+              <p className="text-sm text-gray-600">Total hours logged</p>
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-orange-500">
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold text-[#be2251]">Your Average</CardTitle>
+              <CardTitle className="text-lg font-bold text-[#be2251]">Average</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.averageDuration}</div>
@@ -420,7 +408,7 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600 mb-4">Browse and manage all your activities</p>
+              <p className="text-gray-600 mb-4">Browse and manage all activities</p>
               <Button variant="outline" className="w-full border-[#fd3572] text-[#fd3572] hover:bg-[#fd3572] hover:text-white">
                 View All ({stats.totalActivities})
               </Button>
@@ -436,7 +424,7 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600 mb-4">Export and analyze your activity data</p>
+              <p className="text-gray-600 mb-4">Export and analyze activity data</p>
               <Button variant="outline" className="w-full border-[#fd3572] text-[#fd3572] hover:bg-[#fd3572] hover:text-white">
                 Create Report
               </Button>
@@ -444,12 +432,12 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Personal Data Status Footer */}
+        {/* All Activities Status Footer */}
         <div className="mt-8 p-4 bg-white rounded-lg border shadow-sm">
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span className="flex items-center gap-2">
               <div className={`w-2 h-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
-              {isConnected ? `Showing your personal data (${currentUserEmail})` : 'Loading personal data...'}
+              {isConnected ? 'Showing all system activities' : 'Loading all activities...'}
             </span>
             <span>Last updated: {currentTime.toLocaleTimeString()}</span>
           </div>

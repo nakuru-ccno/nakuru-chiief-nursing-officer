@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -5,7 +6,10 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Edit } from "lucide-react";
+import EditActivityDialog from "@/components/admin/EditActivityDialog";
 // @ts-ignore: Used for Excel export
 import * as XLSX from "xlsx";
 
@@ -27,6 +31,8 @@ export default function Reports() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   // Load activities from Supabase on component mount
@@ -35,10 +41,8 @@ export default function Reports() {
   }, []);
 
   useEffect(() => {
-    if (currentUserEmail) {
-      fetchActivities();
-    }
-  }, [currentUserEmail]);
+    fetchActivities();
+  }, []);
 
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -58,33 +62,31 @@ export default function Reports() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      if (!currentUserEmail) return;
 
-      // Only fetch activities for the current user
+      // Fetch ALL activities (not filtered by user)
       const { data, error } = await supabase
         .from('activities')
         .select('*')
-        .eq('submitted_by', currentUserEmail)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching user activities:', error);
+        console.error('Error fetching all activities:', error);
         toast({
           title: "Error",
-          description: "Failed to load your activities from database",
+          description: "Failed to load activities from database",
           variant: "destructive",
         });
         setActivities([]);
         return;
       }
 
-      console.log('Loaded user activities from Supabase for reports:', data);
+      console.log('Loaded all activities from Supabase for reports:', data);
       setActivities((data as Activity[]) || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
         title: "Error",
-        description: "Failed to load your activities",
+        description: "Failed to load activities",
         variant: "destructive",
       });
       setActivities([]);
@@ -105,17 +107,36 @@ export default function Reports() {
 
     const ws = XLSX.utils.json_to_sheet(activities);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "My Activities");
-    XLSX.writeFile(wb, `my-activities-${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "All Activities");
+    XLSX.writeFile(wb, `all-activities-${new Date().toISOString().split('T')[0]}.xlsx`);
     
     toast({
       title: "Success",
-      description: "Your activities exported to Excel successfully",
+      description: "All activities exported to Excel successfully",
     });
   };
 
   const handleExportPDF = () => {
     window.print();
+  };
+
+  const handleEditActivity = (activity: Activity) => {
+    setEditingActivity(activity);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleActivityUpdated = (updatedActivity: Activity) => {
+    setActivities(prev => 
+      prev.map(activity => 
+        activity.id === updatedActivity.id ? updatedActivity : activity
+      )
+    );
+    setIsEditDialogOpen(false);
+    setEditingActivity(null);
+    toast({
+      title: "Success",
+      description: "Activity updated successfully",
+    });
   };
 
   const getTypeColor = (type: string) => {
@@ -138,7 +159,7 @@ export default function Reports() {
     return "Good Night";
   };
 
-  // Calculate statistics from user's activities only
+  // Calculate statistics from ALL activities
   const totalActivities = activities.length;
   const thisMonth = new Date();
   thisMonth.setDate(1);
@@ -150,7 +171,7 @@ export default function Reports() {
   const totalHours = Math.floor(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
   const averageMinutes = totalActivities > 0 ? Math.round(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
 
-  // Activity type distribution for current user only
+  // Activity type distribution for ALL activities
   const typeDistribution = activities.reduce((acc: any[], activity) => {
     const existing = acc.find(item => item.type === activity.type);
     if (existing) {
@@ -161,6 +182,9 @@ export default function Reports() {
     return acc;
   }, []);
 
+  // Get unique users count
+  const uniqueUsers = new Set(activities.map(activity => activity.submitted_by).filter(Boolean)).size;
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -168,7 +192,7 @@ export default function Reports() {
         <MainNavbar />
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
           <div className="text-center py-8 text-gray-500">
-            <p>Loading your activities from database...</p>
+            <p>Loading all activities from database...</p>
           </div>
         </div>
       </div>
@@ -185,7 +209,7 @@ export default function Reports() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{getGreeting()}, {currentUser}!</h1>
           <p className="text-lg sm:text-xl mb-2">County of Unlimited Opportunities</p>
-          <p className="text-sm sm:text-base opacity-90">📍 HQ</p>
+          <p className="text-sm sm:text-base opacity-90">📍 All Activities Report</p>
         </div>
       </div>
 
@@ -196,7 +220,7 @@ export default function Reports() {
             <CardContent className="p-4 sm:p-6">
               <div className="text-2xl sm:text-3xl font-bold text-red-600 mb-1">{totalActivities}</div>
               <div className="text-xs sm:text-sm text-red-700 font-medium">Total Activities</div>
-              <div className="text-xs text-red-600">All time activities</div>
+              <div className="text-xs text-red-600">System-wide activities</div>
             </CardContent>
           </Card>
 
@@ -218,9 +242,9 @@ export default function Reports() {
 
           <Card className="bg-yellow-50 border-yellow-200">
             <CardContent className="p-4 sm:p-6">
-              <div className="text-2xl sm:text-3xl font-bold text-yellow-600 mb-1">{averageMinutes}</div>
-              <div className="text-xs sm:text-sm text-yellow-700 font-medium">Average</div>
-              <div className="text-xs text-yellow-600">Minutes per activity</div>
+              <div className="text-2xl sm:text-3xl font-bold text-yellow-600 mb-1">{uniqueUsers}</div>
+              <div className="text-xs sm:text-sm text-yellow-700 font-medium">Active Users</div>
+              <div className="text-xs text-yellow-600">System contributors</div>
             </CardContent>
           </Card>
         </div>
@@ -232,7 +256,7 @@ export default function Reports() {
               <span className="text-red-600 text-xl">📊</span>
             </div>
             <h3 className="text-lg font-semibold text-green-700 mb-2">Generate Reports</h3>
-            <p className="text-sm text-gray-600 mb-4">Export and analyze your activity data</p>
+            <p className="text-sm text-gray-600 mb-4">Export and analyze all activity data</p>
             <div className="space-y-2">
               <button
                 onClick={handleExportExcel}
@@ -251,8 +275,8 @@ export default function Reports() {
 
           <Card className="col-span-1 lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-green-700">Your Activity Types Overview</CardTitle>
-              <p className="text-sm text-gray-600">Your personal activity distribution by category</p>
+              <CardTitle className="text-lg font-semibold text-green-700">Activity Types Overview</CardTitle>
+              <p className="text-sm text-gray-600">System-wide activity distribution by category</p>
             </CardHeader>
             <CardContent>
               {typeDistribution.length > 0 ? (
@@ -278,16 +302,16 @@ export default function Reports() {
           </Card>
         </div>
 
-        {/* Recent Activities */}
+        {/* All Activities */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-green-700">Your Recent Activities</CardTitle>
-            <p className="text-sm text-gray-600">Your latest recorded activities</p>
+            <CardTitle className="text-lg font-semibold text-green-700">All System Activities</CardTitle>
+            <p className="text-sm text-gray-600">Complete list of all recorded activities</p>
           </CardHeader>
           <CardContent>
             {activities.length > 0 ? (
               <div className="space-y-4">
-                {activities.slice(0, 5).map((activity) => (
+                {activities.slice(0, 10).map((activity) => (
                   <div key={activity.id} className="border-l-4 border-l-blue-500 pl-4 py-3 bg-gray-50 rounded-r">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex-1">
@@ -300,29 +324,61 @@ export default function Reports() {
                             {activity.type}
                           </Badge>
                           <span className="text-xs text-gray-500">{activity.duration} min</span>
+                          <span className="text-xs text-gray-500">by {activity.submitted_by}</span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500">
-                          {new Date(activity.created_at).toLocaleDateString()}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditActivity(activity)}
+                          className="text-xs"
+                        >
+                          <Edit size={12} className="mr-1" />
+                          Edit
+                        </Button>
+                        <div className="text-right">
+                          <div className="text-xs text-gray-500">
+                            {new Date(activity.created_at).toLocaleDateString()}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
+                {activities.length > 10 && (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500">
+                      Showing 10 of {activities.length} activities. Export to see all.
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">You haven't added any activities yet. Start by adding your first activity!</p>
+                <p className="text-sm">No activities have been added yet. Start by adding the first activity!</p>
               </div>
             )}
           </CardContent>
         </Card>
         
         <div className="text-sm italic text-gray-500 mt-6 text-center">
-          All your submitted activities are synced across devices and visible here. Export for official reporting.
+          All system activities are displayed here. Export for comprehensive reporting.
         </div>
       </div>
+
+      {/* Edit Activity Dialog */}
+      {editingActivity && (
+        <EditActivityDialog
+          activity={editingActivity}
+          open={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setEditingActivity(null);
+          }}
+          onActivityUpdated={handleActivityUpdated}
+        />
+      )}
     </div>
   );
 }
