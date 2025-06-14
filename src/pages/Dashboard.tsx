@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -36,7 +35,17 @@ export default function Dashboard() {
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      setCurrentUser(user.email || "User");
+      // Extract name from email (part before @) or use full email
+      const userName = user.email?.split('@')[0] || user.email || "User";
+      setCurrentUser(userName);
+    } else {
+      // Fallback to demo role if no Supabase user
+      const demoRole = localStorage.getItem("role");
+      if (demoRole) {
+        setCurrentUser(demoRole === "admin" ? "Administrator" : "User");
+      } else {
+        setCurrentUser("User");
+      }
     }
   };
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import LiveStats from "@/components/admin/LiveStats";
 import LiveActivityFeed from "@/components/admin/LiveActivityFeed";
 import SystemMonitor from "@/components/admin/SystemMonitor";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Monitor, 
   Users, 
@@ -18,6 +19,7 @@ import {
 const LiveAdmin = () => {
   const [activeTab, setActiveTab] = useState("Live Dashboard");
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentUser, setCurrentUser] = useState<string>("Administrator");
 
   // Update time every minute
   useEffect(() => {
@@ -27,6 +29,28 @@ const LiveAdmin = () => {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Get current user
+  useEffect(() => {
+    getCurrentUser();
+  }, []);
+
+  const getCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      // Extract name from email (part before @) or use full email
+      const userName = user.email?.split('@')[0] || user.email || "Administrator";
+      setCurrentUser(userName);
+    } else {
+      // Fallback to demo role if no Supabase user
+      const demoRole = localStorage.getItem("role");
+      if (demoRole) {
+        setCurrentUser(demoRole === "admin" ? "Administrator" : "User");
+      } else {
+        setCurrentUser("Administrator");
+      }
+    }
+  };
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -139,7 +163,7 @@ const LiveAdmin = () => {
         {/* Header Section - Mobile Optimized */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-xl sm:text-3xl font-bold text-[#be2251] mb-2 flex items-center gap-2 sm:gap-3">
-            <span className="truncate">{getGreeting()}, Live Administrator!</span>
+            <span className="truncate">{getGreeting()}, {currentUser}!</span>
             <div className="relative flex-shrink-0">
               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
               <div className="absolute inset-0 w-3 h-3 bg-green-400 rounded-full animate-ping"></div>
