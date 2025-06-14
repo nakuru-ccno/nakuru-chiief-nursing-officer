@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import CountyHeader from "@/components/CountyHeader";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -28,6 +28,8 @@ const Login = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
+    // Clear error when user starts typing
+    if (error) setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,41 +37,45 @@ const Login = () => {
     setError("");
     setLoading(true);
 
-    // If username field is an email, use Supabase Auth.
-    if (isEmail(userData.username)) {
-      const { data, error: loginError } = await supabase.auth.signInWithPassword({
-        email: userData.username,
-        password: userData.password,
-      });
+    try {
+      // If username field is an email, use Supabase Auth.
+      if (isEmail(userData.username)) {
+        const { data, error: loginError } = await supabase.auth.signInWithPassword({
+          email: userData.username,
+          password: userData.password,
+        });
 
-      if (loginError) {
-        setError(loginError.message || "Invalid credentials. Please try again.");
+        if (loginError) {
+          setError(loginError.message || "Invalid credentials. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        // On success: remove any demo role & redirect to dashboard
+        localStorage.removeItem("role");
+        navigate("/dashboard", { replace: true });
         setLoading(false);
         return;
       }
 
-      // On success: remove any demo role & redirect to dashboard
-      localStorage.removeItem("role");
-      navigate("/dashboard", { replace: true });
-      setLoading(false);
-      return;
-    }
-
-    // Otherwise, use demo login logic
-    const found = DEMO_ACCOUNTS.find(
-      (a) =>
-        a.username === userData.username && a.password === userData.password
-    );
-    if (found) {
-      localStorage.setItem("role", found.role);
-      // For demo roles, do not authenticate via Supabase, just navigate
-      if (found.role === "admin") {
-        navigate("/admin");
+      // Otherwise, use demo login logic
+      const found = DEMO_ACCOUNTS.find(
+        (a) =>
+          a.username === userData.username && a.password === userData.password
+      );
+      if (found) {
+        localStorage.setItem("role", found.role);
+        // For demo roles, do not authenticate via Supabase, just navigate
+        if (found.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
-        navigate("/dashboard");
+        setError("Invalid credentials. Please try again.");
       }
-    } else {
-      setError("Invalid credentials. Please try again.");
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
     }
     setLoading(false);
   };
@@ -143,8 +149,8 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full bg-[#be2251] text-white font-semibold py-3 px-4 rounded-md hover:bg-[#fd3572] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading}
+              className="w-full bg-[#be2251] text-white font-semibold py-3 px-4 rounded-md hover:bg-[#fd3572] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:ring-offset-2"
+              disabled={loading || !userData.username.trim() || !userData.password.trim()}
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
@@ -153,12 +159,12 @@ const Login = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
-              <a
-                href="/register"
-                className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors"
+              <Link
+                to="/register"
+                className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors focus:outline-none focus:underline"
               >
                 Create Account
-              </a>
+              </Link>
             </p>
           </div>
         </div>
