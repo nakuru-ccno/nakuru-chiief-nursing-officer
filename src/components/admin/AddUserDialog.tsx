@@ -25,6 +25,7 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
     role: "",
     password: ""
   });
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,10 +61,12 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
       return;
     }
 
+    setIsLoading(true);
+
     try {
-      console.log('Creating user with regular signup...');
+      console.log('Creating user with signup...');
       
-      // Use regular signup instead of admin API
+      // Create user with signup
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -76,57 +79,75 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
       });
 
       if (authError) {
-        console.error('Supabase auth signup error:', authError);
-        toast({
-          title: "Error",
-          description: "Failed to create user account: " + authError.message,
-          variant: "destructive"
-        });
+        console.error('Signup error:', authError);
+        
+        // Handle specific error cases
+        if (authError.message.includes('rate limit') || authError.message.includes('429')) {
+          toast({
+            title: "Error",
+            description: "Too many signup attempts. Please wait a moment and try again.",
+            variant: "destructive"
+          });
+        } else if (authError.message.includes('already registered')) {
+          toast({
+            title: "Error", 
+            description: "This email is already registered. Please use a different email.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: `Failed to create user: ${authError.message}`,
+            variant: "destructive"
+          });
+        }
         return;
       }
 
-      // If successful, insert into profiles table
       if (authData.user) {
-        console.log('User created successfully, inserting into profiles...');
+        console.log('User created successfully:', authData.user.id);
         
+        // Insert into profiles table
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert([{
+          .insert({
             id: authData.user.id,
             email: formData.email,
             full_name: formData.name,
             role: formData.role,
             created_at: new Date().toISOString()
-          }]);
+          });
 
         if (profileError) {
           console.error('Profile insert error:', profileError);
           toast({
             title: "Warning",
-            description: "User created but profile data may not be complete",
+            description: "User created but profile setup incomplete. Please try refreshing the page.",
             variant: "destructive"
           });
         } else {
-          console.log('Profile inserted successfully');
+          console.log('Profile created successfully');
           toast({
             title: "Success",
             description: "User created successfully! They will need to confirm their email before logging in."
           });
         }
+
+        // Call the parent handler
+        onAddUser(formData);
+        setFormData({ name: "", email: "", role: "", password: "" });
+        setOpen(false);
       }
 
-      // Call the parent handler for local state management
-      onAddUser(formData);
-      setFormData({ name: "", email: "", role: "", password: "" });
-      setOpen(false);
-
     } catch (error) {
-      console.error('Error creating user:', error);
+      console.error('Unexpected error creating user:', error);
       toast({
         title: "Error",
-        description: "Failed to create user account",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -155,6 +176,7 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
               onChange={(e) => handleInputChange("name", e.target.value)}
               placeholder="Enter full name"
               required
+              disabled={isLoading}
             />
           </div>
           
@@ -167,6 +189,7 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
               onChange={(e) => handleInputChange("email", e.target.value)}
               placeholder="Enter email address"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -177,14 +200,19 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
               type="password"
               value={formData.password}
               onChange={(e) => handleInputChange("password", e.target.value)}
-              placeholder="Enter password"
+              placeholder="Enter password (min 6 characters)"
               required
+              disabled={isLoading}
             />
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
+            <Select 
+              value={formData.role} 
+              onValueChange={(value) => handleInputChange("role", value)}
+              disabled={isLoading}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
@@ -203,14 +231,16 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
               type="button" 
               variant="outline" 
               onClick={() => setOpen(false)}
+              disabled={isLoading}
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               className="bg-[#fd3572] hover:bg-[#be2251] text-white"
+              disabled={isLoading}
             >
-              Add User
+              {isLoading ? "Creating..." : "Add User"}
             </Button>
           </div>
         </form>
