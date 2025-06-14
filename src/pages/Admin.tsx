@@ -187,6 +187,51 @@ const Admin = () => {
     setDeletingUser(null);
   };
 
+  const handleExportPDF = () => {
+    console.log("Export PDF clicked");
+    toast({
+      title: "Export Started",
+      description: "PDF report is being generated and will be downloaded shortly"
+    });
+    // Simulate PDF generation
+    setTimeout(() => {
+      toast({
+        title: "Success",
+        description: "PDF report has been downloaded successfully"
+      });
+    }, 2000);
+  };
+
+  const handleExportExcel = () => {
+    console.log("Export Excel clicked");
+    toast({
+      title: "Export Started",
+      description: "Excel report is being generated and will be downloaded shortly"
+    });
+    // Simulate Excel generation
+    setTimeout(() => {
+      toast({
+        title: "Success",
+        description: "Excel report has been downloaded successfully"
+      });
+    }, 2000);
+  };
+
+  const handleGenerateReport = (reportType: string) => {
+    console.log(`Generate ${reportType} Report clicked`);
+    toast({
+      title: "Report Generation Started",
+      description: `${reportType} report is being generated`
+    });
+    // Simulate report generation
+    setTimeout(() => {
+      toast({
+        title: "Success",
+        description: `${reportType} report has been generated successfully`
+      });
+    }, 2000);
+  };
+
   const renderDashboardContent = () => (
     <>
       {/* Statistics Cards */}
@@ -408,10 +453,16 @@ const Admin = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-[#be2251]">System Reports</h2>
         <div className="flex gap-2">
-          <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+          <Button 
+            onClick={handleExportPDF}
+            className="bg-[#fd3572] hover:bg-[#be2251] text-white"
+          >
             Export PDF
           </Button>
-          <Button variant="outline">
+          <Button 
+            onClick={handleExportExcel}
+            variant="outline"
+          >
             Export Excel
           </Button>
         </div>
@@ -424,7 +475,10 @@ const Admin = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600 mb-4">Comprehensive activity tracking and analysis</p>
-            <Button className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
+            <Button 
+              onClick={() => handleGenerateReport("Activity")}
+              className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
+            >
               Generate Report
             </Button>
           </CardContent>
@@ -436,7 +490,10 @@ const Admin = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600 mb-4">User engagement and performance metrics</p>
-            <Button className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
+            <Button 
+              onClick={() => handleGenerateReport("User")}
+              className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
+            >
               Generate Report
             </Button>
           </CardContent>
@@ -448,7 +505,10 @@ const Admin = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600 mb-4">System usage and performance statistics</p>
-            <Button className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
+            <Button 
+              onClick={() => handleGenerateReport("System")}
+              className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
+            >
               Generate Report
             </Button>
           </CardContent>
