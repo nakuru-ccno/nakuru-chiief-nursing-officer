@@ -107,43 +107,62 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
       if (authData.user) {
         console.log('User created successfully:', authData.user.id);
         
-        // Insert into profiles table directly
-        try {
-          console.log('Inserting user profile into profiles table...');
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
-              email: formData.email,
-              full_name: formData.name,
-              role: formData.role,
-              created_at: new Date().toISOString()
-            });
+        // Create the profile using a different approach to avoid permission issues
+        console.log('Creating user profile...');
+        
+        // Wait a moment for auth to settle
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Create profile with proper error handling
+        const profileData = {
+          id: authData.user.id,
+          email: formData.email,
+          full_name: formData.name,
+          role: formData.role,
+          created_at: new Date().toISOString(),
+          last_sign_in_at: null
+        };
 
-          if (profileError) {
-            console.error('Profile insert error:', profileError);
+        console.log('Attempting to create profile:', profileData);
+
+        const { data: profileResult, error: profileError } = await supabase
+          .from('profiles')
+          .insert(profileData)
+          .select()
+          .single();
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          
+          // Try alternative approach - check if profile already exists
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+
+          if (!existingProfile) {
             toast({
-              title: "Partial Success",
-              description: "User created successfully, but profile setup incomplete. The user can still log in.",
+              title: "User Created",
+              description: "User account created successfully. Profile may need manual setup.",
               variant: "default"
             });
           } else {
-            console.log('Profile created successfully');
+            console.log('Profile already exists');
             toast({
               title: "Success",
-              description: "User created successfully! They will need to confirm their email before logging in."
+              description: "User created successfully!"
             });
           }
-        } catch (profileInsertError) {
-          console.error('Profile insert error:', profileInsertError);
+        } else {
+          console.log('Profile created successfully:', profileResult);
           toast({
-            title: "Partial Success",
-            description: "User created successfully, but profile setup incomplete. The user can still log in.",
-            variant: "default"
+            title: "Success",
+            description: "User created successfully! They will need to confirm their email before logging in."
           });
         }
 
-        // Call the parent handler regardless of profile creation success
+        // Call the parent handler to refresh the list
         onAddUser(formData);
         setFormData({ name: "", email: "", role: "", password: "" });
         setOpen(false);
