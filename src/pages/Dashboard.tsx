@@ -4,6 +4,7 @@ import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type Activity = {
   id: string;
@@ -19,10 +20,11 @@ type Activity = {
 
 export default function Dashboard() {
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Load activities from localStorage on component mount
+  // Load activities from Supabase on component mount
   useEffect(() => {
     fetchActivities();
   }, []);
@@ -30,16 +32,29 @@ export default function Dashboard() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      const stored = localStorage.getItem('activities');
-      const allActivities = stored ? JSON.parse(stored) : [];
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .order('submitted_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching activities:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load activities from database",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Loaded activities from Supabase for dashboard:', data);
       
-      // Show only recent 5 activities
-      const recentActivities = allActivities
-        .sort((a: Activity, b: Activity) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
-        .slice(0, 5);
+      // Store all activities for statistics
+      setAllActivities(data || []);
       
+      // Show only recent 5 activities for the dashboard
+      const recentActivities = (data || []).slice(0, 5);
       setActivities(recentActivities);
-      console.log('Loaded recent activities from localStorage for dashboard:', recentActivities);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
@@ -53,12 +68,6 @@ export default function Dashboard() {
   };
 
   // Calculate statistics from all activities
-  const getAllActivities = () => {
-    const stored = localStorage.getItem('activities');
-    return stored ? JSON.parse(stored) : [];
-  };
-
-  const allActivities = getAllActivities();
   const totalActivities = allActivities.length;
   const totalDuration = allActivities.reduce((sum: number, activity: Activity) => sum + (Number(activity.duration) || 0), 0);
   const averageDuration = totalActivities > 0 ? Math.round(totalDuration / totalActivities) : 0;
@@ -83,7 +92,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-[#be2251] mb-2">Dashboard</h2>
-          <p className="text-gray-600">Overview of your administrative activities</p>
+          <p className="text-gray-600">Overview of your administrative activities across all devices</p>
         </div>
 
         {/* Statistics Cards */}
@@ -130,12 +139,12 @@ export default function Dashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-bold text-[#be2251]">Recent Activities</CardTitle>
-            <p className="text-sm text-gray-600">Your latest administrative activities</p>
+            <p className="text-sm text-gray-600">Your latest administrative activities synced across devices</p>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="text-center py-8 text-gray-500">
-                <p>Loading recent activities...</p>
+                <p>Loading recent activities from database...</p>
               </div>
             ) : activities.length > 0 ? (
               <div className="space-y-3">

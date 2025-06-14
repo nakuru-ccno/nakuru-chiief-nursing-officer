@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 // @ts-ignore: Used for Excel export
 import * as XLSX from "xlsx";
 
@@ -23,7 +24,7 @@ export default function Reports() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Load activities from localStorage on component mount
+  // Load activities from Supabase on component mount
   useEffect(() => {
     fetchActivities();
   }, []);
@@ -31,16 +32,23 @@ export default function Reports() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      const stored = localStorage.getItem('activities');
-      const activities = stored ? JSON.parse(stored) : [];
-      
-      // Sort by date (most recent first)
-      const sortedActivities = activities.sort((a: Activity, b: Activity) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-      
-      setActivities(sortedActivities);
-      console.log('Loaded activities from localStorage for reports:', sortedActivities);
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching activities:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load activities from database",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Loaded activities from Supabase for reports:', data);
+      setActivities(data || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
@@ -87,7 +95,7 @@ export default function Reports() {
         <MainNavbar />
         <div className="max-w-4xl mx-auto p-8">
           <div className="text-center py-8 text-gray-500">
-            <p>Loading activities...</p>
+            <p>Loading activities from database...</p>
           </div>
         </div>
       </div>
@@ -100,6 +108,7 @@ export default function Reports() {
       <MainNavbar />
       <div className="max-w-4xl mx-auto p-8">
         <h2 className="text-2xl font-bold mb-4 text-[#be2251]">Reports</h2>
+        <p className="text-gray-600 mb-4">Activities synced across all devices</p>
         <div className="flex gap-3 mb-4">
           <button
             onClick={handleExportExcel}
@@ -147,7 +156,7 @@ export default function Reports() {
         )}
         
         <div className="text-sm italic text-gray-500">
-          All submitted activities are visible here. Export for official reporting.
+          All submitted activities are synced across devices and visible here. Export for official reporting.
         </div>
       </div>
     </div>

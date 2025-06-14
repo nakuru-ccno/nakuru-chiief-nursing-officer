@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type Activity = {
   id: string;
@@ -49,7 +50,7 @@ export default function Activities() {
   const [filterType, setFilterType] = useState("");
   const { toast } = useToast();
 
-  // Load activities from localStorage on component mount
+  // Load activities from Supabase on component mount
   useEffect(() => {
     fetchActivities();
   }, []);
@@ -57,10 +58,23 @@ export default function Activities() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      const stored = localStorage.getItem('activities');
-      const activities = stored ? JSON.parse(stored) : [];
-      setActivities(activities);
-      console.log('Loaded activities from localStorage:', activities);
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .order('submitted_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching activities:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load activities from database",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Loaded activities from Supabase:', data);
+      setActivities(data || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
@@ -94,8 +108,7 @@ export default function Activities() {
     setIsSubmitting(true);
 
     try {
-      const newActivity: Activity = {
-        id: Date.now().toString(),
+      const newActivity = {
         title: form.title,
         type: form.type,
         date: form.date,
@@ -103,20 +116,24 @@ export default function Activities() {
         facility: form.facility,
         description: form.description,
         submitted_by: "Demo User",
-        submitted_at: new Date().toISOString(),
       };
 
-      // Get existing activities
-      const stored = localStorage.getItem('activities');
-      const existingActivities = stored ? JSON.parse(stored) : [];
-      
-      // Add new activity
-      const updatedActivities = [newActivity, ...existingActivities];
-      
-      // Save to localStorage
-      localStorage.setItem('activities', JSON.stringify(updatedActivities));
-      
-      console.log('Activity saved to localStorage:', newActivity);
+      const { data, error } = await supabase
+        .from('activities')
+        .insert([newActivity])
+        .select();
+
+      if (error) {
+        console.error('Error saving activity:', error);
+        toast({
+          title: "Error",
+          description: "Error saving activity to database. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Activity saved to Supabase:', data);
       
       // Refresh activities list
       await fetchActivities();
@@ -133,7 +150,7 @@ export default function Activities() {
 
       toast({
         title: "Success",
-        description: "Activity added successfully!",
+        description: "Activity added successfully and synced across devices!",
       });
     } catch (error) {
       console.error('Error saving activity:', error);
@@ -175,7 +192,7 @@ export default function Activities() {
         {/* Header */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-[#be2251] mb-2">Daily Activities</h2>
-          <p className="text-gray-600">Manage and track your administrative activities</p>
+          <p className="text-gray-600">Manage and track your administrative activities across all devices</p>
         </div>
 
         {/* Tab Navigation */}
@@ -312,7 +329,7 @@ export default function Activities() {
                     disabled={isSubmitting}
                     className="bg-[#fd3572] hover:bg-[#be2251] text-white font-medium px-6"
                   >
-                    {isSubmitting ? 'Adding...' : 'Add Activity'}
+                    {isSubmitting ? 'Saving...' : 'Add Activity'}
                   </Button>
                   <Button
                     type="button"
@@ -379,12 +396,12 @@ export default function Activities() {
                 <CardTitle className="text-lg font-bold text-[#be2251]">
                   Activities ({filteredActivities.length})
                 </CardTitle>
-                <p className="text-sm text-gray-600">Your recorded activities</p>
+                <p className="text-sm text-gray-600">Your recorded activities synced across all devices</p>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
                   <div className="text-center py-8 text-gray-500">
-                    <p>Loading activities...</p>
+                    <p>Loading activities from database...</p>
                   </div>
                 ) : filteredActivities.length > 0 ? (
                   <div className="space-y-3">
