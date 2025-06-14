@@ -107,33 +107,45 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
       if (authData.user) {
         console.log('User created successfully:', authData.user.id);
         
-        // Insert into profiles table
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            email: formData.email,
-            full_name: formData.name,
-            role: formData.role,
-            created_at: new Date().toISOString()
-          });
+        // Try to insert into profiles table with better error handling
+        try {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: authData.user.id,
+              email: formData.email,
+              full_name: formData.name,
+              role: formData.role,
+              created_at: new Date().toISOString()
+            }, {
+              onConflict: 'id'
+            });
 
-        if (profileError) {
-          console.error('Profile insert error:', profileError);
+          if (profileError) {
+            console.error('Profile upsert error:', profileError);
+            // Even if profile creation fails, the user was created successfully
+            toast({
+              title: "Partial Success",
+              description: "User created successfully, but profile setup incomplete. The user can still log in.",
+              variant: "default"
+            });
+          } else {
+            console.log('Profile created successfully');
+            toast({
+              title: "Success",
+              description: "User created successfully! They will need to confirm their email before logging in."
+            });
+          }
+        } catch (profileInsertError) {
+          console.error('Profile insert error:', profileInsertError);
           toast({
-            title: "Warning",
-            description: "User created but profile setup incomplete. Please try refreshing the page.",
-            variant: "destructive"
-          });
-        } else {
-          console.log('Profile created successfully');
-          toast({
-            title: "Success",
-            description: "User created successfully! They will need to confirm their email before logging in."
+            title: "Partial Success",
+            description: "User created successfully, but profile setup incomplete. The user can still log in.",
+            variant: "default"
           });
         }
 
-        // Call the parent handler
+        // Call the parent handler regardless of profile creation success
         onAddUser(formData);
         setFormData({ name: "", email: "", role: "", password: "" });
         setOpen(false);
