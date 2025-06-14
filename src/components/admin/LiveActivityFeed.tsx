@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,92 +17,166 @@ interface Activity {
 const LiveActivityFeed: React.FC = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string>('Connecting...');
 
-  // Enhanced real-time activity fetching
+  // Enhanced real-time activity fetching with better error handling
   const fetchActivities = async () => {
     try {
       const { data, error } = await supabase
         .from('activities')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(15); // Show more activities for admin monitoring
+        .limit(15);
 
       if (error) {
         console.error('Error fetching activities for admin live feed:', error);
+        setConnectionStatus('Error fetching data');
         return;
       }
 
       console.log('Admin LiveActivityFeed - Loaded activities:', data?.length || 0);
       setActivities(data || []);
+      setConnectionStatus('Connected');
     } catch (error) {
       console.error('Error fetching activities for admin live feed:', error);
+      setConnectionStatus('Connection error');
     }
   };
 
-  // Load activities and set up enhanced real-time subscription
+  // Enhanced real-time subscription with better connection monitoring
   useEffect(() => {
-    fetchActivities();
+    let retryTimeout: NodeJS.Timeout;
+    let channel: any;
 
-    // Set up comprehensive real-time subscription for admin monitoring
-    const channel = supabase
-      .channel('admin-activities-feed')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'activities'
-        },
-        (payload) => {
-          console.log('Admin LiveActivityFeed - New activity inserted:', payload.new);
-          const newActivity = payload.new as Activity;
-          setActivities(prev => [newActivity, ...prev.slice(0, 14)]); // Keep latest 15
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'activities'
-        },
-        (payload) => {
-          console.log('Admin LiveActivityFeed - Activity updated:', payload.new);
-          const updatedActivity = payload.new as Activity;
-          setActivities(prev => 
-            prev.map(activity => 
-              activity.id === updatedActivity.id ? updatedActivity : activity
-            )
-          );
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'activities'
-        },
-        (payload) => {
-          console.log('Admin LiveActivityFeed - Activity deleted:', payload.old);
-          const deletedId = payload.old.id;
-          setActivities(prev => prev.filter(activity => activity.id !== deletedId));
-        }
-      )
-      .subscribe((status) => {
-        console.log('Admin LiveActivityFeed - Subscription status:', status);
-        setIsConnected(status === 'SUBSCRIBED');
-      });
-
-    // Auto-refresh feed every 60 seconds for admin monitoring
-    const autoRefreshInterval = setInterval(() => {
-      console.log('Admin LiveActivityFeed - Auto-refreshing feed...');
+    const setupRealtimeConnection = () => {
+      console.log('Setting up enhanced real-time connection for cross-device sync...');
+      
+      // Initial fetch
       fetchActivities();
-    }, 60000);
+
+      // Set up comprehensive real-time subscription with enhanced monitoring
+      channel = supabase
+        .channel('admin-activities-realtime-sync', {
+          config: {
+            broadcast: { self: true },
+            presence: { key: 'admin-dashboard' }
+          }
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'activities'
+          },
+          (payload) => {
+            console.log('🔥 Real-time: New activity inserted across all devices:', payload.new);
+            const newActivity = payload.new as Activity;
+            setActivities(prev => {
+              // Prevent duplicates and maintain order
+              const filtered = prev.filter(activity => activity.id !== newActivity.id);
+              return [newActivity, ...filtered.slice(0, 14)];
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'activities'
+          },
+          (payload) => {
+            console.log('🔄 Real-time: Activity updated across all devices:', payload.new);
+            const updatedActivity = payload.new as Activity;
+            setActivities(prev => 
+              prev.map(activity => 
+                activity.id === updatedActivity.id ? updatedActivity : activity
+              )
+            );
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'activities'
+          },
+          (payload) => {
+            console.log('🗑️ Real-time: Activity deleted across all devices:', payload.old);
+            const deletedId = payload.old.id;
+            setActivities(prev => prev.filter(activity => activity.id !== deletedId));
+          }
+        )
+        .subscribe((status, err) => {
+          console.log('📡 Real-time subscription status:', status);
+          
+          if (status === 'SUBSCRIBED') {
+            setIsConnected(true);
+            setConnectionStatus('Live - Synced across all devices');
+            console.log('✅ Successfully connected to real-time feed for cross-device sync');
+          } else if (status === 'CHANNEL_ERROR') {
+            setIsConnected(false);
+            setConnectionStatus('Connection error - Retrying...');
+            console.error('❌ Real-time subscription error:', err);
+            
+            // Retry connection after 3 seconds
+            retryTimeout = setTimeout(() => {
+              console.log('🔄 Retrying real-time connection...');
+              setupRealtimeConnection();
+            }, 3000);
+          } else if (status === 'CLOSED') {
+            setIsConnected(false);
+            setConnectionStatus('Connection closed - Reconnecting...');
+            console.log('🔌 Real-time connection closed, attempting reconnect...');
+            
+            // Retry connection after 2 seconds
+            retryTimeout = setTimeout(() => {
+              setupRealtimeConnection();
+            }, 2000);
+          }
+        });
+    };
+
+    // Initial setup
+    setupRealtimeConnection();
+
+    // Enhanced auto-refresh for cross-device sync (every 30 seconds)
+    const autoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing for cross-device synchronization...');
+      fetchActivities();
+    }, 30000);
+
+    // Visibility change handler for cross-device sync
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('📱 Tab became visible - refreshing for cross-device sync');
+        fetchActivities();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Connection status monitoring
+    const connectionMonitor = setInterval(() => {
+      if (channel?.state === 'closed' || channel?.state === 'errored') {
+        console.log('🔍 Detected connection issues, attempting reconnect...');
+        setIsConnected(false);
+        setConnectionStatus('Reconnecting...');
+        setupRealtimeConnection();
+      }
+    }, 10000);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        console.log('🧹 Cleaning up real-time subscriptions...');
+        supabase.removeChannel(channel);
+      }
       clearInterval(autoRefreshInterval);
+      clearInterval(connectionMonitor);
+      clearTimeout(retryTimeout);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       setIsConnected(false);
     };
   }, []);
@@ -138,7 +211,6 @@ const LiveActivityFeed: React.FC = () => {
   const getUserDisplayName = (submittedBy: string) => {
     if (!submittedBy) return 'Unknown User';
     
-    // Extract name from email format
     if (submittedBy.includes('@')) {
       const username = submittedBy.split('@')[0];
       return username.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -153,9 +225,9 @@ const LiveActivityFeed: React.FC = () => {
     const diff = now.getTime() - activityTime.getTime();
     const hours = Math.floor(diff / 3600000);
     
-    if (hours < 1) return 'bg-green-500'; // Recent activity
-    if (hours < 6) return 'bg-yellow-500'; // Moderate
-    return 'bg-gray-400'; // Older activity
+    if (hours < 1) return 'bg-green-500';
+    if (hours < 6) return 'bg-yellow-500';
+    return 'bg-gray-400';
   };
 
   return (
@@ -167,7 +239,7 @@ const LiveActivityFeed: React.FC = () => {
           {isConnected && <span className="text-xs text-green-600 font-normal">LIVE</span>}
         </CardTitle>
         <p className="text-xs sm:text-sm text-gray-600">
-          Real-time user activities across all departments • {activities.length} recent activities
+          {connectionStatus} • {activities.length} recent activities • Cross-device synchronized
         </p>
       </CardHeader>
       <CardContent className="space-y-2 max-h-96 overflow-y-auto px-3 sm:px-6">
@@ -217,7 +289,7 @@ const LiveActivityFeed: React.FC = () => {
               {isConnected ? 'No activities yet' : 'Connecting to live feed...'}
             </p>
             <p className="text-xs mt-2">
-              {isConnected ? 'User activities will appear here in real-time' : 'Please wait while we establish connection'}
+              {isConnected ? 'User activities will appear here in real-time across all devices' : connectionStatus}
             </p>
           </div>
         )}

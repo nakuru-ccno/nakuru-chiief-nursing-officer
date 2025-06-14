@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -28,9 +27,14 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
     { hour: '20:00', activities: 0, users: 0 }
   ]);
 
-  // Enhanced real-time stats fetching from activities table
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+
+  // Enhanced real-time stats fetching with cross-device synchronization
   const fetchStats = async () => {
     try {
+      console.log('🔄 Fetching stats for cross-device synchronization...');
+      
       // Get all activities with real-time data
       const { data: activities, error: activitiesError } = await supabase
         .from('activities')
@@ -38,15 +42,17 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
 
       if (activitiesError) {
         console.error('Error fetching activities for admin stats:', activitiesError);
+        setIsConnected(false);
         return;
       }
 
-      console.log('Admin LiveStats - Fetched activities:', activities?.length || 0);
+      console.log('📊 Admin LiveStats - Syncing activities across devices:', activities?.length || 0);
+      setIsConnected(true);
+      setLastSyncTime(new Date());
 
-      // Calculate comprehensive statistics
+      // ... keep existing code (calculation logic)
       const totalActivities = activities?.length || 0;
       
-      // Get this month's activities
       const thisMonth = new Date();
       thisMonth.setDate(1);
       const thisMonthActivities = activities?.filter((activity: any) => {
@@ -54,17 +60,13 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
         return activityDate >= thisMonth;
       }) || [];
 
-      // Get unique users (based on submitted_by)
       const uniqueUsers = new Set(activities?.map((activity: any) => activity.submitted_by).filter(Boolean) || []);
 
-      // Calculate total hours from duration
       const totalMinutes = activities?.reduce((sum: number, activity: any) => sum + (activity.duration || 0), 0) || 0;
       const totalHours = Math.floor(totalMinutes / 60);
 
-      // Calculate average duration per activity
       const averageDuration = totalActivities > 0 ? Math.round(totalMinutes / totalActivities) : 0;
 
-      // Get today's activities for hourly distribution
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayActivities = activities?.filter((activity: any) => {
@@ -72,7 +74,6 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
         return activityDate >= today;
       }) || [];
 
-      // Update hourly data with real activity counts
       const updatedHourlyData = hourlyData.map((item, index) => {
         const hour = index * 4;
         const hourActivities = todayActivities.filter((activity: any) => {
@@ -89,7 +90,6 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
 
       setHourlyData(updatedHourlyData);
 
-      // Calculate active users (users who created activities in the last 24 hours)
       const last24Hours = new Date();
       last24Hours.setHours(last24Hours.getHours() - 24);
       const recentActivities = activities?.filter((activity: any) => {
@@ -110,7 +110,7 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
 
       setStats(newStats);
 
-      console.log('Admin LiveStats - Updated stats:', {
+      console.log('✅ Admin LiveStats - Stats synchronized across all devices:', {
         totalActivities,
         totalUsers: uniqueUsers.size,
         thisMonth: thisMonthActivities.length,
@@ -120,62 +120,78 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
       });
 
     } catch (error) {
-      console.error('Error fetching admin activity stats:', error);
+      console.error('❌ Error fetching admin activity stats:', error);
+      setIsConnected(false);
     }
   };
 
   useEffect(() => {
-    // Initial fetch
-    fetchStats();
+    let channel: any;
+    let retryTimeout: NodeJS.Timeout;
 
-    // Set up enhanced real-time subscription for all activity changes
-    const channel = supabase
-      .channel('admin-stats-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'activities'
-        },
-        (payload) => {
-          console.log('Admin LiveStats - New activity inserted:', payload.new);
-          fetchStats(); // Refresh stats immediately
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'activities'
-        },
-        (payload) => {
-          console.log('Admin LiveStats - Activity updated:', payload.new);
-          fetchStats(); // Refresh stats immediately
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'activities'
-        },
-        (payload) => {
-          console.log('Admin LiveStats - Activity deleted:', payload.old);
-          fetchStats(); // Refresh stats immediately
-        }
-      )
-      .subscribe();
-
-    // Auto-refresh stats every 30 seconds for real-time sync
-    const autoRefreshInterval = setInterval(() => {
-      console.log('Admin LiveStats - Auto-refreshing stats...');
+    const setupRealtimeStatsSync = () => {
+      console.log('🚀 Setting up enhanced real-time stats synchronization...');
+      
+      // Initial fetch
       fetchStats();
-    }, 30000);
 
-    // Update system load periodically for realistic admin monitoring
+      // Set up enhanced real-time subscription for cross-device stats sync
+      channel = supabase
+        .channel('admin-stats-realtime-sync', {
+          config: {
+            broadcast: { self: true },
+            presence: { key: 'admin-stats' }
+          }
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to all events for comprehensive sync
+            schema: 'public',
+            table: 'activities'
+          },
+          (payload) => {
+            console.log('📈 Real-time stats update across all devices:', payload.eventType);
+            fetchStats(); // Refresh stats immediately on any change
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 Stats sync subscription status:', status);
+          
+          if (status === 'SUBSCRIBED') {
+            setIsConnected(true);
+            console.log('✅ Stats synchronization active across all devices');
+          } else if (status === 'CHANNEL_ERROR') {
+            setIsConnected(false);
+            console.error('❌ Stats sync error - retrying...');
+            
+            retryTimeout = setTimeout(() => {
+              setupRealtimeStatsSync();
+            }, 3000);
+          }
+        });
+    };
+
+    // Initial setup
+    setupRealtimeStatsSync();
+
+    // Enhanced auto-refresh for cross-device synchronization
+    const autoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing stats for cross-device sync...');
+      fetchStats();
+    }, 20000); // More frequent updates for better sync
+
+    // Visibility change handler for cross-device sync
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('📱 Tab visible - syncing stats across devices');
+        fetchStats();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // System load update with cross-device considerations
     const systemInterval = setInterval(() => {
       setStats(prev => ({
         ...prev,
@@ -184,9 +200,15 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
     }, 5000);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        console.log('🧹 Cleaning up stats sync subscriptions...');
+        supabase.removeChannel(channel);
+      }
       clearInterval(autoRefreshInterval);
       clearInterval(systemInterval);
+      clearTimeout(retryTimeout);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      setIsConnected(false);
     };
   }, []);
 
@@ -200,7 +222,7 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm lg:text-lg font-bold text-[#be2251] flex items-center gap-2">
             <span className="truncate">Active Users</span>
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>
+            <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full flex-shrink-0`}></div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -275,23 +297,29 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
       <Card className="border-l-4 border-l-indigo-500">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm lg:text-lg font-bold text-[#be2251] flex items-center gap-2">
-            <span className="truncate">Live Sync</span>
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-ping flex-shrink-0"></div>
+            <span className="truncate">Cross-Device Sync</span>
+            <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-ping' : 'bg-red-500'} rounded-full flex-shrink-0`}></div>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-xl lg:text-3xl font-bold text-green-600">ON</div>
-          <p className="text-xs lg:text-sm text-gray-600">Real-time updates</p>
+          <div className={`text-xl lg:text-3xl font-bold ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+            {isConnected ? 'ON' : 'OFF'}
+          </div>
+          <p className="text-xs lg:text-sm text-gray-600">
+            {isConnected ? `Synced ${lastSyncTime.toLocaleTimeString()}` : 'Reconnecting...'}
+          </p>
         </CardContent>
       </Card>
 
       <Card className="col-span-2 lg:col-span-4">
         <CardHeader>
           <CardTitle className="text-sm lg:text-lg font-bold text-[#be2251] flex items-center gap-2">
-            Activity Timeline (24h)
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            Activity Timeline (24h) - Cross-Device Synchronized
+            <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
           </CardTitle>
-          <p className="text-xs lg:text-sm text-gray-600">Real-time activity distribution across all users</p>
+          <p className="text-xs lg:text-sm text-gray-600">
+            Real-time activity distribution synchronized across all devices and platforms
+          </p>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={150}>
