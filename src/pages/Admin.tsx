@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import CountyHeader from "@/components/CountyHeader";
 import { Button } from "@/components/ui/button";
@@ -159,8 +160,8 @@ const Admin = () => {
 
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50">
+              <TableHeader className="bg-gray-50">
+                <TableRow>
                   <TableHead className="font-semibold text-gray-900">Date</TableHead>
                   <TableHead className="font-semibold text-gray-900">Facility</TableHead>
                   <TableHead className="font-semibold text-gray-900">Title</TableHead>
