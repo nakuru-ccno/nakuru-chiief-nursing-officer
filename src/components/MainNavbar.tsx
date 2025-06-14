@@ -1,7 +1,6 @@
-
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Activity, FileText, LogIn, LogOut, Settings, Monitor, Users } from "lucide-react";
+import { Home, Activity, FileText, LogIn, LogOut, Settings } from "lucide-react";
 
 const MainNavbar = () => {
   const location = useLocation();
@@ -26,10 +25,9 @@ const MainNavbar = () => {
     { to: "/reports", label: "Reports", icon: FileText },
   ];
 
-  // Navigation items for admins - always show admin navigation
+  // Navigation items for admins - removed Users/Live Admin navigation
   const adminNavItems = [
     { to: "/admin", label: "Admin Dashboard", icon: Home },
-    { to: "/live-admin", label: "Users", icon: Users },
     { to: "/reports", label: "Reports", icon: FileText },
     { to: "/activities", label: "Settings", icon: Settings },
   ];
