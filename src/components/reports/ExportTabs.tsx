@@ -61,28 +61,37 @@ const ExportTabs: React.FC<ExportTabsProps> = ({
       return;
     }
 
-    const exportData = activities.map(activity => ({
-      "Date": new Date(activity.created_at).toLocaleDateString(),
-      "Title": activity.title,
-      "Type": activity.type,
-      "Facility": activity.facility,
-      "Duration (min)": activity.duration,
-      "Description": activity.description,
-      "Submitted By": activity.submitted_by,
-      "Submitted Date": new Date(activity.submitted_at).toLocaleDateString()
-    }));
+    try {
+      const exportData = activities.map(activity => ({
+        "Date": new Date(activity.created_at).toLocaleDateString(),
+        "Title": activity.title,
+        "Type": activity.type,
+        "Facility": activity.facility,
+        "Duration (min)": activity.duration,
+        "Description": activity.description,
+        "Submitted By": activity.submitted_by,
+        "Submitted Date": new Date(activity.submitted_at).toLocaleDateString()
+      }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Activities");
-    
-    const filename = `${getReportTitle().replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(wb, filename);
-    
-    toast({
-      title: "Excel Export Complete",
-      description: `Report exported as ${filename}`,
-    });
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Activities");
+      
+      const filename = `${getReportTitle().replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, filename);
+      
+      toast({
+        title: "Excel Export Complete",
+        description: `Report exported as ${filename}`,
+      });
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast({
+        title: "Export Error",
+        description: "Failed to export Excel file",
+        variant: "destructive",
+      });
+    }
   };
 
   const exportToPDF = () => {
@@ -95,99 +104,115 @@ const ExportTabs: React.FC<ExportTabsProps> = ({
       return;
     }
 
-    // Create a new window with the report content
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    try {
+      // Create a new window with the report content
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast({
+          title: "PDF Export Error",
+          description: "Could not open print window. Please check your browser settings.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const reportHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${getReportTitle()}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #fd3572; padding-bottom: 20px; }
-            .title { color: #be2251; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-            .subtitle { color: #666; font-size: 14px; }
-            .stats { display: flex; justify-content: space-around; margin: 20px 0; padding: 20px; background: #f8f9fa; }
-            .stat { text-align: center; }
-            .stat-value { font-size: 20px; font-weight: bold; color: #fd3572; }
-            .stat-label { font-size: 12px; color: #666; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #fd3572; color: white; font-weight: bold; }
-            tr:nth-child(even) { background-color: #f2f2f2; }
-            .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="title">${getReportTitle()}</div>
-            <div class="subtitle">County of Unlimited Opportunities - Generated on ${new Date().toLocaleDateString()}</div>
-          </div>
-          
-          <div class="stats">
-            <div class="stat">
-              <div class="stat-value">${activities.length}</div>
-              <div class="stat-label">Total Activities</div>
+      const reportHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${getReportTitle()}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #fd3572; padding-bottom: 20px; }
+              .title { color: #be2251; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+              .subtitle { color: #666; font-size: 14px; }
+              .stats { display: flex; justify-content: space-around; margin: 20px 0; padding: 20px; background: #f8f9fa; }
+              .stat { text-align: center; }
+              .stat-value { font-size: 20px; font-weight: bold; color: #fd3572; }
+              .stat-label { font-size: 12px; color: #666; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #fd3572; color: white; font-weight: bold; }
+              tr:nth-child(even) { background-color: #f2f2f2; }
+              .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
+              @media print {
+                body { margin: 0; }
+                .no-print { display: none; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">${getReportTitle()}</div>
+              <div class="subtitle">County of Unlimited Opportunities - Generated on ${new Date().toLocaleDateString()}</div>
             </div>
-            <div class="stat">
-              <div class="stat-value">${Math.floor(activities.reduce((sum, a) => sum + (a.duration || 0), 0) / 60)}</div>
-              <div class="stat-label">Total Hours</div>
+            
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-value">${activities.length}</div>
+                <div class="stat-label">Total Activities</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">${Math.floor(activities.reduce((sum, a) => sum + (a.duration || 0), 0) / 60)}</div>
+                <div class="stat-label">Total Hours</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">${new Set(activities.map(a => a.submitted_by)).size}</div>
+                <div class="stat-label">Contributors</div>
+              </div>
             </div>
-            <div class="stat">
-              <div class="stat-value">${new Set(activities.map(a => a.submitted_by)).size}</div>
-              <div class="stat-label">Contributors</div>
-            </div>
-          </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Facility</th>
-                <th>Duration</th>
-                <th>Submitted By</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${activities.map(activity => `
+            <table>
+              <thead>
                 <tr>
-                  <td>${new Date(activity.created_at).toLocaleDateString()}</td>
-                  <td>${activity.title}</td>
-                  <td>${activity.type}</td>
-                  <td>${activity.facility}</td>
-                  <td>${activity.duration} min</td>
-                  <td>${activity.submitted_by}</td>
+                  <th>Date</th>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Facility</th>
+                  <th>Duration</th>
+                  <th>Submitted By</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${activities.map(activity => `
+                  <tr>
+                    <td>${new Date(activity.created_at).toLocaleDateString()}</td>
+                    <td>${activity.title}</td>
+                    <td>${activity.type}</td>
+                    <td>${activity.facility}</td>
+                    <td>${activity.duration} min</td>
+                    <td>${activity.submitted_by}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
 
-          <div class="footer">
-            <p>This report was generated automatically from the County Activities Management System.</p>
-          </div>
-        </body>
-      </html>
-    `;
+            <div class="footer">
+              <p>This report was generated automatically from the County Activities Management System.</p>
+            </div>
+          </body>
+        </html>
+      `;
 
-    printWindow.document.write(reportHtml);
-    printWindow.document.close();
-    
-    // Auto-print after a short delay
-    setTimeout(() => {
-      printWindow.print();
+      printWindow.document.write(reportHtml);
+      printWindow.document.close();
+      
+      // Auto-print after a short delay
+      setTimeout(() => {
+        printWindow.print();
+        toast({
+          title: "PDF Export Ready",
+          description: "Print dialog opened. Choose 'Save as PDF' to download.",
+        });
+      }, 500);
+    } catch (error) {
+      console.error('PDF export error:', error);
       toast({
-        title: "PDF Export Ready",
-        description: "Print dialog opened. Choose 'Save as PDF' to download.",
+        title: "Export Error",
+        description: "Failed to export PDF file",
+        variant: "destructive",
       });
-    }, 500);
+    }
   };
 
   const exportToWord = () => {
@@ -200,80 +225,89 @@ const ExportTabs: React.FC<ExportTabsProps> = ({
       return;
     }
 
-    const wordContent = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-          <meta charset="utf-8">
-          <title>${getReportTitle()}</title>
-          <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:TrackMoves>false</w:TrackMoves><w:TrackFormatting>false</w:TrackFormatting><w:ValidateAgainstSchemas>false</w:ValidateAgainstSchemas><w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid><w:IgnoreMixedContent>false</w:IgnoreMixedContent><w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText></w:WordDocument></xml><![endif]-->
-          <style>
-            body { font-family: 'Times New Roman', serif; margin: 1in; }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #fd3572; padding-bottom: 20px; }
-            .title { color: #be2251; font-size: 20pt; font-weight: bold; margin-bottom: 10px; }
-            .subtitle { color: #666; font-size: 12pt; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #000; padding: 6px; font-size: 10pt; }
-            th { background-color: #fd3572; color: white; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="title">${getReportTitle()}</div>
-            <div class="subtitle">County of Unlimited Opportunities<br>Generated on ${new Date().toLocaleDateString()}</div>
-          </div>
-          
-          <p><strong>Report Summary:</strong></p>
-          <ul>
-            <li>Total Activities: ${activities.length}</li>
-            <li>Total Hours: ${Math.floor(activities.reduce((sum, a) => sum + (a.duration || 0), 0) / 60)}</li>
-            <li>Contributors: ${new Set(activities.map(a => a.submitted_by)).size}</li>
-            <li>Date Range: ${startDate && endDate ? `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}` : 'All Time'}</li>
-          </ul>
+    try {
+      const wordContent = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+          <head>
+            <meta charset="utf-8">
+            <title>${getReportTitle()}</title>
+            <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:TrackMoves>false</w:TrackMoves><w:TrackFormatting>false</w:TrackFormatting><w:ValidateAgainstSchemas>false</w:ValidateAgainstSchemas><w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid><w:IgnoreMixedContent>false</w:IgnoreMixedContent><w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText></w:WordDocument></xml><![endif]-->
+            <style>
+              body { font-family: 'Times New Roman', serif; margin: 1in; }
+              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #fd3572; padding-bottom: 20px; }
+              .title { color: #be2251; font-size: 20pt; font-weight: bold; margin-bottom: 10px; }
+              .subtitle { color: #666; font-size: 12pt; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #000; padding: 6px; font-size: 10pt; }
+              th { background-color: #fd3572; color: white; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">${getReportTitle()}</div>
+              <div class="subtitle">County of Unlimited Opportunities<br>Generated on ${new Date().toLocaleDateString()}</div>
+            </div>
+            
+            <p><strong>Report Summary:</strong></p>
+            <ul>
+              <li>Total Activities: ${activities.length}</li>
+              <li>Total Hours: ${Math.floor(activities.reduce((sum, a) => sum + (a.duration || 0), 0) / 60)}</li>
+              <li>Contributors: ${new Set(activities.map(a => a.submitted_by)).size}</li>
+              <li>Date Range: ${startDate && endDate ? `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}` : 'All Time'}</li>
+            </ul>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Facility</th>
-                <th>Duration (min)</th>
-                <th>Description</th>
-                <th>Submitted By</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${activities.map(activity => `
+            <table>
+              <thead>
                 <tr>
-                  <td>${new Date(activity.created_at).toLocaleDateString()}</td>
-                  <td>${activity.title}</td>
-                  <td>${activity.type}</td>
-                  <td>${activity.facility}</td>
-                  <td>${activity.duration}</td>
-                  <td>${activity.description}</td>
-                  <td>${activity.submitted_by}</td>
+                  <th>Date</th>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Facility</th>
+                  <th>Duration (min)</th>
+                  <th>Description</th>
+                  <th>Submitted By</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
+              </thead>
+              <tbody>
+                ${activities.map(activity => `
+                  <tr>
+                    <td>${new Date(activity.created_at).toLocaleDateString()}</td>
+                    <td>${activity.title}</td>
+                    <td>${activity.type}</td>
+                    <td>${activity.facility}</td>
+                    <td>${activity.duration}</td>
+                    <td>${activity.description}</td>
+                    <td>${activity.submitted_by}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
 
-    const blob = new Blob([wordContent], { type: 'application/msword' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${getReportTitle().replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.doc`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      const blob = new Blob([wordContent], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${getReportTitle().replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.doc`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-    toast({
-      title: "Word Export Complete",
-      description: "Report downloaded as Word document",
-    });
+      toast({
+        title: "Word Export Complete",
+        description: "Report downloaded as Word document",
+      });
+    } catch (error) {
+      console.error('Word export error:', error);
+      toast({
+        title: "Export Error",
+        description: "Failed to export Word file",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

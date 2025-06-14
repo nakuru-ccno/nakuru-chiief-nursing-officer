@@ -54,14 +54,20 @@ export default function Reports() {
   }, [allActivities, dateRange, startDate, endDate, activityType]);
 
   const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user?.email) {
-      setCurrentUserEmail(user.email);
-      const displayName = user.user_metadata?.full_name || 
-                         user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
-                         "User";
-      setCurrentUser(displayName);
-    } else {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        setCurrentUserEmail(user.email);
+        const displayName = user.user_metadata?.full_name || 
+                           user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
+                           "User";
+        setCurrentUser(displayName);
+      } else {
+        setCurrentUser("User");
+        setCurrentUserEmail("");
+      }
+    } catch (error) {
+      console.error('Error getting current user:', error);
       setCurrentUser("User");
       setCurrentUserEmail("");
     }
