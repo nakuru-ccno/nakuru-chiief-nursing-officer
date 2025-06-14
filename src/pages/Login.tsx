@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import CountyHeader from "@/components/CountyHeader";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,42 +18,6 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
-
-  // Check for existing authentication but prevent redirect loops
-  useEffect(() => {
-    let isMounted = true;
-    
-    const checkAuth = async () => {
-      console.log("Checking authentication state on login page");
-      
-      // Check for Supabase session first
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user && isMounted) {
-        console.log("Supabase session found, redirecting to dashboard");
-        navigate("/dashboard", { replace: true });
-        return;
-      }
-      
-      // Check for demo role authentication
-      const demoRole = localStorage.getItem("role");
-      if (demoRole && isMounted) {
-        console.log("Demo role found:", demoRole, "redirecting appropriately");
-        if (demoRole === "admin") {
-          navigate("/admin", { replace: true });
-        } else {
-          navigate("/dashboard", { replace: true });
-        }
-      }
-    };
-    
-    // Small delay to prevent immediate redirects that could cause loops
-    const timeoutId = setTimeout(checkAuth, 100);
-    
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-    };
-  }, [navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log("Input changed:", e.target.name, e.target.value);
