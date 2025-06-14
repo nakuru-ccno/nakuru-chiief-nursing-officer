@@ -7,34 +7,34 @@ import { supabase } from "@/integrations/supabase/client";
 interface Activity {
   id: string;
   title: string;
-  type: string;
-  submitted_by: string;
-  submitted_at: string;
+  activity_type: string;
+  user_id: string;
+  created_at: string;
   description?: string;
-  facility?: string;
+  status?: string;
 }
 
 const LiveActivityFeed: React.FC = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
 
-  // Fetch activities from database
+  // Fetch activities from user_activities table
   const fetchActivities = async () => {
     try {
-      const { data, error } = await (supabase as any)
-        .from('activities')
+      const { data, error } = await supabase
+        .from('user_activities')
         .select('*')
-        .order('submitted_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) {
-        console.error('Error fetching activities for live feed:', error);
+        console.error('Error fetching user activities for live feed:', error);
         return;
       }
 
-      console.log('Loaded activities for live feed:', data);
+      console.log('Loaded user activities for live feed:', data);
       setActivities(data || []);
     } catch (error) {
-      console.error('Error fetching activities for live feed:', error);
+      console.error('Error fetching user activities for live feed:', error);
     }
   };
 
@@ -44,16 +44,16 @@ const LiveActivityFeed: React.FC = () => {
 
     // Set up real-time subscription for new activities
     const channel = supabase
-      .channel('activities-changes')
+      .channel('user-activities-changes')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'activities'
+          table: 'user_activities'
         },
         (payload) => {
-          console.log('New activity inserted:', payload);
+          console.log('New user activity inserted:', payload);
           const newActivity = payload.new as Activity;
           setActivities(prev => [newActivity, ...prev.slice(0, 9)]);
         }
@@ -63,10 +63,10 @@ const LiveActivityFeed: React.FC = () => {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'activities'
+          table: 'user_activities'
         },
         (payload) => {
-          console.log('Activity updated:', payload);
+          console.log('User activity updated:', payload);
           fetchActivities(); // Refresh the list
         }
       )
@@ -85,6 +85,7 @@ const LiveActivityFeed: React.FC = () => {
       case 'training': return 'bg-green-100 text-green-800';
       case 'documentation': return 'bg-yellow-100 text-yellow-800';
       case 'supervision': return 'bg-orange-100 text-orange-800';
+      case 'general': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -103,6 +104,11 @@ const LiveActivityFeed: React.FC = () => {
     return `${days}d ago`;
   };
 
+  const getUserDisplayName = (userId: string) => {
+    // Extract a display name from user ID for now
+    return `User ${userId.slice(-4)}`;
+  };
+
   return (
     <Card className="h-96">
       <CardHeader>
@@ -118,11 +124,11 @@ const LiveActivityFeed: React.FC = () => {
             <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-[#fd3572] text-white rounded-full flex items-center justify-center text-sm font-bold">
-                  {activity.submitted_by?.charAt(0) || 'U'}
+                  {getUserDisplayName(activity.user_id).charAt(0)}
                 </div>
                 <div>
                   <p className="text-sm font-medium">
-                    <span className="font-bold">{activity.submitted_by || 'User'}</span> created activity
+                    <span className="font-bold">{getUserDisplayName(activity.user_id)}</span> created activity
                   </p>
                   <p className="text-xs text-gray-600 font-medium">{activity.title}</p>
                   {activity.description && (
@@ -131,19 +137,19 @@ const LiveActivityFeed: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge className={getTypeColor(activity.type)}>
-                  {activity.type}
+                <Badge className={getTypeColor(activity.activity_type)}>
+                  {activity.activity_type}
                 </Badge>
                 <span className="text-xs text-gray-500">
-                  {formatTime(activity.submitted_at)}
+                  {formatTime(activity.created_at)}
                 </span>
               </div>
             </div>
           ))
         ) : (
           <div className="text-center py-8 text-gray-500">
-            <p className="text-sm">No activities yet</p>
-            <p className="text-xs">Activities will appear here in real-time</p>
+            <p className="text-sm">No user activities yet</p>
+            <p className="text-xs">User activities will appear here in real-time</p>
           </div>
         )}
       </CardContent>
