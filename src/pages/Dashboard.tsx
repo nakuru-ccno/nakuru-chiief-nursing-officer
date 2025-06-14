@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import CountyHeader from "@/components/CountyHeader";
@@ -43,6 +42,20 @@ const Dashboard = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+
+  // Check if user is admin
+  const userRole = localStorage.getItem("role") || "";
+  const isAdmin = userRole === 'admin' || 
+                  userRole === 'System Administrator' || 
+                  userRole.toLowerCase().includes('admin');
+
+  // If user is admin, redirect them to admin page
+  useEffect(() => {
+    if (isAdmin) {
+      navigate("/admin");
+      return;
+    }
+  }, [isAdmin, navigate]);
 
   // Real-time activities fetching from Supabase
   const fetchActivities = async () => {
@@ -249,46 +262,48 @@ const Dashboard = () => {
       <CountyHeader />
       <MainNavbar />
       
-      {/* User Navigation */}
-      <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-xl border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-1">
-              <div className="flex items-center gap-3 mr-6 text-white">
-                <Users className="text-[#fd3572]" size={20} />
-                <span className="font-bold text-lg">User Dashboard</span>
-                <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
-              </div>
-              
-              {navItems.map(item => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
+      {/* User Navigation - Only show for non-admin users */}
+      {!isAdmin && (
+        <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-xl border-b border-gray-700">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center space-x-1">
+                <div className="flex items-center gap-3 mr-6 text-white">
+                  <Users className="text-[#fd3572]" size={20} />
+                  <span className="font-bold text-lg">User Dashboard</span>
+                  <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
+                </div>
                 
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.id)}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      isActive
-                        ? "bg-gradient-to-r from-[#fd3572] to-[#be2251] text-white shadow-lg transform scale-105"
-                        : "text-gray-300 hover:text-white hover:bg-gray-700/50"
-                    }`}
-                  >
-                    <Icon size={16} />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+                {navItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavClick(item.id)}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                        isActive
+                          ? "bg-gradient-to-r from-[#fd3572] to-[#be2251] text-white shadow-lg transform scale-105"
+                          : "text-gray-300 hover:text-white hover:bg-gray-700/50"
+                      }`}
+                    >
+                      <Icon size={16} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-            <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-1 rounded-full ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {isConnected ? 'Synced across devices' : 'Syncing...'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-1 rounded-full ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {isConnected ? 'Synced across devices' : 'Syncing...'}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
 
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
