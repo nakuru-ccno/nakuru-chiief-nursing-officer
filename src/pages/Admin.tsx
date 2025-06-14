@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import AddUserDialog from "@/components/admin/AddUserDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock data for demo purposes
 const mockStats = {
@@ -36,6 +38,7 @@ const initialUsers = [
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [users, setUsers] = useState(initialUsers);
+  const { toast } = useToast();
 
   // Load users from localStorage on component mount
   useEffect(() => {
@@ -87,18 +90,55 @@ const Admin = () => {
     }
   };
 
-  const handleAddUser = (newUserData: { name: string; email: string; role: string; password: string }) => {
-    const newUser = {
-      id: users.length + 1,
-      name: newUserData.name,
-      email: newUserData.email,
-      role: newUserData.role,
-      status: 'Active',
-      lastLogin: 'Never'
-    };
-    
-    setUsers(prev => [...prev, newUser]);
-    console.log('New user added:', newUser, 'with password:', newUserData.password);
+  const handleAddUser = async (newUserData: { name: string; email: string; role: string; password: string }) => {
+    try {
+      // Create user in Supabase Auth
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: newUserData.email,
+        password: newUserData.password,
+        email_confirm: true, // Auto-confirm email for admin-created users
+        user_metadata: {
+          name: newUserData.name,
+          role: newUserData.role
+        }
+      });
+
+      if (error) {
+        console.error('Error creating user in Supabase:', error);
+        toast({
+          title: "Error",
+          description: `Failed to create user: ${error.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Add to local users list
+      const newUser = {
+        id: users.length + 1,
+        name: newUserData.name,
+        email: newUserData.email,
+        role: newUserData.role,
+        status: 'Active',
+        lastLogin: 'Never'
+      };
+      
+      setUsers(prev => [...prev, newUser]);
+      console.log('New user created successfully:', newUser);
+      
+      toast({
+        title: "Success",
+        description: "User created successfully and can now log in"
+      });
+
+    } catch (error) {
+      console.error('Unexpected error creating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create user. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const renderDashboardContent = () => (
