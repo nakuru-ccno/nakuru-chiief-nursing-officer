@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -32,6 +31,7 @@ export default function Admin() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
+  const [userRole, setUserRole] = useState<string>("");
   const [activeTab, setActiveTab] = useState("overview");
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -51,12 +51,31 @@ export default function Admin() {
                            "Admin";
         setCurrentUser(displayName);
         console.log('👤 Current admin user:', displayName);
+
+        // Fetch user's role from profiles table
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role, full_name')
+          .eq('email', user.email)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user profile:', error);
+          setUserRole('Administrator'); // Default role for admin
+        } else if (profile) {
+          setUserRole(profile.role || 'Administrator');
+          // Use full name if available, otherwise use email prefix
+          setCurrentUser(profile.full_name || displayName);
+          console.log('Admin user role set:', profile.role);
+        }
       } else {
         setCurrentUser("Admin");
+        setUserRole("Administrator");
       }
     } catch (error) {
       console.error('❌ Error getting current user:', error);
       setCurrentUser("Admin");
+      setUserRole("Administrator");
     }
   };
 
@@ -129,6 +148,14 @@ export default function Admin() {
     if (hour >= 12 && hour < 17) return "Good Afternoon";
     if (hour >= 17 && hour < 22) return "Good Evening";
     return "Good Night";
+  };
+
+  // Format the user display name with role
+  const getUserDisplayName = () => {
+    if (userRole && userRole !== 'User') {
+      return `${currentUser}, ${userRole}`;
+    }
+    return currentUser;
   };
 
   const totalActivities = activities.length;
@@ -277,7 +304,7 @@ export default function Admin() {
       
       <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{getGreeting()}, {currentUser}!</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{getGreeting()}, {getUserDisplayName()}!</h1>
           <p className="text-lg sm:text-xl mb-2">County of Unlimited Opportunities</p>
           <p className="text-sm sm:text-base opacity-90">🔧 Administrative Dashboard & Controls</p>
         </div>
