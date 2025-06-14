@@ -117,7 +117,10 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <CountyHeader />
+      {/* Ensure header is visible and properly styled */}
+      <div className="sticky top-0 z-50">
+        <CountyHeader />
+      </div>
 
       <div className="max-w-7xl mx-auto p-6">
         {/* Report Cards Section */}
