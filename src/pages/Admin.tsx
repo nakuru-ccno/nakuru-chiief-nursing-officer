@@ -27,6 +27,12 @@ const userActivity = [
   { name: 'John', activities: 4 }
 ];
 
+const mockUsers = [
+  { id: 1, name: 'Matoka', email: 'matoka@nakuru.go.ke', role: 'Chief Nurse Officer', status: 'Active', lastLogin: '2024-06-14 10:30 AM' },
+  { id: 2, name: 'John', email: 'john@nakuru.go.ke', role: 'Nurse Officer', status: 'Active', lastLogin: '2024-06-14 09:15 AM' },
+  { id: 3, name: 'Admin', email: 'admin@nakuru.go.ke', role: 'System Administrator', status: 'Active', lastLogin: '2024-06-14 12:00 PM' }
+];
+
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("Dashboard");
 
@@ -39,39 +45,390 @@ const Admin = () => {
   const handleNavClick = (tab: string) => {
     console.log(`${tab} navigation clicked`);
     setActiveTab(tab);
-    // Add specific navigation logic here based on the tab
-    switch(tab) {
-      case "Users":
-        // For now, just update the active tab - you can add routing later
+  };
+
+  const handleActionClick = (action: string) => {
+    console.log(`${action} button clicked`);
+    switch(action) {
+      case "Manage Users":
+        setActiveTab("Users");
         break;
-      case "Reports":
-        // For now, just update the active tab - you can add routing later
+      case "Generate Reports":
+        setActiveTab("Reports");
         break;
-      case "Settings":
-        // For now, just update the active tab - you can add routing later
+      case "Manage System":
+        setActiveTab("Settings");
         break;
       default:
         break;
     }
   };
 
-  const handleActionClick = (action: string) => {
-    console.log(`${action} button clicked`);
-    // Add specific action logic here
-    switch(action) {
-      case "Manage Users":
-        alert(`Opening User Management - Current users: ${mockStats.totalUsers}`);
-        break;
-      case "Generate Reports":
-        alert("Opening System Reports");
-        break;
-      case "Manage System":
-        alert("Opening System Settings");
-        break;
-      default:
-        break;
-    }
-  };
+  const renderDashboardContent = () => (
+    <>
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-bold text-[#be2251]">Total Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalUsers}</div>
+            <p className="text-sm text-gray-600">Registered nurse officers</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-bold text-[#be2251]">Total Activities</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalActivities}</div>
+            <p className="text-sm text-gray-600">Activities recorded</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-bold text-[#be2251]">This Month</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.thisMonth}</div>
+            <p className="text-sm text-gray-600">Activities this month</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-bold text-[#be2251]">Total Hours</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalHours}</div>
+            <p className="text-sm text-gray-600">Hours logged system-wide</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <CardContent className="p-6 text-center">
+            <h3 className="font-bold text-[#be2251] mb-2">Manage Users</h3>
+            <Button 
+              onClick={() => handleActionClick("Manage Users")}
+              className="bg-[#fd3572] hover:bg-[#be2251] text-white"
+            >
+              View Users ({mockStats.totalUsers})
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <CardContent className="p-6 text-center">
+            <h3 className="font-bold text-[#be2251] mb-2">System Reports</h3>
+            <Button 
+              onClick={() => handleActionClick("Generate Reports")}
+              className="bg-[#fd3572] hover:bg-[#be2251] text-white"
+            >
+              Generate Reports
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <CardContent className="p-6 text-center">
+            <h3 className="font-bold text-[#be2251] mb-2">System Settings</h3>
+            <Button 
+              onClick={() => handleActionClick("Manage System")}
+              className="bg-[#fd3572] hover:bg-[#be2251] text-white"
+            >
+              Manage System
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Stats and Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">Average Duration</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.averageDuration}</div>
+            <p className="text-sm text-gray-600">Minutes per activity</p>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">Activities by Type</CardTitle>
+            <p className="text-sm text-gray-600">Distribution of activities across categories</p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={activitiesByType}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#fd3572" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">User Activity Distribution</CardTitle>
+            <p className="text-sm text-gray-600">Activities per user in the system</p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={userActivity}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="activities" fill="#be2251" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+
+  const renderUsersContent = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-[#be2251]">User Management</h2>
+        <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+          Add New User
+        </Button>
+      </div>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-bold text-[#be2251]">Registered Users</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left p-3 font-semibold text-[#be2251]">Name</th>
+                  <th className="text-left p-3 font-semibold text-[#be2251]">Email</th>
+                  <th className="text-left p-3 font-semibold text-[#be2251]">Role</th>
+                  <th className="text-left p-3 font-semibold text-[#be2251]">Status</th>
+                  <th className="text-left p-3 font-semibold text-[#be2251]">Last Login</th>
+                  <th className="text-left p-3 font-semibold text-[#be2251]">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mockUsers.map((user) => (
+                  <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="p-3">{user.name}</td>
+                    <td className="p-3">{user.email}</td>
+                    <td className="p-3">{user.role}</td>
+                    <td className="p-3">
+                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="p-3">{user.lastLogin}</td>
+                    <td className="p-3">
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline">Edit</Button>
+                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-800">Delete</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderReportsContent = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-[#be2251]">System Reports</h2>
+        <div className="flex gap-2">
+          <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+            Export PDF
+          </Button>
+          <Button variant="outline">
+            Export Excel
+          </Button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">Activity Report</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-4">Comprehensive activity tracking and analysis</p>
+            <Button className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
+              Generate Report
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">User Report</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-4">User engagement and performance metrics</p>
+            <Button className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
+              Generate Report
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">System Report</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-4">System usage and performance statistics</p>
+            <Button className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
+              Generate Report
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-bold text-[#be2251]">Recent Activity Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={activitiesByType}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="value" fill="#fd3572" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderSettingsContent = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-[#be2251]">System Settings</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">General Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">System Name</label>
+              <input 
+                type="text" 
+                defaultValue="Nakuru County Nurse Activity Tracker"
+                className="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Admin Email</label>
+              <input 
+                type="email" 
+                defaultValue="admin@nakuru.go.ke"
+                className="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+              Save Changes
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">Security Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="flex items-center space-x-2">
+                <input type="checkbox" defaultChecked className="rounded" />
+                <span className="text-sm">Require strong passwords</span>
+              </label>
+            </div>
+            <div>
+              <label className="flex items-center space-x-2">
+                <input type="checkbox" defaultChecked className="rounded" />
+                <span className="text-sm">Enable session timeout</span>
+              </label>
+            </div>
+            <div>
+              <label className="flex items-center space-x-2">
+                <input type="checkbox" className="rounded" />
+                <span className="text-sm">Enable two-factor authentication</span>
+              </label>
+            </div>
+            <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+              Update Security
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">Backup & Maintenance</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm">Last Backup:</span>
+              <span className="text-sm text-gray-600">2024-06-14 08:00 AM</span>
+            </div>
+            <Button className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
+              Create Backup Now
+            </Button>
+            <Button variant="outline" className="w-full">
+              Schedule Automatic Backups
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">System Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm">Version:</span>
+              <span className="text-sm text-gray-600">v1.0.0</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm">Database:</span>
+              <span className="text-sm text-green-600">Connected</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm">Storage:</span>
+              <span className="text-sm text-gray-600">85% Used</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm">Uptime:</span>
+              <span className="text-sm text-gray-600">15 days, 4 hours</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -137,139 +494,11 @@ const Admin = () => {
           <p className="text-sm text-gray-500 italic">County of Unlimited Opportunities</p>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold text-[#be2251]">Total Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalUsers}</div>
-              <p className="text-sm text-gray-600">Registered nurse officers</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold text-[#be2251]">Total Activities</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalActivities}</div>
-              <p className="text-sm text-gray-600">Activities recorded</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold text-[#be2251]">This Month</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-[#fd3572]">{mockStats.thisMonth}</div>
-              <p className="text-sm text-gray-600">Activities this month</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold text-[#be2251]">Total Hours</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalHours}</div>
-              <p className="text-sm text-gray-600">Hours logged system-wide</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <h3 className="font-bold text-[#be2251] mb-2">Manage Users</h3>
-              <Button 
-                onClick={() => handleActionClick("Manage Users")}
-                className="bg-[#fd3572] hover:bg-[#be2251] text-white"
-              >
-                View Users ({mockStats.totalUsers})
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <h3 className="font-bold text-[#be2251] mb-2">System Reports</h3>
-              <Button 
-                onClick={() => handleActionClick("Generate Reports")}
-                className="bg-[#fd3572] hover:bg-[#be2251] text-white"
-              >
-                Generate Reports
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <h3 className="font-bold text-[#be2251] mb-2">System Settings</h3>
-              <Button 
-                onClick={() => handleActionClick("Manage System")}
-                className="bg-[#fd3572] hover:bg-[#be2251] text-white"
-              >
-                Manage System
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Additional Stats and Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Average Duration Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-[#be2251]">Average Duration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-[#fd3572]">{mockStats.averageDuration}</div>
-              <p className="text-sm text-gray-600">Minutes per activity</p>
-            </CardContent>
-          </Card>
-
-          {/* Activities by Type Chart */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-[#be2251]">Activities by Type</CardTitle>
-              <p className="text-sm text-gray-600">Distribution of activities across categories</p>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={activitiesByType}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#fd3572" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* User Activity Distribution */}
-          <Card className="lg:col-span-3">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-[#be2251]">User Activity Distribution</CardTitle>
-              <p className="text-sm text-gray-600">Activities per user in the system</p>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={userActivity}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="activities" fill="#be2251" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Dynamic Content Based on Active Tab */}
+        {activeTab === "Dashboard" && renderDashboardContent()}
+        {activeTab === "Users" && renderUsersContent()}
+        {activeTab === "Reports" && renderReportsContent()}
+        {activeTab === "Settings" && renderSettingsContent()}
       </div>
     </div>
   );
