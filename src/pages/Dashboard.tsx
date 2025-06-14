@@ -7,8 +7,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Eye, FileBarChart } from "lucide-react";
 
+type Activity = {
+  id: string;
+  date: string;
+  facility: string;
+  title: string;
+  type: string;
+  duration: number;
+  description: string;
+  submittedBy: string;
+  submittedAt: string;
+};
+
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [activities, setActivities] = useState<Activity[]>([]);
+
+  // Load activities from localStorage
+  useEffect(() => {
+    const savedActivities = localStorage.getItem('userActivities');
+    if (savedActivities) {
+      try {
+        const parsedActivities = JSON.parse(savedActivities);
+        setActivities(parsedActivities);
+      } catch (error) {
+        console.error('Error parsing saved activities:', error);
+      }
+    }
+  }, []);
 
   // Update time every minute
   useEffect(() => {
@@ -44,6 +70,27 @@ export default function Dashboard() {
     });
   };
 
+  // Calculate statistics from actual data
+  const totalActivities = activities.length;
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const thisMonthActivities = activities.filter(activity => {
+    const activityDate = new Date(activity.date);
+    return activityDate.getMonth() === currentMonth && activityDate.getFullYear() === currentYear;
+  }).length;
+  
+  const totalHours = Math.round(activities.reduce((sum, activity) => sum + activity.duration, 0) / 60);
+  const averageDuration = totalActivities > 0 ? Math.round(activities.reduce((sum, activity) => sum + activity.duration, 0) / totalActivities) : 0;
+
+  // Get activity type counts
+  const activityTypeCounts = activities.reduce((acc, activity) => {
+    acc[activity.type] = (acc[activity.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Get recent activities (last 3)
+  const recentActivities = activities.slice(0, 3);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <CountyHeader />
@@ -72,7 +119,7 @@ export default function Dashboard() {
               <CardTitle className="text-2xl font-bold text-[#be2251]">Total Activities</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-[#fd3572] mb-1">12</div>
+              <div className="text-4xl font-bold text-[#fd3572] mb-1">{totalActivities}</div>
               <p className="text-gray-600">All time activities</p>
             </CardContent>
           </Card>
@@ -82,7 +129,7 @@ export default function Dashboard() {
               <CardTitle className="text-2xl font-bold text-[#be2251]">This Month</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-[#fd3572] mb-1">12</div>
+              <div className="text-4xl font-bold text-[#fd3572] mb-1">{thisMonthActivities}</div>
               <p className="text-gray-600">Activities this month</p>
             </CardContent>
           </Card>
@@ -92,7 +139,7 @@ export default function Dashboard() {
               <CardTitle className="text-2xl font-bold text-[#be2251]">Total Hours</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-[#fd3572] mb-1">33</div>
+              <div className="text-4xl font-bold text-[#fd3572] mb-1">{totalHours}</div>
               <p className="text-gray-600">Hours logged</p>
             </CardContent>
           </Card>
@@ -102,7 +149,7 @@ export default function Dashboard() {
               <CardTitle className="text-2xl font-bold text-[#be2251]">Average</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-[#fd3572] mb-1">165</div>
+              <div className="text-4xl font-bold text-[#fd3572] mb-1">{averageDuration}</div>
               <p className="text-gray-600">Minutes per activity</p>
             </CardContent>
           </Card>
@@ -146,7 +193,7 @@ export default function Dashboard() {
                 variant="outline" 
                 className="w-full border-[#fd3572] text-[#fd3572] hover:bg-[#fd3572] hover:text-white"
               >
-                <Link to="/activities">View All (12)</Link>
+                <Link to="/activities">View All ({totalActivities})</Link>
               </Button>
             </CardContent>
           </Card>
@@ -182,22 +229,16 @@ export default function Dashboard() {
               <p className="text-gray-600">Your activity distribution by category</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="font-medium">Meetings</span>
-                <span className="text-[#fd3572] font-bold">7 activities</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="font-medium">Administrative</span>
-                <span className="text-[#fd3572] font-bold">1 activities</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="font-medium">Training</span>
-                <span className="text-[#fd3572] font-bold">2 activities</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="font-medium">Inventory Control</span>
-                <span className="text-[#fd3572] font-bold">1 activities</span>
-              </div>
+              {Object.entries(activityTypeCounts).length > 0 ? (
+                Object.entries(activityTypeCounts).map(([type, count]) => (
+                  <div key={type} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium">{type}</span>
+                    <span className="text-[#fd3572] font-bold">{count} activities</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-gray-500 text-center py-4">No activities yet</div>
+              )}
             </CardContent>
           </Card>
 
@@ -208,32 +249,45 @@ export default function Dashboard() {
               <p className="text-gray-600">Your latest recorded activities</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-medium text-[#be2251]">Weekly Staff Meeting</h4>
-                  <span className="text-sm text-gray-500">2 hours ago</span>
-                </div>
-                <p className="text-sm text-gray-600 mb-2">Discussed patient care protocols and staff scheduling</p>
-                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Meetings</span>
-              </div>
-              
-              <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-medium text-[#be2251]">Inventory Audit</h4>
-                  <span className="text-sm text-gray-500">1 day ago</span>
-                </div>
-                <p className="text-sm text-gray-600 mb-2">Monthly medical supplies inventory check</p>
-                <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Inventory Control</span>
-              </div>
-              
-              <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-medium text-[#be2251]">Training Session</h4>
-                  <span className="text-sm text-gray-500">2 days ago</span>
-                </div>
-                <p className="text-sm text-gray-600 mb-2">Emergency response procedures training</p>
-                <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">Training</span>
-              </div>
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity) => {
+                  const timeAgo = new Date(activity.submittedAt) 
+                    ? new Date().getTime() - new Date(activity.submittedAt).getTime()
+                    : 0;
+                  const hoursAgo = Math.floor(timeAgo / (1000 * 60 * 60));
+                  const daysAgo = Math.floor(hoursAgo / 24);
+                  
+                  const timeString = daysAgo > 0 
+                    ? `${daysAgo} day${daysAgo > 1 ? 's' : ''} ago`
+                    : hoursAgo > 0 
+                    ? `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`
+                    : 'Just now';
+
+                  const getTypeColor = (type: string) => {
+                    switch (type) {
+                      case 'Meetings': return 'bg-blue-100 text-blue-800';
+                      case 'Training': return 'bg-purple-100 text-purple-800';
+                      case 'Administrative': return 'bg-green-100 text-green-800';
+                      default: return 'bg-gray-100 text-gray-800';
+                    }
+                  };
+
+                  return (
+                    <div key={activity.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-[#be2251]">{activity.title}</h4>
+                        <span className="text-sm text-gray-500">{timeString}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">{activity.description}</p>
+                      <span className={`inline-block text-xs px-2 py-1 rounded ${getTypeColor(activity.type)}`}>
+                        {activity.type}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-gray-500 text-center py-4">No recent activities</div>
+              )}
             </CardContent>
           </Card>
         </div>

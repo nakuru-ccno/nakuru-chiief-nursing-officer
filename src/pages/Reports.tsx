@@ -43,23 +43,14 @@ export default function Reports() {
       try {
         const parsedActivities = JSON.parse(savedActivities);
         setActivities(parsedActivities);
-        console.log('Loaded activities from localStorage:', parsedActivities);
+        console.log('Loaded activities from localStorage for reports:', parsedActivities);
       } catch (error) {
         console.error('Error parsing saved activities:', error);
         // If there's an error, fall back to initial activities
         setActivities(getInitialActivities());
       }
-    } else {
-      // If no saved activities, save the initial ones
-      localStorage.setItem('userActivities', JSON.stringify(getInitialActivities()));
     }
   }, []);
-
-  // Save activities to localStorage whenever activities state changes
-  useEffect(() => {
-    localStorage.setItem('userActivities', JSON.stringify(activities));
-    console.log('Saved activities to localStorage:', activities);
-  }, [activities]);
 
   const handleExportExcel = () => {
     const ws = XLSX.utils.json_to_sheet(activities);
