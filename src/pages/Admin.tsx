@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -5,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Users, BarChart3, Settings, Eye, Trash2, Edit } from "lucide-react";
+import { FileText, Users, BarChart3, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import LiveStats from "@/components/admin/LiveStats";
 import LiveActivityFeed from "@/components/admin/LiveActivityFeed";
