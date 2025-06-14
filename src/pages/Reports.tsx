@@ -7,11 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Edit } from "lucide-react";
 import EditActivityDialog from "@/components/admin/EditActivityDialog";
-// @ts-ignore: Used for Excel export
-import * as XLSX from "xlsx";
+import ReportFilters from "@/components/reports/ReportFilters";
+import ExportTabs from "@/components/reports/ExportTabs";
 
 type Activity = {
   id: string;
@@ -27,28 +26,37 @@ type Activity = {
 };
 
 export default function Reports() {
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
+  const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  // Filter states
+  const [dateRange, setDateRange] = useState<string>("all");
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [activityType, setActivityType] = useState<string>("all");
+
   const { toast } = useToast();
 
   // Load activities from Supabase on component mount
   useEffect(() => {
     getCurrentUser();
-  }, []);
-
-  useEffect(() => {
     fetchActivities();
   }, []);
+
+  // Apply filters whenever filter state changes
+  useEffect(() => {
+    applyFilters();
+  }, [allActivities, dateRange, startDate, endDate, activityType]);
 
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.email) {
       setCurrentUserEmail(user.email);
-      // Extract a clean name from the email or metadata
       const displayName = user.user_metadata?.full_name || 
                          user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
                          "User";
@@ -63,7 +71,6 @@ export default function Reports() {
     try {
       setIsLoading(true);
 
-      // Fetch ALL activities (not filtered by user)
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -76,12 +83,12 @@ export default function Reports() {
           description: "Failed to load activities from database",
           variant: "destructive",
         });
-        setActivities([]);
+        setAllActivities([]);
         return;
       }
 
       console.log('Loaded all activities from Supabase for reports:', data);
-      setActivities((data as Activity[]) || []);
+      setAllActivities((data as Activity[]) || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
@@ -89,35 +96,35 @@ export default function Reports() {
         description: "Failed to load activities",
         variant: "destructive",
       });
-      setActivities([]);
+      setAllActivities([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleExportExcel = () => {
-    if (activities.length === 0) {
-      toast({
-        title: "No Data",
-        description: "No activities to export",
-        variant: "destructive",
+  const applyFilters = () => {
+    let filtered = [...allActivities];
+
+    // Apply date filters
+    if (startDate && endDate) {
+      filtered = filtered.filter(activity => {
+        const activityDate = new Date(activity.created_at);
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        return activityDate >= start && activityDate <= end;
       });
-      return;
     }
 
-    const ws = XLSX.utils.json_to_sheet(activities);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "All Activities");
-    XLSX.writeFile(wb, `all-activities-${new Date().toISOString().split('T')[0]}.xlsx`);
-    
-    toast({
-      title: "Success",
-      description: "All activities exported to Excel successfully",
-    });
-  };
+    // Apply activity type filter
+    if (activityType !== "all") {
+      filtered = filtered.filter(activity => 
+        activity.type.toLowerCase() === activityType.toLowerCase()
+      );
+    }
 
-  const handleExportPDF = () => {
-    window.print();
+    setFilteredActivities(filtered);
   };
 
   const handleEditActivity = (activity: Activity) => {
@@ -126,7 +133,7 @@ export default function Reports() {
   };
 
   const handleActivityUpdated = (updatedActivity: Activity) => {
-    setActivities(prev => 
+    setAllActivities(prev => 
       prev.map(activity => 
         activity.id === updatedActivity.id ? updatedActivity : activity
       )
@@ -159,31 +166,17 @@ export default function Reports() {
     return "Good Night";
   };
 
-  // Calculate statistics from ALL activities
-  const totalActivities = activities.length;
+  // Calculate statistics from filtered activities
+  const totalActivities = filteredActivities.length;
   const thisMonth = new Date();
   thisMonth.setDate(1);
-  const thisMonthActivities = activities.filter(activity => {
+  const thisMonthActivities = filteredActivities.filter(activity => {
     const activityDate = new Date(activity.created_at);
     return activityDate >= thisMonth;
   }).length;
 
-  const totalHours = Math.floor(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
-  const averageMinutes = totalActivities > 0 ? Math.round(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
-
-  // Activity type distribution for ALL activities
-  const typeDistribution = activities.reduce((acc: any[], activity) => {
-    const existing = acc.find(item => item.type === activity.type);
-    if (existing) {
-      existing.count++;
-    } else {
-      acc.push({ type: activity.type, count: 1 });
-    }
-    return acc;
-  }, []);
-
-  // Get unique users count
-  const uniqueUsers = new Set(activities.map(activity => activity.submitted_by).filter(Boolean)).size;
+  const totalHours = Math.floor(filteredActivities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
+  const uniqueUsers = new Set(filteredActivities.map(activity => activity.submitted_by).filter(Boolean)).size;
 
   if (isLoading) {
     return (
@@ -192,7 +185,7 @@ export default function Reports() {
         <MainNavbar />
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
           <div className="text-center py-8 text-gray-500">
-            <p>Loading all activities from database...</p>
+            <p>Loading activities database...</p>
           </div>
         </div>
       </div>
@@ -209,18 +202,32 @@ export default function Reports() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{getGreeting()}, {currentUser}!</h1>
           <p className="text-lg sm:text-xl mb-2">County of Unlimited Opportunities</p>
-          <p className="text-sm sm:text-base opacity-90">📍 All Activities Report</p>
+          <p className="text-sm sm:text-base opacity-90">📊 Professional Reports & Analytics</p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 -mt-6">
+        {/* Report Filters */}
+        <ReportFilters
+          dateRange={dateRange}
+          setDateRange={setDateRange}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          activityType={activityType}
+          setActivityType={setActivityType}
+          onApplyFilters={applyFilters}
+          totalRecords={filteredActivities.length}
+        />
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card className="bg-red-50 border-red-200">
             <CardContent className="p-4 sm:p-6">
               <div className="text-2xl sm:text-3xl font-bold text-red-600 mb-1">{totalActivities}</div>
-              <div className="text-xs sm:text-sm text-red-700 font-medium">Total Activities</div>
-              <div className="text-xs text-red-600">System-wide activities</div>
+              <div className="text-xs sm:text-sm text-red-700 font-medium">Filtered Activities</div>
+              <div className="text-xs text-red-600">Matching criteria</div>
             </CardContent>
           </Card>
 
@@ -228,7 +235,7 @@ export default function Reports() {
             <CardContent className="p-4 sm:p-6">
               <div className="text-2xl sm:text-3xl font-bold text-blue-600 mb-1">{thisMonthActivities}</div>
               <div className="text-xs sm:text-sm text-blue-700 font-medium">This Month</div>
-              <div className="text-xs text-blue-600">Activities this month</div>
+              <div className="text-xs text-blue-600">Current month</div>
             </CardContent>
           </Card>
 
@@ -243,75 +250,33 @@ export default function Reports() {
           <Card className="bg-yellow-50 border-yellow-200">
             <CardContent className="p-4 sm:p-6">
               <div className="text-2xl sm:text-3xl font-bold text-yellow-600 mb-1">{uniqueUsers}</div>
-              <div className="text-xs sm:text-sm text-yellow-700 font-medium">Active Users</div>
-              <div className="text-xs text-yellow-600">System contributors</div>
+              <div className="text-xs sm:text-sm text-yellow-700 font-medium">Contributors</div>
+              <div className="text-xs text-yellow-600">Unique users</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Action Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="text-center p-6">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-red-600 text-xl">📊</span>
-            </div>
-            <h3 className="text-lg font-semibold text-green-700 mb-2">Generate Reports</h3>
-            <p className="text-sm text-gray-600 mb-4">Export and analyze all activity data</p>
-            <div className="space-y-2">
-              <button
-                onClick={handleExportExcel}
-                className="w-full bg-[#fd3572] text-white font-bold px-4 py-2 rounded shadow hover:bg-[#be2251] transition text-sm"
-              >
-                Export to Excel
-              </button>
-              <button
-                onClick={handleExportPDF}
-                className="w-full bg-black text-white font-bold px-4 py-2 rounded shadow hover:bg-gray-800 transition text-sm"
-              >
-                Export to PDF
-              </button>
-            </div>
-          </Card>
-
-          <Card className="col-span-1 lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-green-700">Activity Types Overview</CardTitle>
-              <p className="text-sm text-gray-600">System-wide activity distribution by category</p>
-            </CardHeader>
-            <CardContent>
-              {typeDistribution.length > 0 ? (
-                <div className="space-y-3">
-                  {typeDistribution.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                        <span className="text-sm font-medium capitalize">{item.type}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">{item.count} activities</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <p className="text-sm">No activity types to display yet.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Export Tabs */}
+        <div className="mb-8">
+          <ExportTabs
+            activities={filteredActivities}
+            dateRange={dateRange}
+            startDate={startDate}
+            endDate={endDate}
+            activityType={activityType}
+          />
         </div>
 
-        {/* All Activities */}
+        {/* Filtered Activities Preview */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-green-700">All System Activities</CardTitle>
-            <p className="text-sm text-gray-600">Complete list of all recorded activities</p>
+            <CardTitle className="text-lg font-semibold text-green-700">Filtered Activities Preview</CardTitle>
+            <p className="text-sm text-gray-600">Preview of activities matching your current filters</p>
           </CardHeader>
           <CardContent>
-            {activities.length > 0 ? (
+            {filteredActivities.length > 0 ? (
               <div className="space-y-4">
-                {activities.slice(0, 10).map((activity) => (
+                {filteredActivities.slice(0, 10).map((activity) => (
                   <div key={activity.id} className="border-l-4 border-l-blue-500 pl-4 py-3 bg-gray-50 rounded-r">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex-1">
@@ -346,24 +311,24 @@ export default function Reports() {
                     </div>
                   </div>
                 ))}
-                {activities.length > 10 && (
+                {filteredActivities.length > 10 && (
                   <div className="text-center py-4">
                     <p className="text-sm text-gray-500">
-                      Showing 10 of {activities.length} activities. Export to see all.
+                      Showing 10 of {filteredActivities.length} filtered activities. Use export options above to get complete reports.
                     </p>
                   </div>
                 )}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">No activities have been added yet. Start by adding the first activity!</p>
+                <p className="text-sm">No activities match your current filters. Try adjusting the date range or activity type.</p>
               </div>
             )}
           </CardContent>
         </Card>
         
         <div className="text-sm italic text-gray-500 mt-6 text-center">
-          All system activities are displayed here. Export for comprehensive reporting.
+          Professional reporting system with advanced filtering and export capabilities.
         </div>
       </div>
 
