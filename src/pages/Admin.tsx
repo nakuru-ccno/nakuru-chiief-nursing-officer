@@ -9,6 +9,14 @@ import EditUserDialog from "@/components/admin/EditUserDialog";
 import DeleteUserDialog from "@/components/admin/DeleteUserDialog";
 import { useToast } from "@/hooks/use-toast";
 
+interface StatsData {
+  totalUsers: number;
+  totalActivities: number;
+  thisMonth: number;
+  totalHours: number;
+  averageDuration: number;
+}
+
 const initialUsers = [
   { id: 1, name: 'Matoka', email: 'matoka@nakuru.go.ke', role: 'Chief Nurse Officer', status: 'Active', lastLogin: '2024-06-14 10:30 AM' },
   { id: 2, name: 'John', email: 'john@nakuru.go.ke', role: 'Nurse Officer', status: 'Active', lastLogin: '2024-06-14 09:15 AM' },
@@ -22,7 +30,13 @@ const Admin = () => {
   const [deletingUser, setDeletingUser] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activities, setActivities] = useState([]);
-  const [mockStats, setMockStats] = useState({});
+  const [mockStats, setMockStats] = useState<StatsData>({
+    totalUsers: 0,
+    totalActivities: 0,
+    thisMonth: 0,
+    totalHours: 0,
+    averageDuration: 0
+  });
   const [activitiesByType, setActivitiesByType] = useState([]);
   const [userActivity, setUserActivity] = useState([]);
   const { toast } = useToast();
