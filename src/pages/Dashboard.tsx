@@ -157,21 +157,19 @@ const Dashboard = () => {
     try {
       console.log('Adding new user:', newUserData);
 
-      // Try to create user through Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Try to create user through Supabase Auth Admin API with auto-confirmation
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: newUserData.email,
         password: newUserData.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            full_name: newUserData.name,
-            role: newUserData.role
-          }
+        email_confirm: true, // This bypasses email confirmation
+        user_metadata: {
+          full_name: newUserData.name,
+          role: newUserData.role
         }
       });
 
       if (authError) {
-        console.error('Supabase auth error:', authError);
+        console.error('Supabase auth admin error:', authError);
         
         // Fallback: Add user locally and to profiles table
         const newUser: User = {
@@ -209,19 +207,19 @@ const Dashboard = () => {
 
         toast({
           title: "User Added",
-          description: "User added to local system. Note: Email verification may be required for full access."
+          description: "User added to local system with fallback method."
         });
         return;
       }
 
-      // If Supabase auth succeeded
+      // If Supabase auth admin succeeded
       if (authData.user) {
         const newUser: User = {
           id: authData.user.id,
           name: newUserData.name,
           email: newUserData.email,
           role: newUserData.role,
-          status: authData.user.email_confirmed_at ? 'Active' : 'Pending',
+          status: 'Active', // Admin-created users are automatically active
           lastLogin: 'Never'
         };
 
@@ -251,7 +249,7 @@ const Dashboard = () => {
 
         toast({
           title: "Success",
-          description: "User created successfully! They will receive an email confirmation."
+          description: "User created successfully and can login immediately!"
         });
       }
 
