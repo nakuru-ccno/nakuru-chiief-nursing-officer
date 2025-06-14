@@ -41,6 +41,15 @@ const Admin = () => {
   const [userActivity, setUserActivity] = useState([]);
   const { toast } = useToast();
 
+  // Update time every second for real-time synchronization
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   // Function to load activities from localStorage
   const loadActivitiesFromStorage = () => {
     const savedActivities = localStorage.getItem('userActivities');
@@ -105,15 +114,6 @@ const Admin = () => {
     console.log('User activity:', result);
     return result;
   };
-
-  // Update time every minute
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   // Load activities and update stats
   useEffect(() => {
@@ -184,6 +184,7 @@ const Admin = () => {
     return currentTime.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
       hour12: true
     });
   };
@@ -861,18 +862,30 @@ const Admin = () => {
       </nav>
 
       <div className="max-w-6xl mx-auto p-6">
-        {/* Header Section */}
+        {/* Enhanced Header Section with Real-time Sync */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#be2251] mb-2">
+          <h1 className="text-3xl font-bold text-[#be2251] mb-2 flex items-center gap-3">
             {getGreeting()}, System Administrator!
+            <div className="relative">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="absolute inset-0 w-3 h-3 bg-green-400 rounded-full animate-ping"></div>
+            </div>
           </h1>
           <div className="flex items-center gap-4 text-gray-600 mb-2">
-            <span className="font-medium">County of Unlimited Opportunities</span>
-            <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">HQ</span>
+            <span className="font-medium">Nakuru County - System Administration Dashboard</span>
+            <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">ADMIN</span>
           </div>
-          <div className="flex items-center gap-4 text-gray-500 text-sm">
-            <span>{formatDate()}</span>
-            <span className="font-mono text-lg text-[#fd3572]">{formatTime()}</span>
+          <div className="flex items-center gap-6 text-gray-500">
+            <span className="text-sm">{formatDate()}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xl text-[#fd3572] bg-gray-100 px-3 py-1 rounded-lg border">
+                {formatTime()}
+              </span>
+              <span className="text-xs text-green-600 flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                Synchronized
+              </span>
+            </div>
           </div>
         </div>
 
