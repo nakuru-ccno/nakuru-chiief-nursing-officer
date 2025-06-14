@@ -107,23 +107,21 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
       if (authData.user) {
         console.log('User created successfully:', authData.user.id);
         
-        // Try to insert into profiles table with better error handling
+        // Insert into profiles table directly
         try {
+          console.log('Inserting user profile into profiles table...');
           const { error: profileError } = await supabase
             .from('profiles')
-            .upsert({
+            .insert({
               id: authData.user.id,
               email: formData.email,
               full_name: formData.name,
               role: formData.role,
               created_at: new Date().toISOString()
-            }, {
-              onConflict: 'id'
             });
 
           if (profileError) {
-            console.error('Profile upsert error:', profileError);
-            // Even if profile creation fails, the user was created successfully
+            console.error('Profile insert error:', profileError);
             toast({
               title: "Partial Success",
               description: "User created successfully, but profile setup incomplete. The user can still log in.",
