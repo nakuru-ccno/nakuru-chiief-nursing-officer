@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, FileSpreadsheet, File, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-// @ts-ignore: Used for Excel export
 import * as XLSX from "xlsx";
 
 interface Activity {
@@ -62,6 +61,7 @@ const ExportTabs: React.FC<ExportTabsProps> = ({
     }
 
     try {
+      console.log('📊 Starting Excel export...');
       const exportData = activities.map(activity => ({
         "Date": new Date(activity.created_at).toLocaleDateString(),
         "Title": activity.title,
@@ -80,12 +80,13 @@ const ExportTabs: React.FC<ExportTabsProps> = ({
       const filename = `${getReportTitle().replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, filename);
       
+      console.log('✅ Excel export completed');
       toast({
         title: "Excel Export Complete",
         description: `Report exported as ${filename}`,
       });
     } catch (error) {
-      console.error('Excel export error:', error);
+      console.error('❌ Excel export error:', error);
       toast({
         title: "Export Error",
         description: "Failed to export Excel file",
@@ -105,7 +106,7 @@ const ExportTabs: React.FC<ExportTabsProps> = ({
     }
 
     try {
-      // Create a new window with the report content
+      console.log('📄 Starting PDF export...');
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
         toast({
@@ -197,16 +198,16 @@ const ExportTabs: React.FC<ExportTabsProps> = ({
       printWindow.document.write(reportHtml);
       printWindow.document.close();
       
-      // Auto-print after a short delay
       setTimeout(() => {
         printWindow.print();
+        console.log('✅ PDF export completed');
         toast({
           title: "PDF Export Ready",
           description: "Print dialog opened. Choose 'Save as PDF' to download.",
         });
       }, 500);
     } catch (error) {
-      console.error('PDF export error:', error);
+      console.error('❌ PDF export error:', error);
       toast({
         title: "Export Error",
         description: "Failed to export PDF file",
@@ -226,6 +227,7 @@ const ExportTabs: React.FC<ExportTabsProps> = ({
     }
 
     try {
+      console.log('📝 Starting Word export...');
       const wordContent = `
         <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
           <head>
@@ -296,12 +298,13 @@ const ExportTabs: React.FC<ExportTabsProps> = ({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
+      console.log('✅ Word export completed');
       toast({
         title: "Word Export Complete",
         description: "Report downloaded as Word document",
       });
     } catch (error) {
-      console.error('Word export error:', error);
+      console.error('❌ Word export error:', error);
       toast({
         title: "Export Error",
         description: "Failed to export Word file",

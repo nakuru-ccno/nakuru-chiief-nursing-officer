@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -54,7 +55,6 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
         setEndDate(today);
         break;
       case 'custom':
-        // Keep existing dates
         break;
       default:
         setStartDate(undefined);
@@ -72,7 +72,6 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Date Range Quick Select */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Date Range</label>
             <Select value={dateRange} onValueChange={handleQuickDateRange}>
@@ -89,7 +88,6 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
             </Select>
           </div>
 
-          {/* Start Date */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Start Date</label>
             <Popover>
@@ -110,7 +108,6 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
             </Popover>
           </div>
 
-          {/* End Date */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">End Date</label>
             <Popover>
@@ -131,7 +128,6 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
             </Popover>
           </div>
 
-          {/* Activity Type Filter */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Activity Type</label>
             <Select value={activityType} onValueChange={setActivityType}>

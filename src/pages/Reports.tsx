@@ -42,13 +42,11 @@ export default function Reports() {
 
   const { toast } = useToast();
 
-  // Load activities from Supabase on component mount
   useEffect(() => {
     getCurrentUser();
     fetchActivities();
   }, []);
 
-  // Apply filters whenever filter state changes
   useEffect(() => {
     applyFilters();
   }, [allActivities, dateRange, startDate, endDate, activityType]);
@@ -76,6 +74,7 @@ export default function Reports() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
+      console.log('📊 Fetching activities for reports...');
 
       const { data, error } = await supabase
         .from('activities')
@@ -83,7 +82,7 @@ export default function Reports() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching all activities:', error);
+        console.error('❌ Error fetching activities:', error);
         toast({
           title: "Error",
           description: "Failed to load activities from database",
@@ -93,10 +92,10 @@ export default function Reports() {
         return;
       }
 
-      console.log('Loaded all activities from Supabase for reports:', data);
+      console.log('✅ Activities loaded successfully:', data?.length || 0);
       setAllActivities((data as Activity[]) || []);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error('❌ Unexpected error:', error);
       toast({
         title: "Error",
         description: "Failed to load activities",
@@ -111,7 +110,6 @@ export default function Reports() {
   const applyFilters = () => {
     let filtered = [...allActivities];
 
-    // Apply date filters
     if (startDate && endDate) {
       filtered = filtered.filter(activity => {
         const activityDate = new Date(activity.created_at);
@@ -123,7 +121,6 @@ export default function Reports() {
       });
     }
 
-    // Apply activity type filter
     if (activityType !== "all") {
       filtered = filtered.filter(activity => 
         activity.type.toLowerCase() === activityType.toLowerCase()
@@ -131,6 +128,7 @@ export default function Reports() {
     }
 
     setFilteredActivities(filtered);
+    console.log('🔍 Filters applied, showing:', filtered.length, 'activities');
   };
 
   const handleEditActivity = (activity: Activity) => {
@@ -172,7 +170,6 @@ export default function Reports() {
     return "Good Night";
   };
 
-  // Calculate statistics from filtered activities
   const totalActivities = filteredActivities.length;
   const thisMonth = new Date();
   thisMonth.setDate(1);
@@ -203,7 +200,6 @@ export default function Reports() {
       <CountyHeader />
       <MainNavbar />
       
-      {/* Hero Section with Gradient */}
       <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{getGreeting()}, {currentUser}!</h1>
@@ -213,7 +209,6 @@ export default function Reports() {
       </div>
 
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 -mt-6">
-        {/* Report Filters */}
         <ReportFilters
           dateRange={dateRange}
           setDateRange={setDateRange}
@@ -227,7 +222,6 @@ export default function Reports() {
           totalRecords={filteredActivities.length}
         />
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card className="bg-red-50 border-red-200">
             <CardContent className="p-4 sm:p-6">
@@ -262,7 +256,6 @@ export default function Reports() {
           </Card>
         </div>
 
-        {/* Export Tabs */}
         <div className="mb-8">
           <ExportTabs
             activities={filteredActivities}
@@ -273,7 +266,6 @@ export default function Reports() {
           />
         </div>
 
-        {/* Filtered Activities Preview */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-semibold text-green-700">Filtered Activities Preview</CardTitle>
@@ -338,7 +330,6 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Edit Activity Dialog */}
       {editingActivity && (
         <EditActivityDialog
           activity={editingActivity}
