@@ -5,10 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import EditActivityDialog from "@/components/admin/EditActivityDialog";
 import DeleteActivityDialog from "@/components/admin/DeleteActivityDialog";
+import EditUserDialog from "@/components/admin/EditUserDialog";
+import DeleteUserDialog from "@/components/admin/DeleteUserDialog";
+import AddUserDialog from "@/components/admin/AddUserDialog";
+import DashboardSettings from "@/components/admin/DashboardSettings";
+import UserPermissions from "@/components/admin/UserPermissions";
+import DataManagement from "@/components/admin/DataManagement";
 import { 
   Edit, 
   Trash2, 
@@ -60,6 +67,8 @@ const Admin = () => {
   const { toast } = useToast();
   const [editingActivity, setEditingActivity] = useState<any>(null);
   const [deletingActivity, setDeletingActivity] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [deletingUser, setDeletingUser] = useState<any>(null);
   const [stats, setStats] = useState({
     totalActivities: 0,
     totalUsers: 0,
@@ -316,6 +325,99 @@ const Admin = () => {
     setDeletingActivity(null);
   };
 
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+  };
+
+  const handleDeleteUser = (user: any) => {
+    setDeletingUser(user);
+  };
+
+  const handleUserUpdated = async (userData: any) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: userData.name,
+          email: userData.email,
+          role: userData.role
+        })
+        .eq('id', editingUser.id);
+
+      if (error) {
+        console.error('Error updating user:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update user",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update local state
+      setUsers(prev => prev.map(user => 
+        user.id === editingUser.id 
+          ? { ...user, full_name: userData.name, email: userData.email, role: userData.role }
+          : user
+      ));
+
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+
+      setEditingUser(null);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUserDeleted = async () => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', deletingUser.id);
+
+      if (error) {
+        console.error('Error deleting user:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete user",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update local state
+      setUsers(prev => prev.filter(user => user.id !== deletingUser.id));
+
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+
+      setDeletingUser(null);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddUser = () => {
+    // Refresh the users list when a new user is added
+    fetchUsers();
+  };
+
   const renderLiveDashboard = () => (
     <div className="space-y-6">
       {/* Live Status Banner */}
@@ -557,10 +659,7 @@ const Admin = () => {
           <p className="text-sm text-gray-600">Manage all registered users and their permissions ({users.length} total)</p>
         </div>
         <div className="flex gap-2">
-          <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white flex items-center gap-2">
-            <UserPlus size={16} />
-            Add User
-          </Button>
+          <AddUserDialog onAddUser={handleAddUser} />
         </div>
       </div>
 
@@ -573,6 +672,7 @@ const Admin = () => {
               <TableHead className="font-semibold text-gray-900">Role</TableHead>
               <TableHead className="font-semibold text-gray-900">Joined</TableHead>
               <TableHead className="font-semibold text-gray-900">Last Sign In</TableHead>
+              <TableHead className="font-semibold text-gray-900">Status</TableHead>
               <TableHead className="text-center font-semibold text-gray-900">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -582,7 +682,7 @@ const Admin = () => {
                 <TableCell className="border-b font-medium">{user.email}</TableCell>
                 <TableCell className="border-b">{user.full_name || 'Not provided'}</TableCell>
                 <TableCell className="border-b">
-                  <Badge className={user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}>
+                  <Badge className={user.role === 'admin' || user.role === 'System Administrator' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}>
                     {user.role}
                   </Badge>
                 </TableCell>
@@ -591,8 +691,14 @@ const Admin = () => {
                   {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Never'}
                 </TableCell>
                 <TableCell className="border-b">
+                  <Badge className={user.last_sign_in_at ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                    {user.last_sign_in_at ? 'Active' : 'Pending'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="border-b">
                   <div className="flex items-center justify-center gap-2">
                     <Button
+                      onClick={() => handleEditUser(user)}
                       size="sm"
                       variant="outline"
                       className="h-8 w-8 p-0 border-blue-300 text-blue-600 hover:bg-blue-50"
@@ -600,6 +706,7 @@ const Admin = () => {
                       <Edit size={14} />
                     </Button>
                     <Button
+                      onClick={() => handleDeleteUser(user)}
                       size="sm"
                       variant="outline"
                       className="h-8 w-8 p-0 border-red-300 text-red-600 hover:bg-red-50"
@@ -657,117 +764,103 @@ const Admin = () => {
   );
 
   const renderSettingsSection = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card className="bg-white rounded-xl p-6 border shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg font-bold text-[#be2251] mb-2 flex items-center gap-2">
-            <Activity size={20} />
-            Activity Types Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600 mb-4">Add and manage activity types for users</p>
-          
-          {/* Add New Activity Type Form */}
-          <div className="space-y-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Activity Type Name</label>
-              <input
-                type="text"
-                value={newActivityType.name}
-                onChange={(e) => setNewActivityType(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fd3572] focus:border-transparent"
-                placeholder="e.g., Site Inspection"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea
-                value={newActivityType.description}
-                onChange={(e) => setNewActivityType(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fd3572] focus:border-transparent"
-                placeholder="Brief description of this activity type"
-                rows={3}
-              />
-            </div>
-            <Button 
-              onClick={addActivityType}
-              className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white flex items-center gap-2"
-            >
-              <Plus size={16} />
-              Add Activity Type
-            </Button>
-          </div>
+    <div className="space-y-6">
+      <Tabs defaultValue="activity-types" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="activity-types">Activity Types</TabsTrigger>
+          <TabsTrigger value="dashboard">Dashboard Settings</TabsTrigger>
+          <TabsTrigger value="permissions">User Permissions</TabsTrigger>
+          <TabsTrigger value="data">Data Management</TabsTrigger>
+        </TabsList>
 
-          {/* Current Activity Types */}
-          <div>
-            <h4 className="font-medium text-gray-900 mb-3">Current Activity Types ({activityTypes.length})</h4>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {activityTypes.map((type) => (
-                <div key={type.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{type.name}</p>
-                    <p className="text-sm text-gray-600">{type.description}</p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 w-8 p-0 border-blue-300 text-blue-600 hover:bg-blue-50"
-                    >
-                      <Edit size={12} />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 w-8 p-0 border-red-300 text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 size={12} />
-                    </Button>
-                  </div>
+        <TabsContent value="activity-types" className="mt-6">
+          <Card className="bg-white rounded-xl p-6 border shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-[#be2251] mb-2 flex items-center gap-2">
+                <Activity size={20} />
+                Activity Types Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">Add and manage activity types for users</p>
+              
+              {/* Add New Activity Type Form */}
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Activity Type Name</label>
+                  <input
+                    type="text"
+                    value={newActivityType.name}
+                    onChange={(e) => setNewActivityType(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fd3572] focus:border-transparent"
+                    placeholder="e.g., Site Inspection"
+                  />
                 </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={newActivityType.description}
+                    onChange={(e) => setNewActivityType(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fd3572] focus:border-transparent"
+                    placeholder="Brief description of this activity type"
+                    rows={3}
+                  />
+                </div>
+                <Button 
+                  onClick={addActivityType}
+                  className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white flex items-center gap-2"
+                >
+                  <Plus size={16} />
+                  Add Activity Type
+                </Button>
+              </div>
 
-      <Card className="bg-white rounded-xl p-6 border shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg font-bold text-[#be2251] mb-2 flex items-center gap-2">
-            <Settings size={20} />
-            System Configuration
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600 mb-4">Configure system-wide settings and preferences</p>
-          <div className="space-y-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h5 className="font-medium text-gray-900 mb-2">Dashboard Settings</h5>
-              <p className="text-sm text-gray-600 mb-3">Configure dashboard refresh intervals and display options</p>
-              <Button variant="outline" className="w-full border-[#fd3572] text-[#fd3572] hover:bg-[#fd3572] hover:text-white">
-                Configure Dashboard
-              </Button>
-            </div>
-            
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h5 className="font-medium text-gray-900 mb-2">User Permissions</h5>
-              <p className="text-sm text-gray-600 mb-3">Manage default user roles and permissions</p>
-              <Button variant="outline" className="w-full border-[#fd3572] text-[#fd3572] hover:bg-[#fd3572] hover:text-white">
-                Manage Permissions
-              </Button>
-            </div>
-            
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h5 className="font-medium text-gray-900 mb-2">Data Management</h5>
-              <p className="text-sm text-gray-600 mb-3">Configure data retention and backup settings</p>
-              <Button variant="outline" className="w-full border-[#fd3572] text-[#fd3572] hover:bg-[#fd3572] hover:text-white">
-                Data Settings
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              {/* Current Activity Types */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-3">Current Activity Types ({activityTypes.length})</h4>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {activityTypes.map((type) => (
+                    <div key={type.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{type.name}</p>
+                        <p className="text-sm text-gray-600">{type.description}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 p-0 border-blue-300 text-blue-600 hover:bg-blue-50"
+                        >
+                          <Edit size={12} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 p-0 border-red-300 text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 size={12} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="dashboard" className="mt-6">
+          <DashboardSettings />
+        </TabsContent>
+
+        <TabsContent value="permissions" className="mt-6">
+          <UserPermissions />
+        </TabsContent>
+
+        <TabsContent value="data" className="mt-6">
+          <DataManagement />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 
@@ -837,6 +930,24 @@ const Admin = () => {
             open={!!deletingActivity}
             onClose={() => setDeletingActivity(null)}
             onActivityDeleted={handleActivityDeleted}
+          />
+        )}
+
+        {/* Edit User Dialog */}
+        {editingUser && (
+          <EditUserDialog
+            user={editingUser}
+            onUpdateUser={handleUserUpdated}
+            onCancel={() => setEditingUser(null)}
+          />
+        )}
+
+        {/* Delete User Dialog */}
+        {deletingUser && (
+          <DeleteUserDialog
+            user={deletingUser}
+            onConfirmDelete={handleUserDeleted}
+            onCancel={() => setDeletingUser(null)}
           />
         )}
       </main>

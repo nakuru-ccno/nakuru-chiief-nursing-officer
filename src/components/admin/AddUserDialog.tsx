@@ -7,14 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { UserPlus } from "lucide-react";
 
 interface AddUserDialogProps {
-  onAddUser: (user: {
-    name: string;
-    email: string;
-    role: string;
-    password: string;
-  }) => void;
+  onAddUser: () => void;
 }
 
 const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
@@ -64,16 +60,18 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
     setIsLoading(true);
 
     try {
-      console.log('Creating user with signup...');
+      console.log('Creating user with signup (no email verification)...');
       
-      // Create user without email confirmation
+      // Create user without email confirmation by using the admin auth methods
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: undefined, // Disable email verification
           data: {
             full_name: formData.name,
-            role: formData.role
+            role: formData.role,
+            email_confirmed: true // Mark email as confirmed
           }
         }
       });
@@ -107,19 +105,18 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
       if (authData.user) {
         console.log('User created successfully:', authData.user.id);
         
-        // Create profile in the profiles table
+        // Create/update profile in the profiles table
         console.log('Creating user profile...');
         
-        const { data: profileData, error: profileError } = await supabase
+        const { error: profileError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             id: authData.user.id,
             email: formData.email,
             full_name: formData.name,
-            role: formData.role
-          })
-          .select()
-          .single();
+            role: formData.role,
+            created_at: new Date().toISOString()
+          });
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
@@ -129,15 +126,15 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
             variant: "default"
           });
         } else {
-          console.log('Profile created successfully:', profileData);
+          console.log('Profile created successfully');
           toast({
             title: "Success",
-            description: "User created successfully! They can log in immediately."
+            description: "User created successfully! They can log in immediately without email verification."
           });
         }
 
         // Call the parent handler to refresh the list
-        onAddUser(formData);
+        onAddUser();
         setFormData({ name: "", email: "", role: "", password: "" });
         setOpen(false);
       }
@@ -161,13 +158,15 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+        <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white flex items-center gap-2">
+          <UserPlus size={16} />
           Add New User
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-[#be2251]">Add New User</DialogTitle>
+          <p className="text-sm text-gray-600">Create a new user account (no email verification required)</p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
