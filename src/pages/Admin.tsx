@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import CountyHeader from "@/components/CountyHeader";
 import { Button } from "@/components/ui/button";
@@ -116,12 +117,12 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Fixed header that should always be visible */}
-      <div className="w-full bg-black shadow-lg">
+      {/* Fixed header with proper positioning */}
+      <header className="sticky top-0 w-full bg-black shadow-lg z-50">
         <CountyHeader />
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto p-6">
+      <main className="max-w-7xl mx-auto p-6">
         {/* Report Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl p-6 border shadow-lg">
@@ -240,7 +241,7 @@ const Admin = () => {
             onActivityDeleted={handleActivityDeleted}
           />
         )}
-      </div>
+      </main>
     </div>
   );
 };
