@@ -50,7 +50,7 @@ const MainNavbar = () => {
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-[#fd3572] to-[#be2251] text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
               >
                 <LogIn size={16} />
-                <span>Chief Nurse Officer Login</span>
+                <span>Login</span>
               </Link>
             ) : (
               <button
