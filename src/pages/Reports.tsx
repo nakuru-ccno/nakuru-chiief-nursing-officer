@@ -1,34 +1,65 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 // @ts-ignore: Used for Excel export
 import * as XLSX from "xlsx";
 
-function fakeActivities() {
+function getInitialActivities() {
   // For demo only, real data should come from backend
   return [
     {
+      id: 1,
       date: "2025-06-08",
       facility: "Nakuru Referral",
       title: "Quarterly Admin Meeting",
       type: "Meetings",
       duration: 90,
       description: "Discussed annual budget.",
+      submittedBy: "Demo User",
+      submittedAt: "2025-06-08T10:00:00Z"
     },
     {
+      id: 2,
       date: "2025-06-09",
       facility: "Kabarak Subcounty",
       title: "Training session",
       type: "Training",
       duration: 60,
       description: "Updated on protocols.",
+      submittedBy: "Demo User",
+      submittedAt: "2025-06-09T14:30:00Z"
     },
   ];
 }
 
 export default function Reports() {
-  const [activities] = useState(fakeActivities());
+  const [activities, setActivities] = useState(getInitialActivities());
+
+  // Load activities from localStorage on component mount
+  useEffect(() => {
+    const savedActivities = localStorage.getItem('userActivities');
+    if (savedActivities) {
+      try {
+        const parsedActivities = JSON.parse(savedActivities);
+        setActivities(parsedActivities);
+        console.log('Loaded activities from localStorage:', parsedActivities);
+      } catch (error) {
+        console.error('Error parsing saved activities:', error);
+        // If there's an error, fall back to initial activities
+        setActivities(getInitialActivities());
+      }
+    } else {
+      // If no saved activities, save the initial ones
+      localStorage.setItem('userActivities', JSON.stringify(getInitialActivities()));
+    }
+  }, []);
+
+  // Save activities to localStorage whenever activities state changes
+  useEffect(() => {
+    localStorage.setItem('userActivities', JSON.stringify(activities));
+    console.log('Saved activities to localStorage:', activities);
+  }, [activities]);
 
   const handleExportExcel = () => {
     const ws = XLSX.utils.json_to_sheet(activities);
@@ -76,7 +107,7 @@ export default function Reports() {
           </thead>
           <tbody>
             {activities.map((a, i) => (
-              <tr key={i} className="even:bg-gray-50 text-sm">
+              <tr key={a.id || i} className="even:bg-gray-50 text-sm">
                 <td className="border px-2 py-2">{a.date}</td>
                 <td className="border px-2 py-2">{a.facility}</td>
                 <td className="border px-2 py-2">{a.title}</td>

@@ -42,6 +42,9 @@ const Admin = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [deletingUser, setDeletingUser] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [mockStats, setMockStats] = useState(getMockStats());
+  const [activitiesByType, setActivitiesByType] = useState(getActivitiesByType());
+  const [userActivity, setUserActivity] = useState(getUserActivity());
   const { toast } = useToast();
 
   // Update time every minute
@@ -51,6 +54,34 @@ const Admin = () => {
     }, 60000); // Update every minute
 
     return () => clearInterval(timer);
+  }, []);
+
+  // Update stats when component mounts and when localStorage changes
+  useEffect(() => {
+    const updateStats = () => {
+      setMockStats(getMockStats());
+      setActivitiesByType(getActivitiesByType());
+      setUserActivity(getUserActivity());
+    };
+
+    updateStats();
+
+    // Listen for storage changes (when activities are updated)
+    const handleStorageChange = (e) => {
+      if (e.key === 'userActivities') {
+        updateStats();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also update every 5 seconds to catch localStorage changes from the same tab
+    const statsTimer = setInterval(updateStats, 5000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(statsTimer);
+    };
   }, []);
 
   const getGreeting = () => {
@@ -448,91 +479,141 @@ const Admin = () => {
     </div>
   );
 
-  const renderReportsContent = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-[#be2251]">System Reports</h2>
-        <div className="flex gap-2">
-          <Button 
-            onClick={handleExportPDF}
-            className="bg-[#fd3572] hover:bg-[#be2251] text-white"
-          >
-            Export PDF
-          </Button>
-          <Button 
-            onClick={handleExportExcel}
-            variant="outline"
-          >
-            Export Excel
-          </Button>
+  const renderReportsContent = () => {
+    const activities = getActivitiesFromStorage();
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-[#be2251]">System Reports</h2>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleExportPDF}
+              className="bg-[#fd3572] hover:bg-[#be2251] text-white"
+            >
+              Export PDF
+            </Button>
+            <Button 
+              onClick={handleExportExcel}
+              variant="outline"
+            >
+              Export Excel
+            </Button>
+          </div>
         </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-[#be2251]">Activity Report</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">Comprehensive activity tracking and analysis</p>
+              <Button 
+                onClick={() => handleGenerateReport("Activity")}
+                className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
+              >
+                Generate Report
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-[#be2251]">User Report</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">User engagement and performance metrics</p>
+              <Button 
+                onClick={() => handleGenerateReport("User")}
+                className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
+              >
+                Generate Report
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-[#be2251]">System Report</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">System usage and performance statistics</p>
+              <Button 
+                onClick={() => handleGenerateReport("System")}
+                className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
+              >
+                Generate Report
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Live Activities Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">User Submitted Activities</CardTitle>
+            <p className="text-sm text-gray-600">Real-time view of all activities submitted by users</p>
+          </CardHeader>
+          <CardContent>
+            {activities.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left p-3 font-semibold text-[#be2251]">Date</th>
+                      <th className="text-left p-3 font-semibold text-[#be2251]">Facility</th>
+                      <th className="text-left p-3 font-semibold text-[#be2251]">Title</th>
+                      <th className="text-left p-3 font-semibold text-[#be2251]">Type</th>
+                      <th className="text-left p-3 font-semibold text-[#be2251]">Duration (min)</th>
+                      <th className="text-left p-3 font-semibold text-[#be2251]">Submitted By</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activities.map((activity, index) => (
+                      <tr key={activity.id || index} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-3">{activity.date}</td>
+                        <td className="p-3">{activity.facility}</td>
+                        <td className="p-3">{activity.title}</td>
+                        <td className="p-3">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                            {activity.type}
+                          </span>
+                        </td>
+                        <td className="p-3">{activity.duration}</td>
+                        <td className="p-3">{activity.submittedBy || 'Unknown User'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No activities have been submitted yet.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-[#be2251]">Recent Activity Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={activitiesByType}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#fd3572" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold text-[#be2251]">Activity Report</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 mb-4">Comprehensive activity tracking and analysis</p>
-            <Button 
-              onClick={() => handleGenerateReport("Activity")}
-              className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
-            >
-              Generate Report
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold text-[#be2251]">User Report</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 mb-4">User engagement and performance metrics</p>
-            <Button 
-              onClick={() => handleGenerateReport("User")}
-              className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
-            >
-              Generate Report
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold text-[#be2251]">System Report</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 mb-4">System usage and performance statistics</p>
-            <Button 
-              onClick={() => handleGenerateReport("System")}
-              className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
-            >
-              Generate Report
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-bold text-[#be2251]">Recent Activity Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={activitiesByType}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#fd3572" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-    </div>
-  );
+    );
+  };
 
   const renderSettingsContent = () => (
     <div className="space-y-6">
@@ -723,3 +804,53 @@ const Admin = () => {
 };
 
 export default Admin;
+
+const getActivitiesFromStorage = () => {
+  const savedActivities = localStorage.getItem('userActivities');
+  if (savedActivities) {
+    try {
+      return JSON.parse(savedActivities);
+    } catch (error) {
+      console.error('Error parsing saved activities:', error);
+      return [];
+    }
+  }
+  return [];
+};
+
+const getMockStats = () => {
+  const activities = getActivitiesFromStorage();
+  const totalActivities = activities.length;
+  const totalHours = activities.reduce((sum, activity) => sum + (activity.duration || 0), 0);
+  const averageDuration = totalActivities > 0 ? Math.round(totalHours / totalActivities) : 0;
+  
+  return {
+    totalUsers: 3,
+    totalActivities,
+    thisMonth: totalActivities, // For demo, assuming all are this month
+    totalHours: Math.round(totalHours / 60), // Convert minutes to hours
+    averageDuration
+  };
+};
+
+const getActivitiesByType = () => {
+  const activities = getActivitiesFromStorage();
+  const typeCount = activities.reduce((acc, activity) => {
+    const type = activity.type || 'Other';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+  
+  return Object.entries(typeCount).map(([name, value]) => ({ name, value }));
+};
+
+const getUserActivity = () => {
+  const activities = getActivitiesFromStorage();
+  const userCount = activities.reduce((acc, activity) => {
+    const user = activity.submittedBy || 'Unknown User';
+    acc[user] = (acc[user] || 0) + 1;
+    return acc;
+  }, {});
+  
+  return Object.entries(userCount).map(([name, activities]) => ({ name, activities }));
+};
