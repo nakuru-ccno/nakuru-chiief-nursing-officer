@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import CountyHeader from "@/components/CountyHeader";
 import { Button } from "@/components/ui/button";
 import LiveStats from "@/components/admin/LiveStats";
@@ -17,6 +16,41 @@ import {
 
 const LiveAdmin = () => {
   const [activeTab, setActiveTab] = useState("Live Dashboard");
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour >= 5 && hour < 12) return "Good Morning";
+    if (hour >= 12 && hour < 17) return "Good Afternoon";
+    if (hour >= 17 && hour < 22) return "Good Evening";
+    return "Good Night";
+  };
+
+  const formatTime = () => {
+    return currentTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const formatDate = () => {
+    return currentTime.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   const handleLogout = () => {
     console.log("Logout clicked");
@@ -104,14 +138,20 @@ const LiveAdmin = () => {
         {/* Header Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#be2251] mb-2 flex items-center gap-3">
-            Live System Administration Dashboard
+            {getGreeting()}, Live Administrator!
             <div className="relative">
               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
               <div className="absolute inset-0 w-3 h-3 bg-green-400 rounded-full animate-ping"></div>
             </div>
           </h1>
-          <h2 className="text-xl text-gray-700 mb-1">Nakuru County - Real-time Monitoring</h2>
-          <p className="text-sm text-gray-500 italic">County of Unlimited Opportunities</p>
+          <div className="flex items-center gap-4 text-gray-600 mb-2">
+            <span className="font-medium">County of Unlimited Opportunities</span>
+            <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">HQ</span>
+          </div>
+          <div className="flex items-center gap-4 text-gray-500 text-sm">
+            <span>{formatDate()}</span>
+            <span className="font-mono text-lg text-[#fd3572]">{formatTime()}</span>
+          </div>
         </div>
 
         {/* Live Statistics */}
