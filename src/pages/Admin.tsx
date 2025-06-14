@@ -1,10 +1,10 @@
-
 import React, { useState } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import AddUserDialog from "@/components/admin/AddUserDialog";
 
 // Mock data for demo purposes
 const mockStats = {
@@ -27,7 +27,7 @@ const userActivity = [
   { name: 'John', activities: 4 }
 ];
 
-const mockUsers = [
+const initialUsers = [
   { id: 1, name: 'Matoka', email: 'matoka@nakuru.go.ke', role: 'Chief Nurse Officer', status: 'Active', lastLogin: '2024-06-14 10:30 AM' },
   { id: 2, name: 'John', email: 'john@nakuru.go.ke', role: 'Nurse Officer', status: 'Active', lastLogin: '2024-06-14 09:15 AM' },
   { id: 3, name: 'Admin', email: 'admin@nakuru.go.ke', role: 'System Administrator', status: 'Active', lastLogin: '2024-06-14 12:00 PM' }
@@ -35,6 +35,7 @@ const mockUsers = [
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("Dashboard");
+  const [users, setUsers] = useState(initialUsers);
 
   const handleLogout = () => {
     console.log("Logout clicked");
@@ -64,6 +65,20 @@ const Admin = () => {
     }
   };
 
+  const handleAddUser = (newUserData: { name: string; email: string; role: string }) => {
+    const newUser = {
+      id: users.length + 1,
+      name: newUserData.name,
+      email: newUserData.email,
+      role: newUserData.role,
+      status: 'Active',
+      lastLogin: 'Never'
+    };
+    
+    setUsers(prev => [...prev, newUser]);
+    console.log('New user added:', newUser);
+  };
+
   const renderDashboardContent = () => (
     <>
       {/* Statistics Cards */}
@@ -73,7 +88,7 @@ const Admin = () => {
             <CardTitle className="text-lg font-bold text-[#be2251]">Total Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalUsers}</div>
+            <div className="text-3xl font-bold text-[#fd3572]">{users.length}</div>
             <p className="text-sm text-gray-600">Registered nurse officers</p>
           </CardContent>
         </Card>
@@ -118,7 +133,7 @@ const Admin = () => {
               onClick={() => handleActionClick("Manage Users")}
               className="bg-[#fd3572] hover:bg-[#be2251] text-white"
             >
-              View Users ({mockStats.totalUsers})
+              View Users ({users.length})
             </Button>
           </CardContent>
         </Card>
@@ -203,9 +218,7 @@ const Admin = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-[#be2251]">User Management</h2>
-        <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
-          Add New User
-        </Button>
+        <AddUserDialog onAddUser={handleAddUser} />
       </div>
       
       <Card>
@@ -226,7 +239,7 @@ const Admin = () => {
                 </tr>
               </thead>
               <tbody>
-                {mockUsers.map((user) => (
+                {users.map((user) => (
                   <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="p-3">{user.name}</td>
                     <td className="p-3">{user.email}</td>
