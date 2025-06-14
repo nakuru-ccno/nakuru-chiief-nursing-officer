@@ -13,7 +13,8 @@ import {
   TrendingUp, 
   Users,
   Home,
-  BarChart3
+  BarChart3,
+  Edit
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -59,16 +60,22 @@ const Dashboard = () => {
     }
   }, [isAdmin, navigate]);
 
-  // Fetch activities filtered by current user (for non-admin users)
+  // Fetch activities filtered by current user only
   const fetchActivities = async () => {
+    if (!currentUserEmail) {
+      console.log('No current user email, skipping fetch');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      console.log('🔄 Fetching user activities from Supabase...');
+      console.log('🔄 Fetching user activities from Supabase for:', currentUserEmail);
       
-      // For non-admin users, filter by their email
+      // Filter by current user's email only
       const { data, error } = await supabase
         .from('activities')
         .select('*')
-        .eq('submitted_by', currentUserEmail) // Filter by current user's email
+        .eq('submitted_by', currentUserEmail)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -125,18 +132,18 @@ const Dashboard = () => {
 
   // Set up real-time subscription for user's activities only
   useEffect(() => {
+    if (!currentUserEmail) return;
+
     let channel: any;
     let retryTimeout: NodeJS.Timeout;
 
     const setupRealtimeSync = () => {
-      if (!currentUserEmail) return;
-      
       console.log('🚀 Setting up real-time sync for user activities:', currentUserEmail);
       
       // Initial fetch
       fetchActivities();
 
-      // Set up real-time subscription filtered by user
+      // Set up real-time subscription filtered by current user
       channel = supabase
         .channel('user-dashboard-activities', {
           config: {
@@ -147,14 +154,14 @@ const Dashboard = () => {
         .on(
           'postgres_changes',
           {
-            event: '*', // Listen to all events
+            event: '*',
             schema: 'public',
             table: 'activities',
-            filter: `submitted_by=eq.${currentUserEmail}` // Filter by current user
+            filter: `submitted_by=eq.${currentUserEmail}`
           },
           (payload) => {
             console.log('📱 Real-time update received for user activities:', payload.eventType);
-            fetchActivities(); // Refresh data immediately on any change
+            fetchActivities();
           }
         )
         .subscribe((status) => {
@@ -178,15 +185,13 @@ const Dashboard = () => {
 
     // Auto-refresh for user activities
     const autoRefreshInterval = setInterval(() => {
-      if (currentUserEmail) {
-        console.log('🔄 Auto-refreshing dashboard for user:', currentUserEmail);
-        fetchActivities();
-      }
+      console.log('🔄 Auto-refreshing dashboard for user:', currentUserEmail);
+      fetchActivities();
     }, 30000);
 
     // Visibility change handler
     const handleVisibilityChange = () => {
-      if (!document.hidden && currentUserEmail) {
+      if (!document.hidden) {
         console.log('📱 Tab visible - syncing user activities');
         fetchActivities();
       }
@@ -204,7 +209,7 @@ const Dashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       setIsConnected(false);
     };
-  }, [currentUserEmail]); // Dependency on currentUserEmail
+  }, [currentUserEmail]);
 
   // Time updates
   useEffect(() => {
@@ -257,6 +262,10 @@ const Dashboard = () => {
     }
   };
 
+  const handleEditActivity = (activityId: string) => {
+    navigate(`/activities?edit=${activityId}`);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -266,7 +275,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading your dashboard...</p>
+              <p className="text-gray-600">Loading your personal dashboard...</p>
             </div>
           </div>
         </div>
@@ -287,7 +296,7 @@ const Dashboard = () => {
               <div className="flex items-center space-x-1">
                 <div className="flex items-center gap-3 mr-6 text-white">
                   <Users className="text-[#fd3572]" size={20} />
-                  <span className="font-bold text-lg">User Dashboard</span>
+                  <span className="font-bold text-lg">My Personal Dashboard</span>
                   <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
                 </div>
                 
@@ -314,7 +323,7 @@ const Dashboard = () => {
 
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2 py-1 rounded-full ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {isConnected ? 'My Activities' : 'Loading...'}
+                  {isConnected ? 'Personal Data Only' : 'Loading...'}
                 </span>
               </div>
             </div>
@@ -341,7 +350,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Stats Grid - Now showing user's personal data */}
+        {/* Stats Grid - Showing user's personal data only */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="pb-2">
@@ -386,6 +395,42 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Recent Activities Section */}
+        {activities.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-[#be2251] flex items-center gap-2">
+                My Recent Activities
+                <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {activities.slice(0, 5).map((activity) => (
+                  <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border-l-4 border-l-[#fd3572] hover:bg-gray-100 transition-colors">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-[#be2251]">{activity.title}</h3>
+                      <p className="text-sm text-gray-600">{activity.type} • {activity.facility}</p>
+                      <p className="text-xs text-gray-500">{new Date(activity.date).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">{activity.duration}min</span>
+                      <Button
+                        onClick={() => handleEditActivity(activity.id)}
+                        size="sm"
+                        variant="outline"
+                        className="border-[#fd3572] text-[#fd3572] hover:bg-[#fd3572] hover:text-white"
+                      >
+                        <Edit size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -443,7 +488,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span className="flex items-center gap-2">
               <div className={`w-2 h-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
-              {isConnected ? `Showing your personal activities (${currentUserEmail})` : 'Loading your activities...'}
+              {isConnected ? `Showing your personal activities only (${currentUserEmail})` : 'Loading your personal activities...'}
             </span>
             <span>Last updated: {currentTime.toLocaleTimeString()}</span>
           </div>
