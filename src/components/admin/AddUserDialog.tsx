@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 interface AddUserDialogProps {
   onAddUser: (user: {
@@ -26,7 +26,7 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
   });
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name || !formData.email || !formData.role || !formData.password) {
@@ -59,14 +59,46 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
       return;
     }
 
-    onAddUser(formData);
-    setFormData({ name: "", email: "", role: "", password: "" });
-    setOpen(false);
-    
-    toast({
-      title: "Success",
-      description: "User added successfully"
-    });
+    try {
+      // Create user through Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: formData.name,
+            role: formData.role
+          }
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Call the parent handler for local state management
+      onAddUser(formData);
+      setFormData({ name: "", email: "", role: "", password: "" });
+      setOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "User invitation sent successfully. They will receive an email confirmation."
+      });
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create user account",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {

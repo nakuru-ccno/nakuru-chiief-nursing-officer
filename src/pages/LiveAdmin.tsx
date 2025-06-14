@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import CountyHeader from "@/components/CountyHeader";
 import { Button } from "@/components/ui/button";
@@ -42,13 +41,7 @@ const LiveAdmin = () => {
       const userName = user.email?.split('@')[0] || user.email || "Administrator";
       setCurrentUser(userName);
     } else {
-      // Fallback to demo role if no Supabase user
-      const demoRole = localStorage.getItem("role");
-      if (demoRole) {
-        setCurrentUser(demoRole === "admin" ? "Administrator" : "User");
-      } else {
-        setCurrentUser("Administrator");
-      }
+      setCurrentUser("Administrator");
     }
   };
 
@@ -79,7 +72,9 @@ const LiveAdmin = () => {
 
   const handleLogout = () => {
     console.log("Logout clicked");
-    localStorage.removeItem("role");
+    // Clear any stored data and sign out
+    localStorage.clear();
+    supabase.auth.signOut();
     window.location.href = "/";
   };
 

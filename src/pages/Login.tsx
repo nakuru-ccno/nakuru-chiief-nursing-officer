@@ -3,11 +3,6 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
-const DEMO_ACCOUNTS = [
-  { username: "admin", password: "StrongP@ssword1!", role: "admin" },
-  { username: "nurse", password: "NursePower2!", role: "chief_nurse" },
-];
-
 function isEmail(text: string) {
   // Simple email validation
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
@@ -33,29 +28,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Check locally created admin users first
-      const savedUsers = localStorage.getItem('adminUsers');
-      if (savedUsers) {
-        try {
-          const adminUsers = JSON.parse(savedUsers);
-          const foundUser = adminUsers.find((user: any) => 
-            user.email === userData.username && userData.password === userData.password
-          );
-          
-          if (foundUser) {
-            console.log("Local admin user login successful for:", foundUser.name);
-            // Set a demo role for locally created users
-            localStorage.setItem("role", "chief_nurse");
-            navigate("/dashboard", { replace: true });
-            setLoading(false);
-            return;
-          }
-        } catch (parseError) {
-          console.error('Error parsing saved users:', parseError);
-        }
-      }
-
-      // If username field is an email, use Supabase Auth.
+      // Only use Supabase authentication for real users
       if (isEmail(userData.username)) {
         console.log("Attempting Supabase login");
         const { data, error: loginError } = await supabase.auth.signInWithPassword({
@@ -71,31 +44,15 @@ const Login = () => {
         }
 
         console.log("Supabase login successful, redirecting to dashboard");
-        // On success: remove any demo role & redirect to dashboard
+        // Clear any demo role data
         localStorage.removeItem("role");
+        localStorage.removeItem("adminUsers");
         navigate("/dashboard", { replace: true });
         setLoading(false);
         return;
-      }
-
-      // Otherwise, use demo login logic
-      console.log("Attempting demo login");
-      const found = DEMO_ACCOUNTS.find(
-        (a) =>
-          a.username === userData.username && a.password === userData.password
-      );
-      if (found) {
-        console.log("Demo login successful for role:", found.role);
-        localStorage.setItem("role", found.role);
-        // For demo roles, do not authenticate via Supabase, just navigate
-        if (found.role === "admin") {
-          navigate("/admin", { replace: true });
-        } else {
-          navigate("/dashboard", { replace: true });
-        }
       } else {
-        console.log("Login failed - credentials not found");
-        setError("Invalid credentials. Please try again.");
+        console.log("Invalid email format");
+        setError("Please enter a valid email address.");
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -145,19 +102,19 @@ const Login = () => {
             
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Username
+                Email Address
               </label>
               <input
                 id="username"
                 name="username"
-                type="text"
+                type="email"
                 onChange={handleChange}
                 value={userData.username}
-                placeholder="Enter your username"
+                placeholder="Enter your email address"
                 className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:border-transparent"
                 autoFocus
                 required
-                autoComplete="username"
+                autoComplete="email"
                 disabled={loading}
               />
             </div>
