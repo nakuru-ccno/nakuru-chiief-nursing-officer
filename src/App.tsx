@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +9,7 @@ import Login from "./pages/Login";
 import Activities from "./pages/Activities";
 import Reports from "./pages/Reports";
 import Dashboard from "./pages/Dashboard";
+import Register from "./pages/Register";
 
 // Demo-only auth check
 const isAuthenticated = () => !!localStorage.getItem("role");
@@ -30,6 +30,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           {/* Protected route for dashboard and its children */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />

@@ -1,7 +1,7 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import CountyHeader from "@/components/CountyHeader";
+import { supabase } from "@/integrations/supabase/client";
 
 const DEMO_ACCOUNTS = [
   { username: "admin", password: "StrongP@ssword1!", role: "admin" },
@@ -16,6 +16,13 @@ const Login = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
   };
+
+  // Add redirect if user already logged in (via Supabase)
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && session.user) navigate("/dashboard", { replace: true });
+    });
+  }, [navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +83,10 @@ const Login = () => {
         >
           Login
         </button>
+        <div className="mt-4 text-sm text-center">
+          <span>Don't have an account? </span>
+          <a href="/register" className="text-[#be2251] font-semibold hover:underline">Register</a>
+        </div>
       </form>
       <div className="mt-4 text-xs text-gray-200 opacity-60">
         <span>For demo: <strong>admin</strong>/<strong>StrongP@ssword1!</strong> (admin) or <strong>nurse</strong>/<strong>NursePower2!</strong> (chief nurse)</span>
@@ -83,5 +94,4 @@ const Login = () => {
     </div>
   );
 };
-
 export default Login;
