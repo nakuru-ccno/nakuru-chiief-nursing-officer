@@ -9,27 +9,6 @@ import EditUserDialog from "@/components/admin/EditUserDialog";
 import DeleteUserDialog from "@/components/admin/DeleteUserDialog";
 import { useToast } from "@/hooks/use-toast";
 
-// Mock data for demo purposes
-const mockStats = {
-  totalUsers: 3,
-  totalActivities: 12,
-  thisMonth: 12,
-  totalHours: 33,
-  averageDuration: 165
-};
-
-const activitiesByType = [
-  { name: 'Meetings', value: 4 },
-  { name: 'Administrative', value: 3 },
-  { name: 'Training', value: 3 },
-  { name: 'Inventory Control', value: 2 }
-];
-
-const userActivity = [
-  { name: 'Matoka', activities: 8 },
-  { name: 'John', activities: 4 }
-];
-
 const initialUsers = [
   { id: 1, name: 'Matoka', email: 'matoka@nakuru.go.ke', role: 'Chief Nurse Officer', status: 'Active', lastLogin: '2024-06-14 10:30 AM' },
   { id: 2, name: 'John', email: 'john@nakuru.go.ke', role: 'Nurse Officer', status: 'Active', lastLogin: '2024-06-14 09:15 AM' },
@@ -42,47 +21,142 @@ const Admin = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [deletingUser, setDeletingUser] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [mockStats, setMockStats] = useState(getMockStats());
-  const [activitiesByType, setActivitiesByType] = useState(getActivitiesByType());
-  const [userActivity, setUserActivity] = useState(getUserActivity());
+  const [activities, setActivities] = useState([]);
+  const [mockStats, setMockStats] = useState({});
+  const [activitiesByType, setActivitiesByType] = useState([]);
+  const [userActivity, setUserActivity] = useState([]);
   const { toast } = useToast();
+
+  // Function to load activities from localStorage
+  const loadActivitiesFromStorage = () => {
+    const savedActivities = localStorage.getItem('userActivities');
+    console.log('Loading activities from localStorage:', savedActivities);
+    if (savedActivities) {
+      try {
+        const parsedActivities = JSON.parse(savedActivities);
+        console.log('Parsed activities:', parsedActivities);
+        setActivities(parsedActivities);
+        return parsedActivities;
+      } catch (error) {
+        console.error('Error parsing saved activities:', error);
+        setActivities([]);
+        return [];
+      }
+    }
+    console.log('No activities found in localStorage');
+    setActivities([]);
+    return [];
+  };
+
+  // Function to calculate stats from activities
+  const calculateStats = (activitiesData) => {
+    const totalActivities = activitiesData.length;
+    const totalMinutes = activitiesData.reduce((sum, activity) => sum + (activity.duration || 0), 0);
+    const totalHours = Math.round(totalMinutes / 60);
+    const averageDuration = totalActivities > 0 ? Math.round(totalMinutes / totalActivities) : 0;
+    
+    console.log('Calculated stats:', { totalActivities, totalHours, averageDuration });
+    
+    return {
+      totalUsers: users.length,
+      totalActivities,
+      thisMonth: totalActivities,
+      totalHours,
+      averageDuration
+    };
+  };
+
+  // Function to calculate activities by type
+  const calculateActivitiesByType = (activitiesData) => {
+    const typeCount = activitiesData.reduce((acc, activity) => {
+      const type = activity.type || 'Other';
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const result = Object.entries(typeCount).map(([name, value]) => ({ name, value }));
+    console.log('Activities by type:', result);
+    return result;
+  };
+
+  // Function to calculate user activity
+  const calculateUserActivity = (activitiesData) => {
+    const userCount = activitiesData.reduce((acc, activity) => {
+      const user = activity.submittedBy || 'Unknown User';
+      acc[user] = (acc[user] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const result = Object.entries(userCount).map(([name, activities]) => ({ name, activities }));
+    console.log('User activity:', result);
+    return result;
+  };
 
   // Update time every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000); // Update every minute
+    }, 60000);
 
     return () => clearInterval(timer);
   }, []);
 
-  // Update stats when component mounts and when localStorage changes
+  // Load activities and update stats
   useEffect(() => {
-    const updateStats = () => {
-      setMockStats(getMockStats());
-      setActivitiesByType(getActivitiesByType());
-      setUserActivity(getUserActivity());
+    const updateAllData = () => {
+      console.log('Updating all data...');
+      const activitiesData = loadActivitiesFromStorage();
+      const stats = calculateStats(activitiesData);
+      const typeData = calculateActivitiesByType(activitiesData);
+      const userData = calculateUserActivity(activitiesData);
+      
+      setMockStats(stats);
+      setActivitiesByType(typeData);
+      setUserActivity(userData);
     };
 
-    updateStats();
+    // Initial load
+    updateAllData();
 
-    // Listen for storage changes (when activities are updated)
+    // Listen for storage changes
     const handleStorageChange = (e) => {
+      console.log('Storage change detected:', e.key);
       if (e.key === 'userActivities') {
-        updateStats();
+        updateAllData();
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     
-    // Also update every 5 seconds to catch localStorage changes from the same tab
-    const statsTimer = setInterval(updateStats, 5000);
+    // Also update every 3 seconds to catch localStorage changes from the same tab
+    const statsTimer = setInterval(updateAllData, 3000);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(statsTimer);
     };
+  }, [users.length]);
+
+  // Load users from localStorage on component mount
+  useEffect(() => {
+    const savedUsers = localStorage.getItem('adminUsers');
+    if (savedUsers) {
+      try {
+        const parsedUsers = JSON.parse(savedUsers);
+        setUsers(parsedUsers);
+        console.log('Loaded users from localStorage:', parsedUsers);
+      } catch (error) {
+        console.error('Error parsing saved users:', error);
+        setUsers(initialUsers);
+      }
+    }
   }, []);
+
+  // Save users to localStorage whenever users state changes
+  useEffect(() => {
+    localStorage.setItem('adminUsers', JSON.stringify(users));
+    console.log('Saved users to localStorage:', users);
+  }, [users]);
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -108,28 +182,6 @@ const Admin = () => {
       day: 'numeric'
     });
   };
-
-  // Load users from localStorage on component mount
-  useEffect(() => {
-    const savedUsers = localStorage.getItem('adminUsers');
-    if (savedUsers) {
-      try {
-        const parsedUsers = JSON.parse(savedUsers);
-        setUsers(parsedUsers);
-        console.log('Loaded users from localStorage:', parsedUsers);
-      } catch (error) {
-        console.error('Error parsing saved users:', error);
-        // If there's an error, fall back to initial users
-        setUsers(initialUsers);
-      }
-    }
-  }, []);
-
-  // Save users to localStorage whenever users state changes
-  useEffect(() => {
-    localStorage.setItem('adminUsers', JSON.stringify(users));
-    console.log('Saved users to localStorage:', users);
-  }, [users]);
 
   const handleLogout = () => {
     console.log("Logout clicked");
@@ -282,7 +334,7 @@ const Admin = () => {
             <CardTitle className="text-lg font-bold text-[#be2251]">Total Activities</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalActivities}</div>
+            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalActivities || 0}</div>
             <p className="text-sm text-gray-600">Activities recorded</p>
           </CardContent>
         </Card>
@@ -292,7 +344,7 @@ const Admin = () => {
             <CardTitle className="text-lg font-bold text-[#be2251]">This Month</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.thisMonth}</div>
+            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.thisMonth || 0}</div>
             <p className="text-sm text-gray-600">Activities this month</p>
           </CardContent>
         </Card>
@@ -302,7 +354,7 @@ const Admin = () => {
             <CardTitle className="text-lg font-bold text-[#be2251]">Total Hours</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalHours}</div>
+            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.totalHours || 0}</div>
             <p className="text-sm text-gray-600">Hours logged system-wide</p>
           </CardContent>
         </Card>
@@ -354,7 +406,7 @@ const Admin = () => {
             <CardTitle className="text-lg font-bold text-[#be2251]">Average Duration</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.averageDuration}</div>
+            <div className="text-3xl font-bold text-[#fd3572]">{mockStats.averageDuration || 0}</div>
             <p className="text-sm text-gray-600">Minutes per activity</p>
           </CardContent>
         </Card>
@@ -365,15 +417,21 @@ const Admin = () => {
             <p className="text-sm text-gray-600">Distribution of activities across categories</p>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={activitiesByType}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#fd3572" />
-              </BarChart>
-            </ResponsiveContainer>
+            {activitiesByType.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={activitiesByType}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#fd3572" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-gray-500">
+                No activity data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -383,15 +441,21 @@ const Admin = () => {
             <p className="text-sm text-gray-600">Activities per user in the system</p>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={userActivity}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="activities" fill="#be2251" />
-              </BarChart>
-            </ResponsiveContainer>
+            {userActivity.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={userActivity}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="activities" fill="#be2251" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-gray-500">
+                No user activity data available
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -480,7 +544,7 @@ const Admin = () => {
   );
 
   const renderReportsContent = () => {
-    const activities = getActivitiesFromStorage();
+    console.log('Rendering reports with activities:', activities);
     
     return (
       <div className="space-y-6">
@@ -553,7 +617,7 @@ const Admin = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-bold text-[#be2251]">User Submitted Activities</CardTitle>
-            <p className="text-sm text-gray-600">Real-time view of all activities submitted by users</p>
+            <p className="text-sm text-gray-600">Real-time view of all activities submitted by users ({activities.length} total)</p>
           </CardHeader>
           <CardContent>
             {activities.length > 0 ? (
@@ -567,6 +631,7 @@ const Admin = () => {
                       <th className="text-left p-3 font-semibold text-[#be2251]">Type</th>
                       <th className="text-left p-3 font-semibold text-[#be2251]">Duration (min)</th>
                       <th className="text-left p-3 font-semibold text-[#be2251]">Submitted By</th>
+                      <th className="text-left p-3 font-semibold text-[#be2251]">Submitted At</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -582,6 +647,7 @@ const Admin = () => {
                         </td>
                         <td className="p-3">{activity.duration}</td>
                         <td className="p-3">{activity.submittedBy || 'Unknown User'}</td>
+                        <td className="p-3">{activity.submittedAt ? new Date(activity.submittedAt).toLocaleString() : 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -589,28 +655,31 @@ const Admin = () => {
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                No activities have been submitted yet.
+                <p className="text-lg font-medium">No activities have been submitted yet.</p>
+                <p className="text-sm mt-2">Activities submitted by users will appear here automatically.</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold text-[#be2251]">Recent Activity Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={activitiesByType}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#fd3572" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        {activities.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-[#be2251]">Recent Activity Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={activitiesByType}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#fd3572" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   };
@@ -804,53 +873,3 @@ const Admin = () => {
 };
 
 export default Admin;
-
-const getActivitiesFromStorage = () => {
-  const savedActivities = localStorage.getItem('userActivities');
-  if (savedActivities) {
-    try {
-      return JSON.parse(savedActivities);
-    } catch (error) {
-      console.error('Error parsing saved activities:', error);
-      return [];
-    }
-  }
-  return [];
-};
-
-const getMockStats = () => {
-  const activities = getActivitiesFromStorage();
-  const totalActivities = activities.length;
-  const totalHours = activities.reduce((sum, activity) => sum + (activity.duration || 0), 0);
-  const averageDuration = totalActivities > 0 ? Math.round(totalHours / totalActivities) : 0;
-  
-  return {
-    totalUsers: 3,
-    totalActivities,
-    thisMonth: totalActivities, // For demo, assuming all are this month
-    totalHours: Math.round(totalHours / 60), // Convert minutes to hours
-    averageDuration
-  };
-};
-
-const getActivitiesByType = () => {
-  const activities = getActivitiesFromStorage();
-  const typeCount = activities.reduce((acc, activity) => {
-    const type = activity.type || 'Other';
-    acc[type] = (acc[type] || 0) + 1;
-    return acc;
-  }, {});
-  
-  return Object.entries(typeCount).map(([name, value]) => ({ name, value }));
-};
-
-const getUserActivity = () => {
-  const activities = getActivitiesFromStorage();
-  const userCount = activities.reduce((acc, activity) => {
-    const user = activity.submittedBy || 'Unknown User';
-    acc[user] = (acc[user] || 0) + 1;
-    return acc;
-  }, {});
-  
-  return Object.entries(userCount).map(([name, activities]) => ({ name, activities }));
-};
