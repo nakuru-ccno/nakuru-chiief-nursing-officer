@@ -27,6 +27,7 @@ const Login = () => {
   }, [navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("Input changed:", e.target.name, e.target.value);
     setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
     // Clear error when user starts typing
     if (error) setError("");
@@ -34,23 +35,27 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Form submitted with data:", userData);
     setError("");
     setLoading(true);
 
     try {
       // If username field is an email, use Supabase Auth.
       if (isEmail(userData.username)) {
+        console.log("Attempting Supabase login");
         const { data, error: loginError } = await supabase.auth.signInWithPassword({
           email: userData.username,
           password: userData.password,
         });
 
         if (loginError) {
+          console.log("Supabase login error:", loginError);
           setError(loginError.message || "Invalid credentials. Please try again.");
           setLoading(false);
           return;
         }
 
+        console.log("Supabase login successful, redirecting to dashboard");
         // On success: remove any demo role & redirect to dashboard
         localStorage.removeItem("role");
         navigate("/dashboard", { replace: true });
@@ -59,11 +64,13 @@ const Login = () => {
       }
 
       // Otherwise, use demo login logic
+      console.log("Attempting demo login");
       const found = DEMO_ACCOUNTS.find(
         (a) =>
           a.username === userData.username && a.password === userData.password
       );
       if (found) {
+        console.log("Demo login successful for role:", found.role);
         localStorage.setItem("role", found.role);
         // For demo roles, do not authenticate via Supabase, just navigate
         if (found.role === "admin") {
@@ -72,12 +79,19 @@ const Login = () => {
           navigate("/dashboard");
         }
       } else {
+        console.log("Demo login failed - credentials not found");
         setError("Invalid credentials. Please try again.");
       }
     } catch (err) {
+      console.error("Login error:", err);
       setError("An unexpected error occurred. Please try again.");
     }
     setLoading(false);
+  };
+
+  const handleCreateAccountClick = (e: React.MouseEvent) => {
+    console.log("Create Account link clicked");
+    // Let React Router handle the navigation
   };
 
   return (
@@ -149,6 +163,7 @@ const Login = () => {
 
             <button
               type="submit"
+              onClick={() => console.log("Sign In button clicked")}
               className="w-full bg-[#be2251] text-white font-semibold py-3 px-4 rounded-md hover:bg-[#fd3572] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:ring-offset-2"
               disabled={loading || !userData.username.trim() || !userData.password.trim()}
             >
@@ -161,6 +176,7 @@ const Login = () => {
               Don't have an account?{" "}
               <Link
                 to="/register"
+                onClick={handleCreateAccountClick}
                 className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors focus:outline-none focus:underline"
               >
                 Create Account
