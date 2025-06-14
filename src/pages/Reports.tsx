@@ -30,7 +30,6 @@ export default function Reports() {
   const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
@@ -43,11 +42,13 @@ export default function Reports() {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('📊 Reports component mounted');
     getCurrentUser();
     fetchActivities();
   }, []);
 
   useEffect(() => {
+    console.log('🔍 Applying filters...');
     applyFilters();
   }, [allActivities, dateRange, startDate, endDate, activityType]);
 
@@ -55,19 +56,17 @@ export default function Reports() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) {
-        setCurrentUserEmail(user.email);
         const displayName = user.user_metadata?.full_name || 
                            user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
                            "User";
         setCurrentUser(displayName);
+        console.log('👤 Current user:', displayName);
       } else {
         setCurrentUser("User");
-        setCurrentUserEmail("");
       }
     } catch (error) {
-      console.error('Error getting current user:', error);
+      console.error('❌ Error getting current user:', error);
       setCurrentUser("User");
-      setCurrentUserEmail("");
     }
   };
 
@@ -109,7 +108,9 @@ export default function Reports() {
 
   const applyFilters = () => {
     let filtered = [...allActivities];
+    console.log('🔍 Starting with', filtered.length, 'activities');
 
+    // Apply date filters
     if (startDate && endDate) {
       filtered = filtered.filter(activity => {
         const activityDate = new Date(activity.created_at);
@@ -119,16 +120,19 @@ export default function Reports() {
         end.setHours(23, 59, 59, 999);
         return activityDate >= start && activityDate <= end;
       });
+      console.log('📅 After date filter:', filtered.length, 'activities');
     }
 
+    // Apply activity type filter
     if (activityType !== "all") {
       filtered = filtered.filter(activity => 
         activity.type.toLowerCase() === activityType.toLowerCase()
       );
+      console.log('🏷️ After type filter:', filtered.length, 'activities');
     }
 
     setFilteredActivities(filtered);
-    console.log('🔍 Filters applied, showing:', filtered.length, 'activities');
+    console.log('✅ Filters applied, showing:', filtered.length, 'activities');
   };
 
   const handleEditActivity = (activity: Activity) => {
@@ -170,6 +174,7 @@ export default function Reports() {
     return "Good Night";
   };
 
+  // Calculate statistics
   const totalActivities = filteredActivities.length;
   const thisMonth = new Date();
   thisMonth.setDate(1);
@@ -188,7 +193,7 @@ export default function Reports() {
         <MainNavbar />
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
           <div className="text-center py-8 text-gray-500">
-            <p>Loading activities database...</p>
+            <p>Loading reports...</p>
           </div>
         </div>
       </div>

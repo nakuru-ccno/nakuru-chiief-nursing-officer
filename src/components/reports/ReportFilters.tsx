@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +33,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
   totalRecords
 }) => {
   const handleQuickDateRange = (range: string) => {
+    console.log('📅 Setting date range to:', range);
     setDateRange(range);
     const today = new Date();
     
@@ -55,6 +55,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
         setEndDate(today);
         break;
       case 'custom':
+        // Keep current dates for custom selection
         break;
       default:
         setStartDate(undefined);
@@ -101,7 +102,10 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
                 <Calendar
                   mode="single"
                   selected={startDate}
-                  onSelect={setStartDate}
+                  onSelect={(date) => {
+                    console.log('📅 Start date selected:', date);
+                    setStartDate(date);
+                  }}
                   initialFocus
                 />
               </PopoverContent>
@@ -121,7 +125,10 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
                 <Calendar
                   mode="single"
                   selected={endDate}
-                  onSelect={setEndDate}
+                  onSelect={(date) => {
+                    console.log('📅 End date selected:', date);
+                    setEndDate(date);
+                  }}
                   initialFocus
                 />
               </PopoverContent>
@@ -130,7 +137,10 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
 
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Activity Type</label>
-            <Select value={activityType} onValueChange={setActivityType}>
+            <Select value={activityType} onValueChange={(value) => {
+              console.log('🏷️ Activity type selected:', value);
+              setActivityType(value);
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder="All types" />
               </SelectTrigger>
