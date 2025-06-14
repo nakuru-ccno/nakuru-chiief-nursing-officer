@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import CountyHeader from "@/components/CountyHeader";
@@ -19,11 +20,40 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // Add redirect if user already logged in (via Supabase)
+  // Check for existing authentication but prevent redirect loops
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && session.user) navigate("/dashboard", { replace: true });
-    });
+    let isMounted = true;
+    
+    const checkAuth = async () => {
+      console.log("Checking authentication state on login page");
+      
+      // Check for Supabase session first
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user && isMounted) {
+        console.log("Supabase session found, redirecting to dashboard");
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+      
+      // Check for demo role authentication
+      const demoRole = localStorage.getItem("role");
+      if (demoRole && isMounted) {
+        console.log("Demo role found:", demoRole, "redirecting appropriately");
+        if (demoRole === "admin") {
+          navigate("/admin", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
+      }
+    };
+    
+    // Small delay to prevent immediate redirects that could cause loops
+    const timeoutId = setTimeout(checkAuth, 100);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,9 +104,9 @@ const Login = () => {
         localStorage.setItem("role", found.role);
         // For demo roles, do not authenticate via Supabase, just navigate
         if (found.role === "admin") {
-          navigate("/admin");
+          navigate("/admin", { replace: true });
         } else {
-          navigate("/dashboard");
+          navigate("/dashboard", { replace: true });
         }
       } else {
         console.log("Demo login failed - credentials not found");
@@ -92,6 +122,10 @@ const Login = () => {
   const handleCreateAccountClick = (e: React.MouseEvent) => {
     console.log("Create Account link clicked");
     // Let React Router handle the navigation
+  };
+
+  const handleSignInClick = () => {
+    console.log("Sign In button clicked");
   };
 
   return (
@@ -163,7 +197,7 @@ const Login = () => {
 
             <button
               type="submit"
-              onClick={() => console.log("Sign In button clicked")}
+              onClick={handleSignInClick}
               className="w-full bg-[#be2251] text-white font-semibold py-3 px-4 rounded-md hover:bg-[#fd3572] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:ring-offset-2"
               disabled={loading || !userData.username.trim() || !userData.password.trim()}
             >
