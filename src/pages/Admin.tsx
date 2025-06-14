@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import CountyHeader from "@/components/CountyHeader";
 import { Button } from "@/components/ui/button";
@@ -130,103 +131,104 @@ const Admin = () => {
           </div>
         </div>
       
-      {/* User Submitted Activities Section */}
-      <div className="bg-white rounded-xl p-6 border shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-bold text-[#be2251] mb-2">User Submitted Activities</h3>
-            <p className="text-sm text-gray-600">Real-time view of all activities submitted by users ({activities.length} total)</p>
+        {/* User Submitted Activities Section */}
+        <div className="bg-white rounded-xl p-6 border shadow-lg">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-[#be2251] mb-2">User Submitted Activities</h3>
+              <p className="text-sm text-gray-600">Real-time view of all activities submitted by users ({activities.length} total)</p>
+            </div>
+            <div className="flex gap-2">
+              <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+                Export PDF
+              </Button>
+              <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+                Export Excel
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
-              Export PDF
-            </Button>
-            <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
-              Export Excel
-            </Button>
-          </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Facility</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Duration (min)</TableHead>
-                <TableHead>Submitted By</TableHead>
-                <TableHead>Submitted At</TableHead>
-                <TableHead className="text-center">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {activities.map((activity) => (
-                <TableRow key={activity.id}>
-                  <TableCell>{new Date(activity.date).toLocaleDateString()}</TableCell>
-                  <TableCell>{activity.facility || 'HQ'}</TableCell>
-                  <TableCell className="font-medium">{activity.title}</TableCell>
-                  <TableCell>
-                    <Badge className={getTypeColor(activity.type)}>
-                      {activity.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{activity.duration || '-'}</TableCell>
-                  <TableCell>{getUserDisplayName(activity.submitted_by)}</TableCell>
-                  <TableCell>{new Date(activity.created_at).toLocaleString()}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-2">
-                      <Button
-                        onClick={() => handleEditActivity(activity)}
-                        size="sm"
-                        variant="outline"
-                        className="h-8 w-8 p-0 border-blue-300 text-blue-600 hover:bg-blue-50"
-                      >
-                        <Edit size={14} />
-                      </Button>
-                      <Button
-                        onClick={() => handleDeleteActivity(activity)}
-                        size="sm"
-                        variant="outline"
-                        className="h-8 w-8 p-0 border-red-300 text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Facility</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Duration (min)</TableHead>
+                  <TableHead>Submitted By</TableHead>
+                  <TableHead>Submitted At</TableHead>
+                  <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {activities.map((activity) => (
+                  <TableRow key={activity.id}>
+                    <TableCell>{new Date(activity.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{activity.facility || 'HQ'}</TableCell>
+                    <TableCell className="font-medium">{activity.title}</TableCell>
+                    <TableCell>
+                      <Badge className={getTypeColor(activity.type)}>
+                        {activity.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{activity.duration || '-'}</TableCell>
+                    <TableCell>{getUserDisplayName(activity.submitted_by)}</TableCell>
+                    <TableCell>{new Date(activity.created_at).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-2">
+                        <Button
+                          onClick={() => handleEditActivity(activity)}
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 p-0 border-blue-300 text-blue-600 hover:bg-blue-50"
+                        >
+                          <Edit size={14} />
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteActivity(activity)}
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 p-0 border-red-300 text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {activities.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <p>No activities found</p>
+            </div>
+          )}
         </div>
 
-        {activities.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            <p>No activities found</p>
-          </div>
+        {/* Edit Activity Dialog */}
+        {editingActivity && (
+          <EditActivityDialog
+            activity={editingActivity}
+            open={!!editingActivity}
+            onClose={() => setEditingActivity(null)}
+            onActivityUpdated={handleActivityUpdated}
+          />
+        )}
+
+        {/* Delete Activity Dialog */}
+        {deletingActivity && (
+          <DeleteActivityDialog
+            activity={deletingActivity}
+            open={!!deletingActivity}
+            onClose={() => setDeletingActivity(null)}
+            onActivityDeleted={handleActivityDeleted}
+          />
         )}
       </div>
-
-      {/* Edit Activity Dialog */}
-      {editingActivity && (
-        <EditActivityDialog
-          activity={editingActivity}
-          open={!!editingActivity}
-          onClose={() => setEditingActivity(null)}
-          onActivityUpdated={handleActivityUpdated}
-        />
-      )}
-
-      {/* Delete Activity Dialog */}
-      {deletingActivity && (
-        <DeleteActivityDialog
-          activity={deletingActivity}
-          open={!!deletingActivity}
-          onClose={() => setDeletingActivity(null)}
-          onActivityDeleted={handleActivityDeleted}
-        />
-      )}
     </div>
   );
 };
