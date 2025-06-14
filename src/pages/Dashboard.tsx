@@ -59,23 +59,25 @@ const Dashboard = () => {
     }
   }, [isAdmin, navigate]);
 
-  // Fetch ALL activities from Supabase (not filtered by user)
+  // Fetch activities filtered by current user (for non-admin users)
   const fetchActivities = async () => {
     try {
-      console.log('🔄 Fetching ALL activities from Supabase...');
+      console.log('🔄 Fetching user activities from Supabase...');
       
+      // For non-admin users, filter by their email
       const { data, error } = await supabase
         .from('activities')
         .select('*')
+        .eq('submitted_by', currentUserEmail) // Filter by current user's email
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching all activities:', error);
+        console.error('Error fetching user activities:', error);
         setIsConnected(false);
         return;
       }
 
-      console.log('✅ Dashboard - All activities loaded:', data?.length || 0);
+      console.log('✅ Dashboard - User activities loaded:', data?.length || 0, 'for user:', currentUserEmail);
       
       const formattedActivities: ActivityData[] = (data || []).map(activity => ({
         id: activity.id,
@@ -92,7 +94,7 @@ const Dashboard = () => {
       setActivities(formattedActivities);
       setIsConnected(true);
       
-      // Calculate stats from ALL activities
+      // Calculate stats from user's activities only
       const totalActivities = formattedActivities.length;
       
       const thisMonth = new Date();
@@ -114,27 +116,29 @@ const Dashboard = () => {
       });
 
     } catch (error) {
-      console.error('Error fetching all activities:', error);
+      console.error('Error fetching user activities:', error);
       setIsConnected(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Set up real-time subscription for ALL activities
+  // Set up real-time subscription for user's activities only
   useEffect(() => {
     let channel: any;
     let retryTimeout: NodeJS.Timeout;
 
     const setupRealtimeSync = () => {
-      console.log('🚀 Setting up real-time sync for all activities');
+      if (!currentUserEmail) return;
+      
+      console.log('🚀 Setting up real-time sync for user activities:', currentUserEmail);
       
       // Initial fetch
       fetchActivities();
 
-      // Set up real-time subscription for ALL activities
+      // Set up real-time subscription filtered by user
       channel = supabase
-        .channel('user-dashboard-all-activities', {
+        .channel('user-dashboard-activities', {
           config: {
             broadcast: { self: true },
             presence: { key: 'user-dashboard' }
@@ -145,11 +149,11 @@ const Dashboard = () => {
           {
             event: '*', // Listen to all events
             schema: 'public',
-            table: 'activities'
-            // No filter - listen to all activities
+            table: 'activities',
+            filter: `submitted_by=eq.${currentUserEmail}` // Filter by current user
           },
           (payload) => {
-            console.log('📱 Real-time update received for all activities:', payload.eventType);
+            console.log('📱 Real-time update received for user activities:', payload.eventType);
             fetchActivities(); // Refresh data immediately on any change
           }
         )
@@ -158,7 +162,7 @@ const Dashboard = () => {
           
           if (status === 'SUBSCRIBED') {
             setIsConnected(true);
-            console.log('✅ User dashboard synchronized for all activities');
+            console.log('✅ User dashboard synchronized for:', currentUserEmail);
           } else if (status === 'CHANNEL_ERROR') {
             setIsConnected(false);
             console.error('❌ Dashboard sync error - retrying...');
@@ -172,16 +176,18 @@ const Dashboard = () => {
 
     setupRealtimeSync();
 
-    // Auto-refresh for all activities
+    // Auto-refresh for user activities
     const autoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing dashboard for all activities');
-      fetchActivities();
+      if (currentUserEmail) {
+        console.log('🔄 Auto-refreshing dashboard for user:', currentUserEmail);
+        fetchActivities();
+      }
     }, 30000);
 
     // Visibility change handler
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('📱 Tab visible - syncing all activities');
+      if (!document.hidden && currentUserEmail) {
+        console.log('📱 Tab visible - syncing user activities');
         fetchActivities();
       }
     };
@@ -198,7 +204,7 @@ const Dashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       setIsConnected(false);
     };
-  }, []); // Remove dependency on currentUserEmail
+  }, [currentUserEmail]); // Dependency on currentUserEmail
 
   // Time updates
   useEffect(() => {
@@ -260,7 +266,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading dashboard...</p>
+              <p className="text-gray-600">Loading your dashboard...</p>
             </div>
           </div>
         </div>
@@ -308,7 +314,7 @@ const Dashboard = () => {
 
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2 py-1 rounded-full ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {isConnected ? 'All Activities' : 'Loading...'}
+                  {isConnected ? 'My Activities' : 'Loading...'}
                 </span>
               </div>
             </div>
@@ -325,7 +331,7 @@ const Dashboard = () => {
           </h1>
           <div className="flex items-center gap-4 text-gray-600 mb-2">
             <span className="font-medium">County of Unlimited Opportunities</span>
-            <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">All Activities Dashboard</span>
+            <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">My Personal Dashboard</span>
           </div>
           <div className="flex items-center gap-4 text-gray-500 text-sm">
             <span>{currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -335,18 +341,18 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Stats Grid - Now showing all activities data */}
+        {/* Stats Grid - Now showing user's personal data */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-bold text-[#be2251] flex items-center gap-2">
-                Total Activities
+                My Activities
                 <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.totalActivities}</div>
-              <p className="text-sm text-gray-600">All system activities</p>
+              <p className="text-sm text-gray-600">Total activities</p>
             </CardContent>
           </Card>
 
@@ -356,7 +362,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.thisMonth}</div>
-              <p className="text-sm text-gray-600">Activities this month</p>
+              <p className="text-sm text-gray-600">This month's activities</p>
             </CardContent>
           </Card>
 
@@ -366,7 +372,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.totalHours}</div>
-              <p className="text-sm text-gray-600">Total hours logged</p>
+              <p className="text-sm text-gray-600">Hours logged</p>
             </CardContent>
           </Card>
 
@@ -404,11 +410,11 @@ const Dashboard = () => {
             <CardHeader>
               <CardTitle className="text-xl font-bold text-[#be2251] flex items-center gap-3">
                 <Activity className="text-[#fd3572]" size={24} />
-                View Activities
+                View My Activities
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600 mb-4">Browse and manage all activities</p>
+              <p className="text-gray-600 mb-4">Browse and manage your activities</p>
               <Button variant="outline" className="w-full border-[#fd3572] text-[#fd3572] hover:bg-[#fd3572] hover:text-white">
                 View All ({stats.totalActivities})
               </Button>
@@ -424,7 +430,7 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600 mb-4">Export and analyze activity data</p>
+              <p className="text-gray-600 mb-4">Export and analyze your activity data</p>
               <Button variant="outline" className="w-full border-[#fd3572] text-[#fd3572] hover:bg-[#fd3572] hover:text-white">
                 Create Report
               </Button>
@@ -432,12 +438,12 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* All Activities Status Footer */}
+        {/* Personal Activities Status Footer */}
         <div className="mt-8 p-4 bg-white rounded-lg border shadow-sm">
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span className="flex items-center gap-2">
               <div className={`w-2 h-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
-              {isConnected ? 'Showing all system activities' : 'Loading all activities...'}
+              {isConnected ? `Showing your personal activities (${currentUserEmail})` : 'Loading your activities...'}
             </span>
             <span>Last updated: {currentTime.toLocaleTimeString()}</span>
           </div>
