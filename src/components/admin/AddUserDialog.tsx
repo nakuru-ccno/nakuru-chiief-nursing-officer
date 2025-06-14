@@ -66,7 +66,7 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
     try {
       console.log('Creating user with signup...');
       
-      // Create user with signup
+      // Create user without email confirmation
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -132,7 +132,7 @@ const AddUserDialog = ({ onAddUser }: AddUserDialogProps) => {
           console.log('Profile created successfully:', profileData);
           toast({
             title: "Success",
-            description: "User created successfully! They will need to confirm their email before logging in."
+            description: "User created successfully! They can log in immediately."
           });
         }
 

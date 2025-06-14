@@ -29,19 +29,18 @@ const Register = () => {
     setLoading(true);
     setError("");
     setSuccess("");
-    // Always set emailRedirectTo per Supabase docs!
+    
+    // Register without email confirmation
     const { error } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-      },
     });
+    
     if (error) {
       setError(error.message || "Registration failed.");
     } else {
       setSuccess(
-        "Registration successful. Please check your email for a confirmation link before logging in."
+        "Registration successful! You can now log in with your credentials."
       );
       setUserData({ email: "", password: "" });
     }
@@ -104,7 +103,7 @@ const Register = () => {
         </div>
       </form>
       <div className="mt-2 text-xs text-center text-gray-500 opacity-70">
-        You will receive a verification email after registering.
+        You can log in immediately after registering.
       </div>
     </div>
   );
