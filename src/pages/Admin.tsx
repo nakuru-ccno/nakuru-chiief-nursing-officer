@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -111,7 +110,6 @@ export default function Admin() {
       title: "User Report",
       description: "User engagement report functionality coming soon...",
     });
-    // For now, redirect to reports page with user filter
     navigate('/reports');
   };
 
@@ -121,7 +119,6 @@ export default function Admin() {
       title: "System Report", 
       description: "System performance report functionality coming soon...",
     });
-    // For now, redirect to reports page
     navigate('/reports');
   };
 
@@ -240,15 +237,15 @@ export default function Admin() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <LiveStats activities={activities} />
-              <LiveActivityFeed activities={activities.slice(0, 5)} />
+              <LiveStats />
+              <LiveActivityFeed />
             </div>
           </>
         );
       case "users":
         return <UserPermissions />;
       case "data":
-        return <DataManagement activities={activities} onDataChange={fetchActivities} />;
+        return <DataManagement />;
       case "system":
         return <SystemMonitor />;
       case "settings":
