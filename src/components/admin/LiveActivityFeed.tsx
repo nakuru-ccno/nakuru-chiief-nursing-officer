@@ -7,34 +7,35 @@ import { supabase } from "@/integrations/supabase/client";
 interface Activity {
   id: string;
   title: string;
-  activity_type: string;
-  user_id: string;
+  type: string;
+  submitted_by: string;
   created_at: string;
   description?: string;
-  status?: string;
+  facility?: string;
+  duration?: number;
 }
 
 const LiveActivityFeed: React.FC = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
 
-  // Fetch activities from user_activities table
+  // Fetch activities from activities table (the correct table that exists)
   const fetchActivities = async () => {
     try {
       const { data, error } = await supabase
-        .from('user_activities')
+        .from('activities')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) {
-        console.error('Error fetching user activities for live feed:', error);
+        console.error('Error fetching activities for live feed:', error);
         return;
       }
 
-      console.log('Loaded user activities for live feed:', data);
+      console.log('Loaded activities for live feed:', data);
       setActivities(data || []);
     } catch (error) {
-      console.error('Error fetching user activities for live feed:', error);
+      console.error('Error fetching activities for live feed:', error);
     }
   };
 
@@ -44,16 +45,16 @@ const LiveActivityFeed: React.FC = () => {
 
     // Set up real-time subscription for new activities
     const channel = supabase
-      .channel('user-activities-changes')
+      .channel('activities-changes')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'user_activities'
+          table: 'activities'
         },
         (payload) => {
-          console.log('New user activity inserted:', payload);
+          console.log('New activity inserted:', payload);
           const newActivity = payload.new as Activity;
           setActivities(prev => [newActivity, ...prev.slice(0, 9)]);
         }
@@ -63,10 +64,10 @@ const LiveActivityFeed: React.FC = () => {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'user_activities'
+          table: 'activities'
         },
         (payload) => {
-          console.log('User activity updated:', payload);
+          console.log('Activity updated:', payload);
           fetchActivities(); // Refresh the list
         }
       )
@@ -104,43 +105,42 @@ const LiveActivityFeed: React.FC = () => {
     return `${days}d ago`;
   };
 
-  const getUserDisplayName = (userId: string) => {
-    // Extract a display name from user ID for now
-    return `User ${userId.slice(-4)}`;
+  const getUserDisplayName = (submittedBy: string) => {
+    return submittedBy || 'Unknown User';
   };
 
   return (
-    <Card className="h-96">
-      <CardHeader>
-        <CardTitle className="text-lg font-bold text-[#be2251] flex items-center gap-2">
+    <Card className="h-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base sm:text-lg font-bold text-[#be2251] flex items-center gap-2">
           Live Activity Feed
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
         </CardTitle>
-        <p className="text-sm text-gray-600">Real-time user activities</p>
+        <p className="text-xs sm:text-sm text-gray-600">Real-time user activities</p>
       </CardHeader>
-      <CardContent className="space-y-3 max-h-80 overflow-y-auto">
+      <CardContent className="space-y-2 max-h-80 overflow-y-auto px-3 sm:px-6">
         {activities.length > 0 ? (
           activities.map((activity) => (
-            <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-[#fd3572] text-white rounded-full flex items-center justify-center text-sm font-bold">
-                  {getUserDisplayName(activity.user_id).charAt(0)}
+            <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#fd3572] text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold flex-shrink-0">
+                  {getUserDisplayName(activity.submitted_by).charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <p className="text-sm font-medium">
-                    <span className="font-bold">{getUserDisplayName(activity.user_id)}</span> created activity
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium truncate">
+                    <span className="font-bold">{getUserDisplayName(activity.submitted_by)}</span> created activity
                   </p>
-                  <p className="text-xs text-gray-600 font-medium">{activity.title}</p>
+                  <p className="text-xs text-gray-600 font-medium truncate">{activity.title}</p>
                   {activity.description && (
-                    <p className="text-xs text-gray-500 truncate max-w-48">{activity.description}</p>
+                    <p className="text-xs text-gray-500 truncate">{activity.description}</p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge className={getTypeColor(activity.activity_type)}>
-                  {activity.activity_type}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Badge className={`${getTypeColor(activity.type)} text-xs`}>
+                  {activity.type}
                 </Badge>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 whitespace-nowrap">
                   {formatTime(activity.created_at)}
                 </span>
               </div>
@@ -148,8 +148,8 @@ const LiveActivityFeed: React.FC = () => {
           ))
         ) : (
           <div className="text-center py-8 text-gray-500">
-            <p className="text-sm">No user activities yet</p>
-            <p className="text-xs">User activities will appear here in real-time</p>
+            <p className="text-sm">No activities yet</p>
+            <p className="text-xs mt-2">User activities will appear here in real-time</p>
           </div>
         )}
       </CardContent>

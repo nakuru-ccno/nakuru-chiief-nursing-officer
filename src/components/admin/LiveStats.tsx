@@ -28,37 +28,41 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
     { hour: '20:00', activities: 0, users: 0 }
   ]);
 
-  // Fetch real statistics from user_activities table
+  // Fetch real statistics from activities table
   const fetchStats = async () => {
     try {
-      // Get total user activities
-      const { data: userActivities, error: activitiesError } = await supabase
-        .from('user_activities')
+      // Get all activities
+      const { data: activities, error: activitiesError } = await supabase
+        .from('activities')
         .select('*');
 
       if (activitiesError) {
-        console.error('Error fetching user activities for stats:', activitiesError);
+        console.error('Error fetching activities for stats:', activitiesError);
         return;
       }
 
       // Calculate statistics
-      const totalActivities = userActivities?.length || 0;
+      const totalActivities = activities?.length || 0;
       
       // Get this month's activities
       const thisMonth = new Date();
       thisMonth.setDate(1);
-      const thisMonthActivities = userActivities?.filter((activity: any) => {
+      const thisMonthActivities = activities?.filter((activity: any) => {
         const activityDate = new Date(activity.created_at);
         return activityDate >= thisMonth;
       }) || [];
 
-      // Get unique users (based on user_id)
-      const uniqueUsers = new Set(userActivities?.map((activity: any) => activity.user_id) || []);
+      // Get unique users (based on submitted_by)
+      const uniqueUsers = new Set(activities?.map((activity: any) => activity.submitted_by).filter(Boolean) || []);
+
+      // Calculate total hours from duration
+      const totalMinutes = activities?.reduce((sum: number, activity: any) => sum + (activity.duration || 0), 0) || 0;
+      const totalHours = Math.floor(totalMinutes / 60);
 
       // Calculate hourly distribution for today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todayActivities = userActivities?.filter((activity: any) => {
+      const todayActivities = activities?.filter((activity: any) => {
         const activityDate = new Date(activity.created_at);
         return activityDate >= today;
       }) || [];
@@ -74,30 +78,32 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
         return {
           ...item,
           activities: hourActivities.length,
-          users: new Set(hourActivities.map((a: any) => a.user_id)).size
+          users: new Set(hourActivities.map((a: any) => a.submitted_by).filter(Boolean)).size
         };
       });
 
       setHourlyData(updatedHourlyData);
 
-      setStats({
+      const newStats = {
         totalUsers: uniqueUsers.size,
         totalActivities,
         thisMonth: thisMonthActivities.length,
-        totalHours: Math.floor(totalActivities * 1.5), // Estimated hours
-        averageDuration: totalActivities > 0 ? 90 : 0, // Estimated average duration
-        activeUsers: Math.min(uniqueUsers.size, 5), // Active users
+        totalHours,
+        averageDuration: totalActivities > 0 ? Math.round(totalMinutes / totalActivities) : 0,
+        activeUsers: Math.min(uniqueUsers.size, 5),
         systemLoad: Math.max(10, Math.min(90, 45 + Math.floor(Math.random() * 10) - 5))
-      });
+      };
 
-      console.log('Updated stats from user_activities:', {
+      setStats(newStats);
+
+      console.log('Updated stats from activities:', {
         totalActivities,
         totalUsers: uniqueUsers.size,
         thisMonth: thisMonthActivities.length
       });
 
     } catch (error) {
-      console.error('Error fetching user activity stats:', error);
+      console.error('Error fetching activity stats:', error);
     }
   };
 
@@ -106,16 +112,16 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
 
     // Set up real-time subscription for stats updates
     const channel = supabase
-      .channel('user-stats-changes')
+      .channel('stats-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'user_activities'
+          table: 'activities'
         },
         () => {
-          console.log('User activity change detected, updating stats');
+          console.log('Activity change detected, updating stats');
           fetchStats();
         }
       )
@@ -140,63 +146,63 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
   }, [stats, onStatsUpdate]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
       <Card className="border-l-4 border-l-green-500">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-bold text-[#be2251] flex items-center gap-2">
-            Active Users
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <CardTitle className="text-sm lg:text-lg font-bold text-[#be2251] flex items-center gap-2">
+            <span className="truncate">Active Users</span>
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold text-[#fd3572]">{stats.activeUsers}</div>
-          <p className="text-sm text-gray-600">Currently active</p>
+          <div className="text-xl lg:text-3xl font-bold text-[#fd3572]">{stats.activeUsers}</div>
+          <p className="text-xs lg:text-sm text-gray-600">Currently active</p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-bold text-[#be2251]">Total Activities</CardTitle>
+          <CardTitle className="text-sm lg:text-lg font-bold text-[#be2251] truncate">Total Activities</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold text-[#fd3572]">{stats.totalActivities}</div>
-          <p className="text-sm text-gray-600">All time</p>
+          <div className="text-xl lg:text-3xl font-bold text-[#fd3572]">{stats.totalActivities}</div>
+          <p className="text-xs lg:text-sm text-gray-600">All time</p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-bold text-[#be2251]">Total Users</CardTitle>
+          <CardTitle className="text-sm lg:text-lg font-bold text-[#be2251] truncate">Total Users</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold text-[#fd3572]">{stats.totalUsers}</div>
-          <p className="text-sm text-gray-600">Registered users</p>
+          <div className="text-xl lg:text-3xl font-bold text-[#fd3572]">{stats.totalUsers}</div>
+          <p className="text-xs lg:text-sm text-gray-600">Registered users</p>
         </CardContent>
       </Card>
 
       <Card className={`${stats.systemLoad > 70 ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-green-500'}`}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-bold text-[#be2251]">System Load</CardTitle>
+          <CardTitle className="text-sm lg:text-lg font-bold text-[#be2251] truncate">System Load</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className={`text-3xl font-bold ${stats.systemLoad > 70 ? 'text-red-500' : 'text-[#fd3572]'}`}>
+          <div className={`text-xl lg:text-3xl font-bold ${stats.systemLoad > 70 ? 'text-red-500' : 'text-[#fd3572]'}`}>
             {stats.systemLoad}%
           </div>
-          <p className="text-sm text-gray-600">CPU Usage</p>
+          <p className="text-xs lg:text-sm text-gray-600">CPU Usage</p>
         </CardContent>
       </Card>
 
-      <Card className="lg:col-span-4">
+      <Card className="col-span-2 lg:col-span-4">
         <CardHeader>
-          <CardTitle className="text-lg font-bold text-[#be2251]">Activity Timeline (24h)</CardTitle>
-          <p className="text-sm text-gray-600">Real-time activity distribution</p>
+          <CardTitle className="text-sm lg:text-lg font-bold text-[#be2251]">Activity Timeline (24h)</CardTitle>
+          <p className="text-xs lg:text-sm text-gray-600">Real-time activity distribution</p>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={150}>
             <LineChart data={hourlyData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="hour" />
-              <YAxis />
+              <XAxis dataKey="hour" fontSize={12} />
+              <YAxis fontSize={12} />
               <Tooltip />
               <Line type="monotone" dataKey="activities" stroke="#fd3572" strokeWidth={2} />
               <Line type="monotone" dataKey="users" stroke="#be2251" strokeWidth={2} />
