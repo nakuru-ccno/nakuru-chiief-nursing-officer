@@ -32,7 +32,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Home");
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentUser, setCurrentUser] = useState<string>("John Gitahi");
+  const [currentUser, setCurrentUser] = useState<string>("");
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [activities, setActivities] = useState<ActivityData[]>([]);
   const [stats, setStats] = useState({
     totalActivities: 0,
@@ -57,23 +58,29 @@ const Dashboard = () => {
     }
   }, [isAdmin, navigate]);
 
-  // Real-time activities fetching from Supabase
+  // Real-time activities fetching from Supabase - filtered by current user
   const fetchActivities = async () => {
     try {
-      console.log('🔄 Fetching activities from Supabase for cross-device sync...');
+      console.log('🔄 Fetching user-specific activities from Supabase...');
       
+      if (!currentUserEmail) {
+        console.log('No current user email available yet');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('activities')
         .select('*')
+        .eq('submitted_by', currentUserEmail) // Filter by current user
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching activities:', error);
+        console.error('Error fetching user activities:', error);
         setIsConnected(false);
         return;
       }
 
-      console.log('✅ Dashboard - Activities synced across devices:', data?.length || 0);
+      console.log('✅ Dashboard - User activities loaded:', data?.length || 0, 'for user:', currentUserEmail);
       
       const formattedActivities: ActivityData[] = (data || []).map(activity => ({
         id: activity.id,
@@ -90,7 +97,7 @@ const Dashboard = () => {
       setActivities(formattedActivities);
       setIsConnected(true);
       
-      // Calculate stats
+      // Calculate user-specific stats
       const totalActivities = formattedActivities.length;
       
       const thisMonth = new Date();
@@ -112,27 +119,29 @@ const Dashboard = () => {
       });
 
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error('Error fetching user activities:', error);
       setIsConnected(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Set up real-time subscription for cross-device sync
+  // Set up real-time subscription for user-specific activities
   useEffect(() => {
     let channel: any;
     let retryTimeout: NodeJS.Timeout;
 
     const setupRealtimeSync = () => {
-      console.log('🚀 Setting up real-time sync for user dashboard...');
+      if (!currentUserEmail) return;
+      
+      console.log('🚀 Setting up real-time sync for user dashboard:', currentUserEmail);
       
       // Initial fetch
       fetchActivities();
 
-      // Set up real-time subscription for cross-device sync
+      // Set up real-time subscription for user-specific activities
       channel = supabase
-        .channel('user-dashboard-sync', {
+        .channel(`user-dashboard-sync-${currentUserEmail}`, {
           config: {
             broadcast: { self: true },
             presence: { key: 'user-dashboard' }
@@ -141,12 +150,13 @@ const Dashboard = () => {
         .on(
           'postgres_changes',
           {
-            event: '*', // Listen to all events for comprehensive sync
+            event: '*', // Listen to all events
             schema: 'public',
-            table: 'activities'
+            table: 'activities',
+            filter: `submitted_by=eq.${currentUserEmail}` // Only listen to current user's activities
           },
           (payload) => {
-            console.log('📱 Real-time update received across devices:', payload.eventType);
+            console.log('📱 Real-time update received for user:', currentUserEmail, payload.eventType);
             fetchActivities(); // Refresh data immediately on any change
           }
         )
@@ -155,7 +165,7 @@ const Dashboard = () => {
           
           if (status === 'SUBSCRIBED') {
             setIsConnected(true);
-            console.log('✅ User dashboard synchronized across all devices');
+            console.log('✅ User dashboard synchronized for:', currentUserEmail);
           } else if (status === 'CHANNEL_ERROR') {
             setIsConnected(false);
             console.error('❌ Dashboard sync error - retrying...');
@@ -167,19 +177,23 @@ const Dashboard = () => {
         });
     };
 
-    // Initial setup
-    setupRealtimeSync();
+    // Setup only if we have current user email
+    if (currentUserEmail) {
+      setupRealtimeSync();
+    }
 
-    // Auto-refresh for cross-device sync
+    // Auto-refresh for user-specific data
     const autoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing dashboard for cross-device sync...');
-      fetchActivities();
+      if (currentUserEmail) {
+        console.log('🔄 Auto-refreshing user dashboard for:', currentUserEmail);
+        fetchActivities();
+      }
     }, 30000);
 
     // Visibility change handler
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('📱 Tab visible - syncing dashboard across devices');
+      if (!document.hidden && currentUserEmail) {
+        console.log('📱 Tab visible - syncing user dashboard for:', currentUserEmail);
         fetchActivities();
       }
     };
@@ -196,7 +210,7 @@ const Dashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       setIsConnected(false);
     };
-  }, []);
+  }, [currentUserEmail]); // Depend on currentUserEmail
 
   // Time updates
   useEffect(() => {
@@ -211,9 +225,18 @@ const Dashboard = () => {
 
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const userName = user.email?.split('@')[0] || user.email || "John Gitahi";
+    if (user && user.email) {
+      const userName = user.email.split('@')[0] || user.email;
       setCurrentUser(userName);
+      setCurrentUserEmail(user.email);
+      console.log('Current user set:', user.email);
+    } else {
+      // Fallback for demo users
+      const demoUserEmail = localStorage.getItem("userEmail") || "demo@nakuru.go.ke";
+      const demoUserName = demoUserEmail.split('@')[0];
+      setCurrentUser(demoUserName);
+      setCurrentUserEmail(demoUserEmail);
+      console.log('Demo user set:', demoUserEmail);
     }
   };
 
@@ -249,7 +272,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Syncing data across devices...</p>
+              <p className="text-gray-600">Loading your personal dashboard...</p>
             </div>
           </div>
         </div>
@@ -297,7 +320,7 @@ const Dashboard = () => {
 
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2 py-1 rounded-full ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {isConnected ? 'Synced across devices' : 'Syncing...'}
+                  {isConnected ? 'Personal Data' : 'Loading...'}
                 </span>
               </div>
             </div>
@@ -314,7 +337,7 @@ const Dashboard = () => {
           </h1>
           <div className="flex items-center gap-4 text-gray-600 mb-2">
             <span className="font-medium">County of Unlimited Opportunities</span>
-            <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">HQ</span>
+            <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">Personal Dashboard</span>
           </div>
           <div className="flex items-center gap-4 text-gray-500 text-sm">
             <span>{currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -324,18 +347,18 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Now showing user-specific data */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-bold text-[#be2251] flex items-center gap-2">
-                Total Activities
+                My Activities
                 <div className={`w-2 h-2 ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full`}></div>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.totalActivities}</div>
-              <p className="text-sm text-gray-600">All time activities</p>
+              <p className="text-sm text-gray-600">Your total activities</p>
             </CardContent>
           </Card>
 
@@ -345,7 +368,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.thisMonth}</div>
-              <p className="text-sm text-gray-600">Activities this month</p>
+              <p className="text-sm text-gray-600">Your activities this month</p>
             </CardContent>
           </Card>
 
@@ -355,13 +378,13 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.totalHours}</div>
-              <p className="text-sm text-gray-600">Hours logged</p>
+              <p className="text-sm text-gray-600">Hours you've logged</p>
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-orange-500">
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold text-[#be2251]">Average</CardTitle>
+              <CardTitle className="text-lg font-bold text-[#be2251]">Your Average</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#fd3572]">{stats.averageDuration}</div>
@@ -421,14 +444,14 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Sync Status Footer */}
+        {/* Personal Data Status Footer */}
         <div className="mt-8 p-4 bg-white rounded-lg border shadow-sm">
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span className="flex items-center gap-2">
               <div className={`w-2 h-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'} rounded-full animate-pulse`}></div>
-              {isConnected ? 'Dashboard synchronized across all devices' : 'Connecting...'}
+              {isConnected ? `Showing your personal data (${currentUserEmail})` : 'Loading personal data...'}
             </span>
-            <span>Last sync: {currentTime.toLocaleTimeString()}</span>
+            <span>Last updated: {currentTime.toLocaleTimeString()}</span>
           </div>
         </div>
       </div>
