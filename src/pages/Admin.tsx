@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,9 +28,49 @@ const userActivity = [
 ];
 
 const Admin = () => {
+  const [activeTab, setActiveTab] = useState("Dashboard");
+
   const handleLogout = () => {
+    console.log("Logout clicked");
     localStorage.removeItem("role");
     window.location.href = "/";
+  };
+
+  const handleNavClick = (tab: string) => {
+    console.log(`${tab} navigation clicked`);
+    setActiveTab(tab);
+    // Add specific navigation logic here based on the tab
+    switch(tab) {
+      case "Users":
+        // For now, just update the active tab - you can add routing later
+        break;
+      case "Reports":
+        // For now, just update the active tab - you can add routing later
+        break;
+      case "Settings":
+        // For now, just update the active tab - you can add routing later
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleActionClick = (action: string) => {
+    console.log(`${action} button clicked`);
+    // Add specific action logic here
+    switch(action) {
+      case "Manage Users":
+        alert(`Opening User Management - Current users: ${mockStats.totalUsers}`);
+        break;
+      case "Generate Reports":
+        alert("Opening System Reports");
+        break;
+      case "Manage System":
+        alert("Opening System Settings");
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -40,18 +80,46 @@ const Admin = () => {
       {/* Custom Admin Navigation */}
       <nav className="w-full bg-[#111] flex items-center px-4 py-2 justify-between">
         <div className="flex gap-2">
-          <span className="text-sm px-4 py-2 font-semibold rounded bg-[#fd3572] text-white">
+          <button
+            onClick={() => handleNavClick("Dashboard")}
+            className={`text-sm px-4 py-2 font-semibold rounded transition-all cursor-pointer ${
+              activeTab === "Dashboard" 
+                ? "bg-[#fd3572] text-white" 
+                : "text-[#fd3572] hover:bg-[#251c21] hover:text-white"
+            }`}
+          >
             Dashboard
-          </span>
-          <span className="text-sm px-4 py-2 font-semibold text-[#fd3572] hover:bg-[#251c21] hover:text-white rounded transition-all cursor-pointer">
+          </button>
+          <button
+            onClick={() => handleNavClick("Users")}
+            className={`text-sm px-4 py-2 font-semibold rounded transition-all cursor-pointer ${
+              activeTab === "Users" 
+                ? "bg-[#fd3572] text-white" 
+                : "text-[#fd3572] hover:bg-[#251c21] hover:text-white"
+            }`}
+          >
             Users
-          </span>
-          <span className="text-sm px-4 py-2 font-semibold text-[#fd3572] hover:bg-[#251c21] hover:text-white rounded transition-all cursor-pointer">
+          </button>
+          <button
+            onClick={() => handleNavClick("Reports")}
+            className={`text-sm px-4 py-2 font-semibold rounded transition-all cursor-pointer ${
+              activeTab === "Reports" 
+                ? "bg-[#fd3572] text-white" 
+                : "text-[#fd3572] hover:bg-[#251c21] hover:text-white"
+            }`}
+          >
             Reports
-          </span>
-          <span className="text-sm px-4 py-2 font-semibold text-[#fd3572] hover:bg-[#251c21] hover:text-white rounded transition-all cursor-pointer">
+          </button>
+          <button
+            onClick={() => handleNavClick("Settings")}
+            className={`text-sm px-4 py-2 font-semibold rounded transition-all cursor-pointer ${
+              activeTab === "Settings" 
+                ? "bg-[#fd3572] text-white" 
+                : "text-[#fd3572] hover:bg-[#251c21] hover:text-white"
+            }`}
+          >
             Settings
-          </span>
+          </button>
         </div>
         <button
           onClick={handleLogout}
@@ -117,7 +185,10 @@ const Admin = () => {
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardContent className="p-6 text-center">
               <h3 className="font-bold text-[#be2251] mb-2">Manage Users</h3>
-              <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+              <Button 
+                onClick={() => handleActionClick("Manage Users")}
+                className="bg-[#fd3572] hover:bg-[#be2251] text-white"
+              >
                 View Users ({mockStats.totalUsers})
               </Button>
             </CardContent>
@@ -126,7 +197,10 @@ const Admin = () => {
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardContent className="p-6 text-center">
               <h3 className="font-bold text-[#be2251] mb-2">System Reports</h3>
-              <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+              <Button 
+                onClick={() => handleActionClick("Generate Reports")}
+                className="bg-[#fd3572] hover:bg-[#be2251] text-white"
+              >
                 Generate Reports
               </Button>
             </CardContent>
@@ -135,7 +209,10 @@ const Admin = () => {
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardContent className="p-6 text-center">
               <h3 className="font-bold text-[#be2251] mb-2">System Settings</h3>
-              <Button className="bg-[#fd3572] hover:bg-[#be2251] text-white">
+              <Button 
+                onClick={() => handleActionClick("Manage System")}
+                className="bg-[#fd3572] hover:bg-[#be2251] text-white"
+              >
                 Manage System
               </Button>
             </CardContent>
