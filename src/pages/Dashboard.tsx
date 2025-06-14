@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Load activities from Supabase on component mount
+  // Load activities from localStorage on component mount
   useEffect(() => {
     fetchActivities();
   }, []);
@@ -31,24 +30,16 @@ export default function Dashboard() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .order('submitted_at', { ascending: false })
-        .limit(5); // Show only recent 5 activities
-
-      if (error) {
-        console.error('Error fetching activities for dashboard:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load recent activities",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setActivities(data || []);
-      console.log('Loaded recent activities from Supabase for dashboard:', data);
+      const stored = localStorage.getItem('activities');
+      const allActivities = stored ? JSON.parse(stored) : [];
+      
+      // Show only recent 5 activities
+      const recentActivities = allActivities
+        .sort((a: Activity, b: Activity) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
+        .slice(0, 5);
+      
+      setActivities(recentActivities);
+      console.log('Loaded recent activities from localStorage for dashboard:', recentActivities);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
@@ -61,13 +52,19 @@ export default function Dashboard() {
     }
   };
 
-  // Calculate statistics
-  const totalActivities = activities.length;
-  const totalDuration = activities.reduce((sum, activity) => sum + (activity.duration || 0), 0);
+  // Calculate statistics from all activities
+  const getAllActivities = () => {
+    const stored = localStorage.getItem('activities');
+    return stored ? JSON.parse(stored) : [];
+  };
+
+  const allActivities = getAllActivities();
+  const totalActivities = allActivities.length;
+  const totalDuration = allActivities.reduce((sum: number, activity: Activity) => sum + (activity.duration || 0), 0);
   const averageDuration = totalActivities > 0 ? Math.round(totalDuration / totalActivities) : 0;
 
   // Get activity type distribution
-  const typeDistribution = activities.reduce((acc, activity) => {
+  const typeDistribution = allActivities.reduce((acc: Record<string, number>, activity: Activity) => {
     acc[activity.type] = (acc[activity.type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);

@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +23,7 @@ export default function Reports() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Load activities from Supabase on component mount
+  // Load activities from localStorage on component mount
   useEffect(() => {
     fetchActivities();
   }, []);
@@ -32,23 +31,16 @@ export default function Reports() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching activities for reports:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load activities for reports",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setActivities(data || []);
-      console.log('Loaded activities from Supabase for reports:', data);
+      const stored = localStorage.getItem('activities');
+      const activities = stored ? JSON.parse(stored) : [];
+      
+      // Sort by date (most recent first)
+      const sortedActivities = activities.sort((a: Activity, b: Activity) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      
+      setActivities(sortedActivities);
+      console.log('Loaded activities from localStorage for reports:', sortedActivities);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({

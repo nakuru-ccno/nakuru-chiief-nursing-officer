@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +49,7 @@ export default function Activities() {
   const [filterType, setFilterType] = useState("");
   const { toast } = useToast();
 
-  // Load activities from Supabase on component mount
+  // Load activities from localStorage on component mount
   useEffect(() => {
     fetchActivities();
   }, []);
@@ -58,23 +57,10 @@ export default function Activities() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .order('submitted_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching activities:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load activities",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setActivities(data || []);
-      console.log('Loaded activities from Supabase:', data);
+      const stored = localStorage.getItem('activities');
+      const activities = stored ? JSON.parse(stored) : [];
+      setActivities(activities);
+      console.log('Loaded activities from localStorage:', activities);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
@@ -108,33 +94,29 @@ export default function Activities() {
     setIsSubmitting(true);
 
     try {
-      const newActivity = {
+      const newActivity: Activity = {
+        id: Date.now().toString(),
         title: form.title,
         type: form.type,
         date: form.date,
         duration: parseInt(form.duration),
         facility: form.facility,
         description: form.description,
-        submitted_by: "Demo User", // In real app, get from auth
+        submitted_by: "Demo User",
+        submitted_at: new Date().toISOString(),
       };
 
-      const { data, error } = await supabase
-        .from('activities')
-        .insert([newActivity])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error saving activity:', error);
-        toast({
-          title: "Error",
-          description: "Failed to save activity",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('Activity saved to Supabase:', data);
+      // Get existing activities
+      const stored = localStorage.getItem('activities');
+      const existingActivities = stored ? JSON.parse(stored) : [];
+      
+      // Add new activity
+      const updatedActivities = [newActivity, ...existingActivities];
+      
+      // Save to localStorage
+      localStorage.setItem('activities', JSON.stringify(updatedActivities));
+      
+      console.log('Activity saved to localStorage:', newActivity);
       
       // Refresh activities list
       await fetchActivities();
