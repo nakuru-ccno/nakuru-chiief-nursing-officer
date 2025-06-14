@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +36,28 @@ const initialUsers = [
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [users, setUsers] = useState(initialUsers);
+
+  // Load users from localStorage on component mount
+  useEffect(() => {
+    const savedUsers = localStorage.getItem('adminUsers');
+    if (savedUsers) {
+      try {
+        const parsedUsers = JSON.parse(savedUsers);
+        setUsers(parsedUsers);
+        console.log('Loaded users from localStorage:', parsedUsers);
+      } catch (error) {
+        console.error('Error parsing saved users:', error);
+        // If there's an error, fall back to initial users
+        setUsers(initialUsers);
+      }
+    }
+  }, []);
+
+  // Save users to localStorage whenever users state changes
+  useEffect(() => {
+    localStorage.setItem('adminUsers', JSON.stringify(users));
+    console.log('Saved users to localStorage:', users);
+  }, [users]);
 
   const handleLogout = () => {
     console.log("Logout clicked");
