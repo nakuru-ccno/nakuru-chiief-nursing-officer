@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, TrendingUp, Calendar, Clock, Users, Settings, FileText, UserPlus, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import AddUserDialog from "@/components/admin/AddUserDialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface Activity {
   id: string;
@@ -17,15 +19,27 @@ interface Activity {
   duration?: number;
 }
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  lastLogin: string;
+}
+
 const Dashboard = () => {
   const [currentUser, setCurrentUser] = useState<string>("User");
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [stats, setStats] = useState({
     totalActivities: 0,
     thisWeek: 0,
     totalHours: 0
   });
   const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const { toast } = useToast();
 
   // Get current user
   useEffect(() => {
@@ -37,8 +51,11 @@ const Dashboard = () => {
     if (currentUserEmail) {
       fetchUserStats();
       fetchRecentActivities();
+      if (currentUserRole === 'admin' || currentUserRole === 'System Administrator') {
+        fetchAllUsers();
+      }
     }
-  }, [currentUserEmail]);
+  }, [currentUserEmail, currentUserRole]);
 
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -48,10 +65,58 @@ const Dashboard = () => {
       const displayName = user.user_metadata?.full_name || 
                          user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
                          "User";
+      const userRole = user.user_metadata?.role || "User";
       setCurrentUser(displayName);
+      setCurrentUserRole(userRole);
     } else {
       setCurrentUser("User");
       setCurrentUserEmail("");
+      setCurrentUserRole("");
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      // Fetch all users from Supabase Auth admin API
+      const { data, error } = await supabase.auth.admin.listUsers();
+      
+      if (error) {
+        console.error('Error fetching users:', error);
+        return;
+      }
+
+      const formattedUsers: User[] = data.users.map(user => ({
+        id: user.id,
+        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
+        email: user.email || 'No email',
+        role: user.user_metadata?.role || 'User',
+        status: user.email_confirmed_at ? 'Active' : 'Pending',
+        lastLogin: user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Never'
+      }));
+
+      setAllUsers(formattedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const handleAddUser = async (newUserData: { name: string; email: string; role: string; password: string }) => {
+    try {
+      // The AddUserDialog already handles Supabase user creation
+      // We just need to refresh the users list
+      await fetchAllUsers();
+      
+      toast({
+        title: "Success",
+        description: "User added successfully and invitation sent!"
+      });
+    } catch (error) {
+      console.error('Error adding user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add user",
+        variant: "destructive"
+      });
     }
   };
 
@@ -249,38 +314,67 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-[#be2251]">User Management</h2>
-        <Button className="bg-[#be2251] hover:bg-[#fd3572]">
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add New User
-        </Button>
+        {(currentUserRole === 'admin' || currentUserRole === 'System Administrator') && (
+          <AddUserDialog onAddUser={handleAddUser} />
+        )}
       </div>
       
       <Card>
         <CardHeader>
-          <CardTitle>Current Users</CardTitle>
+          <CardTitle>System Users ({allUsers.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#be2251] rounded-full flex items-center justify-center text-white font-semibold">
-                  A
-                </div>
-                <div>
-                  <h3 className="font-medium">admin@nakuru.go.ke</h3>
-                  <p className="text-sm text-gray-500">Administrator</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+          {allUsers.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left p-3 font-semibold text-[#be2251]">Name</th>
+                    <th className="text-left p-3 font-semibold text-[#be2251]">Email</th>
+                    <th className="text-left p-3 font-semibold text-[#be2251]">Role</th>
+                    <th className="text-left p-3 font-semibold text-[#be2251]">Status</th>
+                    <th className="text-left p-3 font-semibold text-[#be2251]">Last Login</th>
+                    <th className="text-left p-3 font-semibold text-[#be2251]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allUsers.map((user) => (
+                    <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="p-3">{user.name}</td>
+                      <td className="p-3">{user.email}</td>
+                      <td className="p-3">{user.role}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded-full text-sm ${
+                          user.status === 'Active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {user.status}
+                        </span>
+                      </td>
+                      <td className="p-3">{user.lastLogin}</td>
+                      <td className="p-3">
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Users className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+              <p className="text-lg font-medium">No users found</p>
+              <p className="text-sm">Add users to manage the system</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -321,7 +415,7 @@ const Dashboard = () => {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span>Total Users:</span>
-                <span className="font-semibold">2</span>
+                <span className="font-semibold">{allUsers.length}</span>
               </div>
               <div className="flex justify-between">
                 <span>Activities This Month:</span>
@@ -373,7 +467,7 @@ const Dashboard = () => {
             </div>
             <div>
               <label className="text-sm font-medium">Role</label>
-              <p className="text-sm text-gray-600">Administrator</p>
+              <p className="text-sm text-gray-600">{currentUserRole}</p>
             </div>
             <Button variant="outline" className="w-full">
               Change Password
