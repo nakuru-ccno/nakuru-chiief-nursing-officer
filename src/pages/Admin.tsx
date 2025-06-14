@@ -111,6 +111,7 @@ const Admin = () => {
       <CountyHeader />
 
       <div className="max-w-7xl mx-auto p-6">
+        {/* Report Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl p-6 border shadow-lg">
             <h3 className="text-lg font-bold text-[#be2251] mb-2">Activity Report</h3>
@@ -151,32 +152,32 @@ const Admin = () => {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Facility</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Duration (min)</TableHead>
-                  <TableHead>Submitted By</TableHead>
-                  <TableHead>Submitted At</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                <TableRow className="bg-gray-50">
+                  <TableHead className="font-semibold text-gray-900">Date</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Facility</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Title</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Type</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Duration (min)</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Submitted By</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Submitted At</TableHead>
+                  <TableHead className="text-center font-semibold text-gray-900">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activities.map((activity) => (
-                  <TableRow key={activity.id}>
-                    <TableCell>{new Date(activity.date).toLocaleDateString()}</TableCell>
-                    <TableCell>{activity.facility || 'HQ'}</TableCell>
-                    <TableCell className="font-medium">{activity.title}</TableCell>
-                    <TableCell>
+                  <TableRow key={activity.id} className="hover:bg-gray-50">
+                    <TableCell className="border-b">{new Date(activity.date).toLocaleDateString()}</TableCell>
+                    <TableCell className="border-b">{activity.facility || 'HQ'}</TableCell>
+                    <TableCell className="font-medium border-b">{activity.title}</TableCell>
+                    <TableCell className="border-b">
                       <Badge className={getTypeColor(activity.type)}>
                         {activity.type}
                       </Badge>
                     </TableCell>
-                    <TableCell>{activity.duration || '-'}</TableCell>
-                    <TableCell>{getUserDisplayName(activity.submitted_by)}</TableCell>
-                    <TableCell>{new Date(activity.created_at).toLocaleString()}</TableCell>
-                    <TableCell>
+                    <TableCell className="border-b">{activity.duration || '-'}</TableCell>
+                    <TableCell className="border-b">{getUserDisplayName(activity.submitted_by)}</TableCell>
+                    <TableCell className="border-b">{new Date(activity.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="border-b">
                       <div className="flex items-center justify-center gap-2">
                         <Button
                           onClick={() => handleEditActivity(activity)}
