@@ -8,8 +8,10 @@ const MainNavbar = () => {
   const isLoggedIn = !!localStorage.getItem("role");
   const userRole = localStorage.getItem("role") || "";
 
-  // Check if user is admin
-  const isAdmin = userRole === 'admin' || userRole === 'System Administrator';
+  // Check if user is admin - enhanced detection
+  const isAdmin = userRole === 'admin' || 
+                  userRole === 'System Administrator' || 
+                  userRole.toLowerCase().includes('admin');
 
   // Navigation items for regular users
   const userNavItems = [
@@ -18,7 +20,7 @@ const MainNavbar = () => {
     { to: "/reports", label: "Reports", icon: FileText },
   ];
 
-  // Navigation items for admins
+  // Navigation items for admins - always show admin navigation
   const adminNavItems = [
     { to: "/admin", label: "Dashboard", icon: Home },
     { to: "/live-admin", label: "Users", icon: Users },
@@ -26,7 +28,7 @@ const MainNavbar = () => {
     { to: "/activities", label: "Settings", icon: Settings },
   ];
 
-  // Choose navigation items based on role - admins always get admin nav
+  // Always show admin navigation for admin users, regardless of current route
   const navItems = isAdmin ? adminNavItems : userNavItems;
 
   return (
