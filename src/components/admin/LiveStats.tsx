@@ -30,27 +30,23 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
-  // Enhanced real-time stats fetching for admin - shows ALL system data
   const fetchStats = async () => {
     try {
-      console.log('🔄 Fetching ADMIN stats - all system data...');
+      console.log('📊 Fetching LiveStats data...');
       
-      // Get ALL activities for admin overview (no user filtering)
       const { data: activities, error: activitiesError } = await supabase
         .from('activities')
         .select('*');
 
       if (activitiesError) {
-        console.error('Error fetching activities for admin stats:', activitiesError);
+        console.error('Error fetching activities for stats:', activitiesError);
         setIsConnected(false);
         return;
       }
 
-      console.log('📊 Admin LiveStats - Total system activities:', activities?.length || 0);
       setIsConnected(true);
       setLastSyncTime(new Date());
 
-      // Calculate system-wide statistics for admin
       const totalActivities = activities?.length || 0;
       
       const thisMonth = new Date();
@@ -60,12 +56,9 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
         return activityDate >= thisMonth;
       }) || [];
 
-      // Get unique users from all activities
       const uniqueUsers = new Set(activities?.map((activity: any) => activity.submitted_by).filter(Boolean) || []);
-
       const totalMinutes = activities?.reduce((sum: number, activity: any) => sum + (activity.duration || 0), 0) || 0;
       const totalHours = Math.floor(totalMinutes / 60);
-
       const averageDuration = totalActivities > 0 ? Math.round(totalMinutes / totalActivities) : 0;
 
       const today = new Date();
@@ -111,114 +104,30 @@ const LiveStats: React.FC<LiveStatsProps> = ({ onStatsUpdate }) => {
 
       setStats(newStats);
 
-      console.log('✅ Admin LiveStats - System-wide statistics:', {
-        totalActivities,
-        totalUsers: uniqueUsers.size,
-        thisMonth: thisMonthActivities.length,
-        totalHours,
-        averageDuration,
-        activeUsers: activeUsersCount
-      });
-
     } catch (error) {
-      console.error('❌ Error fetching admin system stats:', error);
+      console.error('❌ Error fetching stats:', error);
       setIsConnected(false);
     }
   };
 
   useEffect(() => {
-    let liveStatsChannel: any = null;
-    let autoRefreshInterval: NodeJS.Timeout;
-    let systemInterval: NodeJS.Timeout;
+    let isMounted = true;
+    
+    // Initial fetch
+    fetchStats();
 
-    const setupLiveStatsSync = () => {
-      console.log('🚀 Setting up LiveStats real-time sync...');
-      
-      // Initial fetch
-      fetchStats();
-
-      // Remove any existing channel first
-      if (liveStatsChannel) {
-        supabase.removeChannel(liveStatsChannel);
-        liveStatsChannel = null;
-      }
-
-      // Set up real-time subscription for stats with unique channel name
-      liveStatsChannel = supabase
-        .channel('live-stats-realtime-sync', {
-          config: {
-            broadcast: { self: true },
-            presence: { key: 'live-stats' }
-          }
-        })
-        .on(
-          'postgres_changes',
-          {
-            event: '*', // Listen to all events for comprehensive admin overview
-            schema: 'public',
-            table: 'activities'
-            // No filter - admin sees everything
-          },
-          (payload) => {
-            console.log('📈 LiveStats real-time update:', payload.eventType);
-            fetchStats(); // Refresh admin stats immediately on any system change
-          }
-        )
-        .subscribe((status) => {
-          console.log('📡 LiveStats subscription status:', status);
-          
-          if (status === 'SUBSCRIBED') {
-            setIsConnected(true);
-            console.log('✅ LiveStats synchronization active');
-          } else if (status === 'CHANNEL_ERROR') {
-            setIsConnected(false);
-            console.error('❌ LiveStats sync error - retrying...');
-            
-            setTimeout(() => {
-              setupLiveStatsSync();
-            }, 3000);
-          }
-        });
-    };
-
-    // Initial setup
-    setupLiveStatsSync();
-
-    // Auto-refresh for admin system monitoring
-    autoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing LiveStats...');
-      fetchStats();
-    }, 30000);
-
-    // Visibility change handler for admin
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('📱 LiveStats tab visible - syncing');
+    // Simple periodic update without aggressive refreshing
+    const updateInterval = setInterval(() => {
+      if (isMounted) {
         fetchStats();
       }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // System load update
-    systemInterval = setInterval(() => {
-      setStats(prev => ({
-        ...prev,
-        systemLoad: Math.max(10, Math.min(90, prev.systemLoad + Math.floor(Math.random() * 10) - 5))
-      }));
-    }, 5000);
+    }, 60000); // Update every minute instead of every 15 seconds
 
     return () => {
-      console.log('🧹 Cleaning up LiveStats subscriptions...');
-      if (liveStatsChannel) {
-        supabase.removeChannel(liveStatsChannel);
-      }
-      clearInterval(autoRefreshInterval);
-      clearInterval(systemInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      setIsConnected(false);
+      isMounted = false;
+      clearInterval(updateInterval);
     };
-  }, []); // Empty dependency array to prevent re-runs
+  }, []);
 
   useEffect(() => {
     onStatsUpdate?.(stats);

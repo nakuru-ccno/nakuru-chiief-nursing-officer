@@ -26,7 +26,6 @@ const LiveActivityFeed: React.FC = () => {
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null);
 
-  // Enhanced real-time activity fetching with better error handling
   const fetchActivities = async () => {
     try {
       const { data, error } = await supabase
@@ -36,151 +35,69 @@ const LiveActivityFeed: React.FC = () => {
         .limit(15);
 
       if (error) {
-        console.error('Error fetching activities for admin live feed:', error);
+        console.error('Error fetching activities:', error);
         setConnectionStatus('Error fetching data');
         return;
       }
 
-      console.log('Admin LiveActivityFeed - Loaded activities:', data?.length || 0);
       setActivities(data || []);
       setConnectionStatus('Connected');
+      setIsConnected(true);
     } catch (error) {
-      console.error('Error fetching activities for admin live feed:', error);
+      console.error('Error fetching activities:', error);
       setConnectionStatus('Connection error');
+      setIsConnected(false);
     }
   };
 
-  // Enhanced real-time subscription with better connection monitoring
   useEffect(() => {
-    let liveActivityChannel: any = null;
-    let autoRefreshInterval: NodeJS.Timeout;
+    let isMounted = true;
+    
+    // Initial fetch
+    fetchActivities();
 
-    const setupLiveActivityConnection = () => {
-      console.log('Setting up LiveActivityFeed real-time connection...');
-      
-      // Initial fetch
-      fetchActivities();
+    // Simple real-time subscription without aggressive polling
+    let activityChannel: any = null;
 
-      // Remove any existing channel first
-      if (liveActivityChannel) {
-        supabase.removeChannel(liveActivityChannel);
-        liveActivityChannel = null;
-      }
-
-      // Set up real-time subscription with unique channel name
-      liveActivityChannel = supabase
-        .channel('live-activity-feed-realtime', {
-          config: {
-            broadcast: { self: true },
-            presence: { key: 'live-activity-feed' }
-          }
-        })
+    const setupConnection = () => {
+      activityChannel = supabase
+        .channel('activity-feed-updates')
         .on(
           'postgres_changes',
           {
-            event: 'INSERT',
+            event: '*',
             schema: 'public',
             table: 'activities'
           },
           (payload) => {
-            console.log('🔥 LiveActivityFeed: New activity inserted:', payload.new);
-            const newActivity = payload.new as Activity;
-            setActivities(prev => {
-              // Prevent duplicates and maintain order
-              const filtered = prev.filter(activity => activity.id !== newActivity.id);
-              return [newActivity, ...filtered.slice(0, 14)];
-            });
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'activities'
-          },
-          (payload) => {
-            console.log('🔄 LiveActivityFeed: Activity updated:', payload.new);
-            const updatedActivity = payload.new as Activity;
-            setActivities(prev => 
-              prev.map(activity => 
-                activity.id === updatedActivity.id ? updatedActivity : activity
-              )
-            );
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'DELETE',
-            schema: 'public',
-            table: 'activities'
-          },
-          (payload) => {
-            console.log('🗑️ LiveActivityFeed: Activity deleted:', payload.old);
-            const deletedId = payload.old.id;
-            setActivities(prev => prev.filter(activity => activity.id !== deletedId));
+            console.log('🔥 Activity feed update:', payload.eventType);
+            if (isMounted) {
+              fetchActivities();
+            }
           }
         )
         .subscribe((status) => {
-          console.log('📡 LiveActivityFeed subscription status:', status);
-          
-          if (status === 'SUBSCRIBED') {
-            setIsConnected(true);
-            setConnectionStatus('Live - Synced across all devices');
-            console.log('✅ LiveActivityFeed real-time connection established');
-          } else if (status === 'CHANNEL_ERROR') {
-            setIsConnected(false);
-            setConnectionStatus('Connection error - Retrying...');
-            console.error('❌ LiveActivityFeed subscription error');
-            
-            // Retry connection after 3 seconds
-            setTimeout(() => {
-              console.log('🔄 Retrying LiveActivityFeed connection...');
-              setupLiveActivityConnection();
-            }, 3000);
-          } else if (status === 'CLOSED') {
-            setIsConnected(false);
-            setConnectionStatus('Connection closed - Reconnecting...');
-            console.log('🔌 LiveActivityFeed connection closed, attempting reconnect...');
-            
-            // Retry connection after 2 seconds
-            setTimeout(() => {
-              setupLiveActivityConnection();
-            }, 2000);
+          if (isMounted) {
+            setIsConnected(status === 'SUBSCRIBED');
+            setConnectionStatus(status === 'SUBSCRIBED' ? 'Live - Real-time updates active' : 'Connecting...');
           }
         });
     };
 
-    // Initial setup
-    setupLiveActivityConnection();
-
-    // Auto-refresh for cross-device sync (every 30 seconds)
-    autoRefreshInterval = setInterval(() => {
-      console.log('🔄 LiveActivityFeed auto-refresh...');
-      fetchActivities();
-    }, 30000);
-
-    // Visibility change handler for cross-device sync
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('📱 LiveActivityFeed tab became visible - refreshing');
-        fetchActivities();
+    // Set up subscription after initial load
+    setTimeout(() => {
+      if (isMounted) {
+        setupConnection();
       }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    }, 1000);
 
     return () => {
-      console.log('🧹 Cleaning up LiveActivityFeed subscriptions...');
-      if (liveActivityChannel) {
-        supabase.removeChannel(liveActivityChannel);
+      isMounted = false;
+      if (activityChannel) {
+        supabase.removeChannel(activityChannel);
       }
-      clearInterval(autoRefreshInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      setIsConnected(false);
     };
-  }, []); // Empty dependency array to prevent re-runs
+  }, []);
 
   const getTypeColor = (type: string) => {
     const lowerType = type.toLowerCase();
@@ -263,7 +180,7 @@ const LiveActivityFeed: React.FC = () => {
             {isConnected && <span className="text-xs text-green-600 font-normal">LIVE</span>}
           </CardTitle>
           <p className="text-xs sm:text-sm text-gray-600">
-            {connectionStatus} • {activities.length} recent activities • Admin Controls Enabled
+            {connectionStatus} • {activities.length} recent activities
           </p>
         </CardHeader>
         <CardContent className="space-y-2 max-h-96 overflow-y-auto px-3 sm:px-6">

@@ -64,6 +64,7 @@ const Admin = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [editingActivity, setEditingActivity] = useState<any>(null);
   const [deletingActivity, setDeletingActivity] = useState<any>(null);
@@ -82,29 +83,39 @@ const Admin = () => {
   const [newActivityType, setNewActivityType] = useState({ name: '', description: '' });
 
   useEffect(() => {
-    fetchAllData();
+    let isMounted = true;
     
-    // Set up a single real-time subscription for admin
-    let adminChannel: any = null;
-    let autoRefreshInterval: NodeJS.Timeout;
-
-    const setupAdminRealtimeSubscription = () => {
-      console.log('🚀 Setting up unified admin real-time subscription...');
-      
-      // Remove any existing channel first
-      if (adminChannel) {
-        supabase.removeChannel(adminChannel);
-        adminChannel = null;
+    const initializeAdmin = async () => {
+      try {
+        setIsLoading(true);
+        console.log('🚀 Initializing Admin panel...');
+        
+        await fetchAllData();
+        
+        if (isMounted) {
+          setIsLoading(false);
+          setIsConnected(true);
+          console.log('✅ Admin panel initialized successfully');
+        }
+      } catch (error) {
+        console.error('❌ Error initializing admin panel:', error);
+        if (isMounted) {
+          setIsLoading(false);
+          setIsConnected(false);
+        }
       }
+    };
 
-      // Create a single unified channel for all admin real-time updates
+    initializeAdmin();
+
+    // Simple real-time subscription without aggressive refreshing
+    let adminChannel: any = null;
+
+    const setupRealtimeSubscription = () => {
+      console.log('📡 Setting up admin real-time subscription...');
+      
       adminChannel = supabase
-        .channel('unified-admin-realtime', {
-          config: {
-            broadcast: { self: true },
-            presence: { key: 'admin-unified' }
-          }
-        })
+        .channel('admin-main-channel')
         .on(
           'postgres_changes',
           {
@@ -114,7 +125,9 @@ const Admin = () => {
           },
           (payload) => {
             console.log('📊 Admin: Activity change detected:', payload.eventType);
-            fetchActivities();
+            if (isMounted) {
+              fetchActivities();
+            }
           }
         )
         .on(
@@ -126,46 +139,39 @@ const Admin = () => {
           },
           (payload) => {
             console.log('👥 Admin: User change detected:', payload.eventType);
-            fetchUsers();
+            if (isMounted) {
+              fetchUsers();
+            }
           }
         )
         .subscribe((status) => {
-          console.log('📡 Unified admin subscription status:', status);
-          if (status === 'SUBSCRIBED') {
-            setIsConnected(true);
-            console.log('✅ Unified admin real-time subscription active');
-          } else if (status === 'CHANNEL_ERROR') {
-            setIsConnected(false);
-            console.error('❌ Admin subscription error');
+          console.log('📡 Admin subscription status:', status);
+          if (isMounted) {
+            setIsConnected(status === 'SUBSCRIBED');
           }
         });
-
-      // Auto-refresh interval
-      autoRefreshInterval = setInterval(() => {
-        console.log('🔄 Admin auto-refresh...');
-        fetchAllData();
-        setLastSyncTime(new Date());
-      }, 30000);
     };
 
-    // Initialize subscription
-    setupAdminRealtimeSubscription();
+    // Set up subscription after initial load
+    setTimeout(() => {
+      if (isMounted) {
+        setupRealtimeSubscription();
+      }
+    }, 1000);
 
-    // Cleanup function
     return () => {
+      isMounted = false;
       console.log('🧹 Cleaning up admin subscriptions...');
       if (adminChannel) {
         supabase.removeChannel(adminChannel);
       }
-      if (autoRefreshInterval) {
-        clearInterval(autoRefreshInterval);
-      }
-      setIsConnected(false);
     };
-  }, []); // Empty dependency array to prevent re-runs
+  }, []);
 
   const fetchAllData = async () => {
+    console.log('📊 Fetching all admin data...');
     await Promise.all([fetchActivities(), fetchUsers(), fetchActivityTypes()]);
+    setLastSyncTime(new Date());
   };
 
   const fetchActivities = async () => {
@@ -177,11 +183,6 @@ const Admin = () => {
 
       if (error) {
         console.error('Error fetching activities:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch activities",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -191,7 +192,6 @@ const Admin = () => {
 
       setActivities(uniqueActivities);
       calculateStats(uniqueActivities);
-      setLastSyncTime(new Date());
 
     } catch (error) {
       console.error('Error fetching activities:', error);
@@ -217,8 +217,6 @@ const Admin = () => {
   };
 
   const fetchActivityTypes = async () => {
-    // For now, we'll use predefined activity types
-    // In a real implementation, this would come from a database table
     const predefinedTypes = [
       { id: '1', name: 'Administrative', description: 'Administrative tasks and paperwork', created_at: new Date().toISOString() },
       { id: '2', name: 'Meetings', description: 'Meetings and conferences', created_at: new Date().toISOString() },
@@ -244,7 +242,6 @@ const Admin = () => {
     const totalMinutes = activitiesData.reduce((sum, activity) => sum + (activity.duration || 0), 0);
     const avgDuration = totalActivities > 0 ? Math.round(totalMinutes / totalActivities) : 0;
 
-    // Calculate active users (users who submitted activities in last 7 days)
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
     const activeUsersCount = new Set(
@@ -885,12 +882,23 @@ const Admin = () => {
     </div>
   );
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-lg font-medium text-[#be2251]">Loading Admin Panel...</p>
+          <p className="text-sm text-gray-600">Initializing system data</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <CountyHeader />
       <MainNavbar />
 
-      {/* Admin Navigation */}
       <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-xl border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
