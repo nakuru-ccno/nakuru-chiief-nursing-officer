@@ -1,6 +1,6 @@
+
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import CountyHeader from "@/components/CountyHeader";
 import { supabase } from "@/integrations/supabase/client";
 
 const DEMO_ACCOUNTS = [
