@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { Link } from "react-router-dom";
@@ -8,12 +8,40 @@ import { Button } from "@/components/ui/button";
 import { Plus, Eye, FileBarChart } from "lucide-react";
 
 export default function Dashboard() {
-  // Get current time for greeting
-  const currentHour = new Date().getHours();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
   const getGreeting = () => {
-    if (currentHour < 12) return "Good Morning";
-    if (currentHour < 17) return "Good Afternoon";
-    return "Good Evening";
+    const hour = currentTime.getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    if (hour < 21) return "Good Evening";
+    return "Good Night";
+  };
+
+  const formatTime = () => {
+    return currentTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const formatDate = () => {
+    return currentTime.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   return (
@@ -27,9 +55,13 @@ export default function Dashboard() {
           <h2 className="text-3xl font-bold text-[#be2251] mb-2">
             {getGreeting()}, John Gitahi!
           </h2>
-          <div className="flex items-center gap-4 text-gray-600">
+          <div className="flex items-center gap-4 text-gray-600 mb-2">
             <span className="font-medium">County of Unlimited Opportunities</span>
             <span className="bg-[#fd3572] text-white px-3 py-1 rounded-full text-sm font-medium">HQ</span>
+          </div>
+          <div className="flex items-center gap-4 text-gray-500 text-sm">
+            <span>{formatDate()}</span>
+            <span className="font-mono text-lg text-[#fd3572]">{formatTime()}</span>
           </div>
         </div>
 
