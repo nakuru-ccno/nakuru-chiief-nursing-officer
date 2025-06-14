@@ -8,30 +8,61 @@ const DEMO_ACCOUNTS = [
   { username: "nurse", password: "NursePower2!", role: "chief_nurse" },
 ];
 
+function isEmail(text: string) {
+  // Simple email validation
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+}
+
 const Login = () => {
   const [userData, setUserData] = useState({ username: "", password: "" });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
-  };
-
   // Add redirect if user already logged in (via Supabase)
-  React.useEffect(() => {
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session && session.user) navigate("/dashboard", { replace: true });
     });
   }, [navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    // If username field is an email, use Supabase Auth.
+    if (isEmail(userData.username)) {
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email: userData.username,
+        password: userData.password,
+      });
+
+      if (loginError) {
+        setError(loginError.message || "Invalid credentials. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // On success: remove any demo role & redirect to dashboard
+      localStorage.removeItem("role");
+      navigate("/dashboard", { replace: true });
+      setLoading(false);
+      return;
+    }
+
+    // Otherwise, use demo login logic
     const found = DEMO_ACCOUNTS.find(
       (a) =>
         a.username === userData.username && a.password === userData.password
     );
     if (found) {
       localStorage.setItem("role", found.role);
+      // For demo roles, do not authenticate via Supabase, just navigate
       if (found.role === "admin") {
         navigate("/admin");
       } else {
@@ -40,6 +71,7 @@ const Login = () => {
     } else {
       setError("Invalid credentials. Please try again.");
     }
+    setLoading(false);
   };
 
   return (
@@ -56,7 +88,10 @@ const Login = () => {
           <div className="mb-2 text-red-600 font-semibold">{error}</div>
         )}
         <div className="mb-4">
-          <label className="block font-semibold mb-1">Username</label>
+          <label className="block font-semibold mb-1">
+            Username{` `}
+            <span className="text-xs text-gray-400">(or email)</span>
+          </label>
           <input
             name="username"
             onChange={handleChange}
@@ -64,6 +99,8 @@ const Login = () => {
             className="w-full px-3 py-2 border rounded bg-gray-50"
             autoFocus
             required
+            autoComplete="username"
+            disabled={loading}
           />
         </div>
         <div className="mb-6">
@@ -75,13 +112,16 @@ const Login = () => {
             value={userData.password}
             className="w-full px-3 py-2 border rounded bg-gray-50"
             required
+            autoComplete="current-password"
+            disabled={loading}
           />
         </div>
         <button
           type="submit"
           className="w-full bg-[#fd3572] text-white font-bold rounded py-2 transition hover:bg-[#be2251]"
+          disabled={loading}
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
         <div className="mt-4 text-sm text-center">
           <span>Don't have an account? </span>
@@ -89,7 +129,13 @@ const Login = () => {
         </div>
       </form>
       <div className="mt-4 text-xs text-gray-200 opacity-60">
-        <span>For demo: <strong>admin</strong>/<strong>StrongP@ssword1!</strong> (admin) or <strong>nurse</strong>/<strong>NursePower2!</strong> (chief nurse)</span>
+        <span>
+          For demo: <strong>admin</strong>/<strong>StrongP@ssword1!</strong> (admin) or <strong>nurse</strong>/<strong>NursePower2!</strong> (chief nurse)
+        </span>
+        <br/>
+        <span>
+          For real account: use your registered <strong>email</strong> / password.
+        </span>
       </div>
     </div>
   );
