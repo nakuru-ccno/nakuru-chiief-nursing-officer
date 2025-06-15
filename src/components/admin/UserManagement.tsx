@@ -139,7 +139,7 @@ export default function UserManagement() {
           console.error("🔥 DEBUG: Function returned failure:", data.error);
           toast({
             title: "Error",
-            description: data.error || "Failed to create user.",
+            description: typeof data.error === 'string' ? data.error : "Failed to create user.",
             variant: "destructive",
           });
         }
