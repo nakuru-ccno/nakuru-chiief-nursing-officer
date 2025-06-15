@@ -16,40 +16,45 @@ const predefinedRoles = [
 ];
 
 const Register = () => {
-  const [userData, setUserData] = useState({ email: "", password: "", role: "Staff Nurse" });
+  const [userData, setUserData] = useState({ email: "", full_name: "", password: "", role: "Staff Nurse" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   // Waits for profiles row to exist, then sets to "pending"
-  const updateProfilePendingWithRetry = async (email: string, role: string, maxAttempts = 5, interval = 800) => {
+  const updateProfilePendingWithRetry = async (
+    email: string,
+    role: string,
+    full_name: string,
+    maxAttempts = 5,
+    interval = 800
+  ) => {
     let attempts = 0;
     while (attempts < maxAttempts) {
       const { data, error } = await supabase
         .from("profiles")
-        .update({ status: "pending", email_verified: false, role })
+        .update({ status: "pending", email_verified: false, role, full_name })
         .eq("email", email);
-      // If at least one row updated, success!
-      if (!error && (data?.length ?? 0) > 0) return true;
+      if (!error && (data && data.length > 0)) return true;
       // Check if profile exists, else wait and try again
       const { data: checkProfile } = await supabase
         .from("profiles")
         .select("*")
         .eq("email", email);
-      if ((checkProfile?.length ?? 0) > 0) {
-        // Profile exists, but not updated, so retry
-        await new Promise(r => setTimeout(r, interval));
+      if (checkProfile && checkProfile.length > 0) {
+        await new Promise((r) => setTimeout(r, interval));
       } else {
-        // Profile not yet created by trigger, wait and retry
-        await new Promise(r => setTimeout(r, interval));
+        await new Promise((r) => setTimeout(r, interval));
       }
       attempts++;
     }
     return false;
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
   };
 
@@ -64,8 +69,8 @@ const Register = () => {
       password: userData.password,
       options: {
         data: {
-          full_name: "",
-          role: userData.role,
+          full_name: userData.full_name,
+          role: userData.role
         },
         emailRedirectTo: window.location.origin + "/login"
       }
@@ -73,7 +78,11 @@ const Register = () => {
 
     let pendingSuccess = false;
     if (!regError) {
-      pendingSuccess = await updateProfilePendingWithRetry(userData.email, userData.role);
+      pendingSuccess = await updateProfilePendingWithRetry(
+        userData.email,
+        userData.role,
+        userData.full_name
+      );
     }
 
     if (regError) {
@@ -86,7 +95,7 @@ const Register = () => {
       setSuccess(
         "Registration submitted! Your account must be approved by an admin before you can log in."
       );
-      setUserData({ email: "", password: "", role: "Staff Nurse" });
+      setUserData({ email: "", full_name: "", password: "", role: "Staff Nurse" });
     }
     setLoading(false);
   };
@@ -116,6 +125,19 @@ const Register = () => {
           </div>
         )}
         <div className="mb-4">
+          <label className="block font-semibold mb-1">Full Name</label>
+          <Input
+            name="full_name"
+            type="text"
+            onChange={handleChange}
+            value={userData.full_name}
+            required
+            disabled={loading || !!success}
+            placeholder="Enter your full name"
+            autoComplete="name"
+          />
+        </div>
+        <div className="mb-4">
           <label className="block font-semibold mb-1">Email</label>
           <Input
             name="email"
@@ -138,7 +160,9 @@ const Register = () => {
             required
           >
             {predefinedRoles.map((role) => (
-              <option value={role} key={role}>{role}</option>
+              <option value={role} key={role}>
+                {role}
+              </option>
             ))}
           </select>
         </div>
