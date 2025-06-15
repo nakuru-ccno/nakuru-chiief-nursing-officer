@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,13 +35,21 @@ const Register = () => {
         .from("profiles")
         .update({ status: "pending", email_verified: false, role, full_name })
         .eq("email", email);
-      if (!error && (data && data.length > 0)) return true;
+
+      // Fix: ensure data is an array for .length
+      const rows = (data ?? []) as any[];
+
+      if (!error && rows.length > 0) return true;
+
       // Check if profile exists, else wait and try again
       const { data: checkProfile } = await supabase
         .from("profiles")
         .select("*")
         .eq("email", email);
-      if (checkProfile && checkProfile.length > 0) {
+
+      const checkRows = (checkProfile ?? []) as any[];
+
+      if (checkRows.length > 0) {
         await new Promise((r) => setTimeout(r, interval));
       } else {
         await new Promise((r) => setTimeout(r, interval));
@@ -70,14 +77,16 @@ const Register = () => {
       options: {
         data: {
           full_name: userData.full_name,
-          role: userData.role
+          role: userData.role,
         },
-        emailRedirectTo: window.location.origin + "/login"
-      }
+        emailRedirectTo: window.location.origin + "/login",
+      },
     });
 
     let pendingSuccess = false;
+    let showAccountCreatedMessage = false;
     if (!regError) {
+      showAccountCreatedMessage = true; // Registration succeeded, regardless of profile update
       pendingSuccess = await updateProfilePendingWithRetry(
         userData.email,
         userData.role,
@@ -87,15 +96,19 @@ const Register = () => {
 
     if (regError) {
       setError(regError.message || "Registration failed.");
-    } else if (!pendingSuccess) {
-      setError(
-        "There was an issue marking your account for approval. Please contact support or try again."
-      );
     } else {
+      // Always show account created/wait approval, even if pending update fails
       setSuccess(
         "Registration submitted! Your account must be approved by an admin before you can log in."
       );
       setUserData({ email: "", full_name: "", password: "", role: "Staff Nurse" });
+
+      // If pendingSuccess failed, optionally log (not shown to user)
+      if (!pendingSuccess) {
+        console.warn(
+          "[Register] Account created but could not update status to pending/verified. Please notify admin if not visible."
+        );
+      }
     }
     setLoading(false);
   };
