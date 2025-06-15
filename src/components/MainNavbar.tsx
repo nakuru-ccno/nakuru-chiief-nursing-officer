@@ -31,14 +31,15 @@ const MainNavbar = () => {
     { to: "/reports", label: "Reports", icon: FileText },
   ];
 
-  // Navigation items for admins - removed Users/Live Admin navigation
+  // Navigation items for admins
   const adminNavItems = [
     { to: "/admin", label: "Admin Dashboard", icon: Home },
+    { to: "/activities", label: "Activities", icon: Activity },
     { to: "/reports", label: "Reports", icon: FileText },
-    { to: "/activities", label: "Settings", icon: Settings },
+    { to: "/admin", label: "User Management", icon: Settings },
   ];
 
-  // Always show admin navigation for admin users, regardless of current route
+  // Show appropriate navigation based on user role
   const navItems = isAdmin ? adminNavItems : userNavItems;
   
   console.log("MainNavbar - Selected nav items:", navItems.map(item => item.label));
@@ -47,7 +48,7 @@ const MainNavbar = () => {
     <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg border-b border-gray-700">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Navigation Links - only show if logged in and not on public pages */}
+          {/* Navigation Links - show for all logged in users */}
           <div className="flex space-x-1">
             {!isPublicPage && isLoggedIn && navItems.map(item => {
               const Icon = item.icon;
@@ -70,7 +71,7 @@ const MainNavbar = () => {
             })}
           </div>
 
-          {/* Auth Button - only show logout when logged in and not on public pages */}
+          {/* Auth Button */}
           <div className="flex items-center">
             {isLoggedIn && !isPublicPage ? (
               <button
@@ -82,7 +83,7 @@ const MainNavbar = () => {
               >
                 <LogOut size={16} />
                 <span>Logout</span>
-              </button>
+              </Button>
             ) : null}
           </div>
         </div>

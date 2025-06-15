@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -98,40 +99,63 @@ export default function UserManagement() {
   const handleAddUser = async (userData: { full_name: string; email: string; role: string; password: string }) => {
     try {
       setIsLoading(true);
-      console.log("Creating user profile directly:", userData);
+      console.log("Creating full user account:", userData);
 
-      // For now, we'll create just the profile record with pending status
-      // The user will need to register themselves or an admin can activate them later
-      const { data, error } = await supabase
-        .from("profiles")
-        .insert({
-          email: userData.email,
-          full_name: userData.full_name,
-          role: userData.role,
-          status: 'active',
-          email_verified: true,
-          approved_by: (await supabase.auth.getUser()).data.user?.id,
-          approved_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      // First, sign up the user to create auth account
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            full_name: userData.full_name,
+            role: userData.role,
+          },
+          emailRedirectTo: `${window.location.origin}/login`
+        }
+      });
 
-      if (error) {
-        console.error("Error creating user profile:", error);
+      if (signUpError) {
+        console.error("Error creating auth user:", signUpError);
         toast({
           title: "Error",
-          description: `Failed to create user: ${error.message}`,
+          description: `Failed to create user account: ${signUpError.message}`,
           variant: "destructive",
         });
         return;
       }
 
-      toast({
-        title: "Success",
-        description: `User profile created for ${userData.email}. They can now register with this email.`,
-      });
-      setShowAddDialog(false);
-      fetchUsers();
+      if (authData.user) {
+        // Create or update the profile with active status
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .upsert({
+            id: authData.user.id,
+            email: userData.email,
+            full_name: userData.full_name,
+            role: userData.role,
+            status: 'active',
+            email_verified: true,
+            approved_by: (await supabase.auth.getUser()).data.user?.id,
+            approved_at: new Date().toISOString()
+          });
+
+        if (profileError) {
+          console.error("Error creating profile:", profileError);
+          toast({
+            title: "Error",
+            description: `Failed to create user profile: ${profileError.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        toast({
+          title: "Success",
+          description: `User account created successfully for ${userData.email}. They can now log in.`,
+        });
+        setShowAddDialog(false);
+        fetchUsers();
+      }
     } catch (error) {
       console.error("Error creating user:", error);
       toast({
@@ -421,16 +445,16 @@ export default function UserManagement() {
           
           <TabsContent value="add" className="space-y-4">
             <div className="max-w-md mx-auto">
-              <h3 className="text-lg font-medium mb-4">Create New User Profile</h3>
+              <h3 className="text-lg font-medium mb-4">Create New User Account</h3>
               <p className="text-sm text-gray-600 mb-4">
-                This creates a user profile. The user will need to register themselves using the same email address.
+                This creates a complete user account with login credentials.
               </p>
               <Button 
                 onClick={() => setShowAddDialog(true)} 
                 className="w-full bg-[#fd3572] hover:bg-[#be2251]"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Create User Profile
+                Create User Account
               </Button>
             </div>
           </TabsContent>

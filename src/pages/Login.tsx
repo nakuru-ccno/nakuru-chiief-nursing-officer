@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,10 +38,10 @@ const Login = () => {
         }
 
         if (data?.user && data.user.email) {
-          // Fetch user profile to check status
+          // Fetch user profile to get role and check status
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('status')
+            .select('status, role')
             .eq('email', data.user.email)
             .maybeSingle();
 
@@ -51,6 +52,7 @@ const Login = () => {
             setLoading(false);
             return;
           }
+
           if (profile.status !== "active") {
             setError(
               "Your account is pending admin approval. Please wait for an admin to activate your account."
@@ -61,15 +63,20 @@ const Login = () => {
             return;
           }
 
-          // Allow admin to login directly
-          if (
-            userData.username === "admin@nakuru.go.ke" ||
-            data.user?.user_metadata?.name === "System Administrator"
-          ) {
-            localStorage.setItem("role", "System Administrator");
-          }
+          // Set the user's role in localStorage
+          const userRole = profile.role || "Staff Nurse";
+          localStorage.setItem("role", userRole);
+          console.log("User role set in localStorage:", userRole);
 
-          navigate("/dashboard", { replace: true });
+          // Navigate based on role
+          const isAdmin = userRole === 'System Administrator' || 
+                          userRole.toLowerCase().includes('admin');
+          
+          if (isAdmin) {
+            navigate("/admin", { replace: true });
+          } else {
+            navigate("/dashboard", { replace: true });
+          }
         } else {
           setError("Invalid credentials or account not confirmed.");
         }
@@ -157,7 +164,6 @@ const Login = () => {
 
             <button
               type="submit"
-              onClick={handleSignInClick}
               className="w-full bg-[#be2251] text-white font-semibold py-3 px-4 rounded-md hover:bg-[#fd3572] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:ring-offset-2"
               disabled={loading || !userData.username.trim() || !userData.password.trim()}
             >
@@ -170,7 +176,6 @@ const Login = () => {
               Don't have an account?{" "}
               <Link
                 to="/register"
-                onClick={handleCreateAccountClick}
                 className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors focus:outline-none focus:underline"
               >
                 Create Account
