@@ -44,6 +44,18 @@ interface User {
   created_at: string;
 }
 
+interface CreateUserResponse {
+  success: boolean;
+  error?: string;
+  user_id?: string;
+  email?: string;
+}
+
+// Type guard to check if the response is a CreateUserResponse
+function isCreateUserResponse(data: any): data is CreateUserResponse {
+  return data && typeof data === 'object' && 'success' in data;
+}
+
 export default function UserManagement() {
   const [activeUsers, setActiveUsers] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
@@ -120,7 +132,7 @@ export default function UserManagement() {
         return;
       }
 
-      if (data?.success) {
+      if (isCreateUserResponse(data) && data.success) {
         toast({
           title: "Success",
           description: "User created successfully!",
@@ -128,9 +140,10 @@ export default function UserManagement() {
         setShowAddDialog(false);
         fetchUsers();
       } else {
+        const errorMessage = isCreateUserResponse(data) && data.error ? data.error : "Failed to create user";
         toast({
           title: "Error", 
-          description: data?.error || "Failed to create user",
+          description: errorMessage,
           variant: "destructive",
         });
       }
