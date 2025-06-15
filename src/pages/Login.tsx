@@ -14,66 +14,56 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("Input changed:", e.target.name, e.target.value);
     setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
-    // Clear error when user starts typing
     if (error) setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted with data:", userData);
     setError("");
     setLoading(true);
 
     try {
-      // Only use Supabase authentication for real users
       if (isEmail(userData.username)) {
-        console.log("Attempting Supabase login");
         const { data, error: loginError } = await supabase.auth.signInWithPassword({
           email: userData.username,
           password: userData.password,
         });
 
         if (loginError) {
-          console.log("Supabase login error:", loginError);
           setError(loginError.message || "Invalid credentials. Please try again.");
           setLoading(false);
           return;
         }
 
-        console.log("Supabase login successful");
-        
-        // Check if this is an admin user and set the role
-        if (userData.username === "admin@nakuru.go.ke" || 
-            data.user?.user_metadata?.name === "System Administrator") {
-          console.log("Setting admin role in localStorage");
-          localStorage.setItem("role", "System Administrator");
-        }
+        // Explicit check for confirmed user
+        if (data?.user && data.user.email) {
+          // Set admin role based on known username or user metadata
+          if (
+            userData.username === "admin@nakuru.go.ke" ||
+            data.user?.user_metadata?.name === "System Administrator"
+          ) {
+            localStorage.setItem("role", "System Administrator");
+          }
 
-        console.log("Redirecting to dashboard");
-        navigate("/dashboard", { replace: true });
-        setLoading(false);
-        return;
+          navigate("/dashboard", { replace: true });
+        } else {
+          setError("Invalid credentials or account not confirmed.");
+        }
       } else {
-        console.log("Invalid email format");
         setError("Please enter a valid email address.");
       }
     } catch (err) {
-      console.error("Login error:", err);
       setError("An unexpected error occurred. Please try again.");
     }
     setLoading(false);
   };
 
   const handleCreateAccountClick = (e: React.MouseEvent) => {
-    console.log("Create Account link clicked");
-    // Let React Router handle the navigation
+    // Let React Router handle navigation
   };
 
-  const handleSignInClick = () => {
-    console.log("Sign In button clicked");
-  };
+  const handleSignInClick = () => {};
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -104,7 +94,7 @@ const Login = () => {
                 {error}
               </div>
             )}
-            
+
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address

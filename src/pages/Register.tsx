@@ -13,10 +13,12 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // If already logged in, redirect to dashboard
+  // If already logged in, redirect to dashboard (ONLY if session.user is fully loaded)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && session.user) navigate("/dashboard", { replace: true });
+      if (session && session.user && session.user.email) {
+        navigate("/dashboard", { replace: true });
+      }
     });
   }, [navigate]);
 
@@ -29,15 +31,15 @@ const Register = () => {
     setLoading(true);
     setError("");
     setSuccess("");
-    
-    // Register without email confirmation
-    const { error } = await supabase.auth.signUp({
+
+    // Register without automatic redirect, only upon confirmed account
+    const { error: regError } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
     });
-    
-    if (error) {
-      setError(error.message || "Registration failed.");
+
+    if (regError) {
+      setError(regError.message || "Registration failed.");
     } else {
       setSuccess(
         "Registration successful! You can now log in with your credentials."
@@ -59,7 +61,17 @@ const Register = () => {
         </h2>
         {error && <div className="mb-2 text-red-600 font-semibold">{error}</div>}
         {success && (
-          <div className="mb-4 text-green-600 font-semibold">{success}</div>
+          <div className="mb-4 text-green-600 font-semibold">
+            {success}
+            <div className="mt-2">
+              <a
+                href="/login"
+                className="text-[#be2251] hover:text-[#fd3572] font-semibold underline"
+              >
+                Go to Login
+              </a>
+            </div>
+          </div>
         )}
         <div className="mb-4">
           <label className="block font-semibold mb-1">Email</label>
@@ -69,7 +81,7 @@ const Register = () => {
             onChange={handleChange}
             value={userData.email}
             required
-            disabled={loading}
+            disabled={loading || !!success}
             autoFocus
           />
         </div>
@@ -82,13 +94,13 @@ const Register = () => {
             value={userData.password}
             required
             minLength={6}
-            disabled={loading}
+            disabled={loading || !!success}
           />
         </div>
         <Button
           type="submit"
           className="w-full"
-          disabled={loading}
+          disabled={loading || !!success}
         >
           {loading ? "Registering..." : "Register"}
         </Button>
