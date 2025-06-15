@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -335,8 +334,7 @@ const UserManagement = () => {
             id: parseInt(editingUser.id),
             name: editingUser.full_name || "",
             email: editingUser.email,
-            role: editingUser.role || "",
-            status: "active"
+            role: editingUser.role || ""
           }}
           onUpdateUser={(userData) => handleUpdateUser(editingUser.id, userData)}
           onCancel={() => setEditingUser(null)}
@@ -350,8 +348,7 @@ const UserManagement = () => {
             id: parseInt(deletingUser.id),
             name: deletingUser.full_name || deletingUser.email,
             email: deletingUser.email,
-            role: deletingUser.role || "",
-            status: "active"
+            role: deletingUser.role || ""
           }}
           onDeleteUser={() => handleDeleteUser(deletingUser.id)}
           onCancel={() => setDeletingUser(null)}
