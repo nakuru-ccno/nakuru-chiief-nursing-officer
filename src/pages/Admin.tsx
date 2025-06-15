@@ -13,6 +13,7 @@ import UserPermissions from "@/components/admin/UserPermissions";
 import DataManagement from "@/components/admin/DataManagement";
 import SystemMonitor from "@/components/admin/SystemMonitor";
 import DashboardSettings from "@/components/admin/DashboardSettings";
+import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
 
 type Activity = {
   id: string;
@@ -28,7 +29,7 @@ type Activity = {
 };
 
 export default function Admin() {
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
   const [userRole, setUserRole] = useState<string>("");
@@ -79,41 +80,20 @@ export default function Admin() {
     }
   };
 
-  const fetchActivities = async () => {
-    try {
-      setIsLoading(true);
-      console.log('📊 Fetching activities for admin...');
+  const fetchActivities = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("activities")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (!error) setActivities(data ?? []);
+  }, []);
 
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .order('created_at', { ascending: false });
+  useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
 
-      if (error) {
-        console.error('❌ Error fetching activities:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load activities from database",
-          variant: "destructive",
-        });
-        setActivities([]);
-        return;
-      }
-
-      console.log('✅ Activities loaded successfully:', data?.length || 0);
-      setActivities((data as Activity[]) || []);
-    } catch (error) {
-      console.error('❌ Unexpected error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load activities",
-        variant: "destructive",
-      });
-      setActivities([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useActivitiesRealtime(fetchActivities);
 
   const handleGenerateActivityReport = () => {
     console.log('📋 Generating Activity Report...');

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +10,7 @@ import { Edit } from "lucide-react";
 import EditActivityDialog from "@/components/admin/EditActivityDialog";
 import ReportFilters from "@/components/reports/ReportFilters";
 import ExportTabs from "@/components/reports/ExportTabs";
+import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
 
 type Activity = {
   id: string;
@@ -70,41 +70,20 @@ export default function Reports() {
     }
   };
 
-  const fetchActivities = async () => {
-    try {
-      setIsLoading(true);
-      console.log('📊 Fetching activities for reports...');
+  const fetchActivities = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("activities")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (!error) setAllActivities(data ?? []);
+  }, []);
 
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .order('created_at', { ascending: false });
+  useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
 
-      if (error) {
-        console.error('❌ Error fetching activities:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load activities from database",
-          variant: "destructive",
-        });
-        setAllActivities([]);
-        return;
-      }
-
-      console.log('✅ Activities loaded successfully:', data?.length || 0);
-      setAllActivities((data as Activity[]) || []);
-    } catch (error) {
-      console.error('❌ Unexpected error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load activities",
-        variant: "destructive",
-      });
-      setAllActivities([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useActivitiesRealtime(fetchActivities);
 
   const applyFilters = () => {
     let filtered = [...allActivities];
