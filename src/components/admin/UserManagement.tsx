@@ -1,4 +1,3 @@
-
 import {
   Card,
   CardContent,
@@ -96,6 +95,11 @@ export default function UserManagement() {
     }
   };
 
+  // Helper function to check RPC response shape
+  function isCreateUserResponse(data: any): data is { success: boolean; error?: string } {
+    return typeof data === "object" && data !== null && "success" in data;
+  }
+
   const handleAddUser = async (userData: { full_name: string; email: string; role: string; password: string }) => {
     try {
       setIsLoading(true);
@@ -108,11 +112,24 @@ export default function UserManagement() {
         user_role: userData.role
       });
 
-      if (error || !data?.success) {
-        console.error("Error creating user:", error || data?.error);
+      if (error) {
+        console.error("Error creating user:", error);
         toast({
           title: "Error",
-          description: data?.error || "Failed to create user. Please try again.",
+          description: "Failed to create user. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Safely check if data contains .success
+      if (!isCreateUserResponse(data) || !data.success) {
+        console.error("Error creating user (rpc):", data && typeof data === 'object' ? data.error : data);
+        toast({
+          title: "Error",
+          description: data && typeof data === 'object' && "error" in data
+            ? (data.error as string)
+            : "Failed to create user. Please try again.",
           variant: "destructive",
         });
         return;
