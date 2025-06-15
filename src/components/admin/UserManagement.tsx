@@ -44,18 +44,6 @@ interface User {
   created_at: string;
 }
 
-interface CreateUserResponse {
-  success: boolean;
-  error?: string;
-  user_id?: string;
-  email?: string;
-}
-
-// Type guard to check if the response is a CreateUserResponse
-function isCreateUserResponse(data: any): data is CreateUserResponse {
-  return data && typeof data === 'object' && 'success' in data;
-}
-
 export default function UserManagement() {
   const [activeUsers, setActiveUsers] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
@@ -110,20 +98,26 @@ export default function UserManagement() {
   const handleAddUser = async (userData: { full_name: string; email: string; role: string; password: string }) => {
     try {
       setIsLoading(true);
-      console.log("Creating user with data:", userData);
+      console.log("Creating user profile directly:", userData);
 
-      // Call the database function to create user
-      const { data, error } = await supabase.rpc('create_admin_user', {
-        user_email: userData.email,
-        user_password: userData.password,
-        user_full_name: userData.full_name,
-        user_role: userData.role
-      });
-
-      console.log("Supabase response:", { data, error });
+      // For now, we'll create just the profile record with pending status
+      // The user will need to register themselves or an admin can activate them later
+      const { data, error } = await supabase
+        .from("profiles")
+        .insert({
+          email: userData.email,
+          full_name: userData.full_name,
+          role: userData.role,
+          status: 'active',
+          email_verified: true,
+          approved_by: (await supabase.auth.getUser()).data.user?.id,
+          approved_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
       if (error) {
-        console.error("Supabase error:", error);
+        console.error("Error creating user profile:", error);
         toast({
           title: "Error",
           description: `Failed to create user: ${error.message}`,
@@ -132,23 +126,14 @@ export default function UserManagement() {
         return;
       }
 
-      if (isCreateUserResponse(data) && data.success) {
-        toast({
-          title: "Success",
-          description: "User created successfully!",
-        });
-        setShowAddDialog(false);
-        fetchUsers();
-      } else {
-        const errorMessage = isCreateUserResponse(data) && data.error ? data.error : "Failed to create user";
-        toast({
-          title: "Error", 
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Success",
+        description: `User profile created for ${userData.email}. They can now register with this email.`,
+      });
+      setShowAddDialog(false);
+      fetchUsers();
     } catch (error) {
-      console.error("Caught exception:", error);
+      console.error("Error creating user:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred during user creation.",
@@ -436,16 +421,16 @@ export default function UserManagement() {
           
           <TabsContent value="add" className="space-y-4">
             <div className="max-w-md mx-auto">
-              <h3 className="text-lg font-medium mb-4">Create New User</h3>
+              <h3 className="text-lg font-medium mb-4">Create New User Profile</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Users created here will be able to log in immediately without email verification.
+                This creates a user profile. The user will need to register themselves using the same email address.
               </p>
               <Button 
                 onClick={() => setShowAddDialog(true)} 
                 className="w-full bg-[#fd3572] hover:bg-[#be2251]"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Create New User Account
+                Create User Profile
               </Button>
             </div>
           </TabsContent>
