@@ -22,7 +22,32 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // --- Redirect removed: Users can always access registration page even if logged in ---
+  // Waits for profiles row to exist, then sets to "pending"
+  const updateProfilePendingWithRetry = async (email: string, role: string, maxAttempts = 5, interval = 800) => {
+    let attempts = 0;
+    while (attempts < maxAttempts) {
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ status: "pending", email_verified: false, role })
+        .eq("email", email);
+      // If at least one row updated, success!
+      if (!error && (data?.length ?? 0) > 0) return true;
+      // Check if profile exists, else wait and try again
+      const { data: checkProfile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", email);
+      if ((checkProfile?.length ?? 0) > 0) {
+        // Profile exists, but not updated, so retry
+        await new Promise(r => setTimeout(r, interval));
+      } else {
+        // Profile not yet created by trigger, wait and retry
+        await new Promise(r => setTimeout(r, interval));
+      }
+      attempts++;
+    }
+    return false;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
@@ -33,7 +58,7 @@ const Register = () => {
     setLoading(true);
     setError("");
     setSuccess("");
-    
+
     const { error: regError } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
@@ -46,16 +71,17 @@ const Register = () => {
       }
     });
 
-    // Notify backend to set profile as pending (if already created)
+    let pendingSuccess = false;
     if (!regError) {
-      supabase
-        .from("profiles")
-        .update({ status: "pending", email_verified: false, role: userData.role })
-        .eq("email", userData.email);
+      pendingSuccess = await updateProfilePendingWithRetry(userData.email, userData.role);
     }
 
     if (regError) {
       setError(regError.message || "Registration failed.");
+    } else if (!pendingSuccess) {
+      setError(
+        "There was an issue marking your account for approval. Please contact support or try again."
+      );
     } else {
       setSuccess(
         "Registration submitted! Your account must be approved by an admin before you can log in."
@@ -153,4 +179,3 @@ const Register = () => {
 };
 
 export default Register;
-
