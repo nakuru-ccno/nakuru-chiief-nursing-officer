@@ -124,7 +124,8 @@ export default function UserManagement() {
         return;
       }
 
-      if (authData.user) {
+      // Only proceed if we have a real user object and ID
+      if (authData?.user && authData.user.id) {
         // Create or update the profile with active status
         const { error: profileError } = await supabase
           .from("profiles")
@@ -140,10 +141,14 @@ export default function UserManagement() {
           });
 
         if (profileError) {
-          console.error("Error creating profile:", profileError);
+          console.error("Error creating profile, rolling back user:", profileError);
+
+          // Try to delete the auth user that was just created
+          await supabase.auth.admin.deleteUser(authData.user.id);
+
           toast({
             title: "Error",
-            description: `Failed to create user profile: ${profileError.message}`,
+            description: `Profile creation failed: ${profileError.message}. The user account has been rolled back.`,
             variant: "destructive",
           });
           return;
@@ -155,9 +160,21 @@ export default function UserManagement() {
         });
         setShowAddDialog(false);
         fetchUsers();
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to receive user data after signup. Please try again.",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating user:", error);
+
+      // Attempt clean up if auth user was created but code throws after
+      if (error?.userId) {
+        await supabase.auth.admin.deleteUser(error.userId);
+      }
+
       toast({
         title: "Error",
         description: "An unexpected error occurred during user creation.",
