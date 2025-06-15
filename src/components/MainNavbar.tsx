@@ -1,23 +1,48 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Activity, FileText, LogIn, LogOut, Settings } from "lucide-react";
+import { Home, Activity, FileText, LogOut, Settings } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const MainNavbar = () => {
   const location = useLocation();
-  const isLoggedIn = !!localStorage.getItem("role"); // still primary method
-  const userRole = localStorage.getItem("role") || "";
-  // Debug logging
-  console.log("MainNavbar - Current role:", userRole);
-  console.log("MainNavbar - Is logged in:", isLoggedIn);
+  const [role, setRole] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Check Supabase session for user and profile role
+    async function checkUserRole() {
+      // Try to get Supabase session user
+      const { data: { session } } = await supabase.auth.getSession();
+      let nextRole = null;
+      if (session?.user?.email) {
+        // Look up user profile for role
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("email", session.user.email)
+          .maybeSingle();
+        if (profile?.role) {
+          nextRole = profile.role;
+          setIsLoggedIn(true);
+        }
+      }
+      // If not found, fallback to localStorage
+      if (!nextRole) {
+        nextRole = localStorage.getItem("role");
+        if (nextRole) setIsLoggedIn(true);
+      }
+      setRole(nextRole);
+    }
+    checkUserRole();
+  }, [location.pathname]); // Check role on navigation
 
   // Check if user is admin - enhanced detection
+  const userRole = role || "";
   const isAdmin =
     userRole === "admin" ||
     userRole === "System Administrator" ||
     userRole.toLowerCase().includes("admin");
-
-  console.log("MainNavbar - Is admin:", isAdmin);
 
   // Don't show navigation items on landing, login, or register pages
   const isPublicPage =
@@ -40,15 +65,13 @@ const MainNavbar = () => {
     { to: "/admin", label: "User Management", icon: Settings },
   ];
 
-  // Show appropriate navigation based on user role
   const navItems = isAdmin ? adminNavItems : userNavItems;
+  const shouldShowNavbar = !isPublicPage && isLoggedIn && !!role;
 
-  // ------ FIX: Only hide navigation on actual public (landing/auth) pages ------
-  // Always show navigation on protected routes if isLoggedIn
-  const shouldShowNavbar = !isPublicPage && isLoggedIn;
-
+  // Debug logs
+  console.log("MainNavbar - Current role:", role);
+  console.log("MainNavbar - Is logged in:", isLoggedIn);
   console.log("MainNavbar - shouldShowNavbar:", shouldShowNavbar);
-  console.log("MainNavbar - Selected nav items:", navItems.map(item => item.label));
 
   return shouldShowNavbar ? (
     <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg border-b border-gray-700">
@@ -79,18 +102,16 @@ const MainNavbar = () => {
 
           {/* Auth Button */}
           <div className="flex items-center">
-            {shouldShowNavbar ? (
-              <button
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                onClick={() => {
-                  localStorage.removeItem("role");
-                  window.location.href = "/";
-                }}
-              >
-                <LogOut size={16} />
-                <span>Logout</span>
-              </button>
-            ) : null}
+            <button
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+              onClick={() => {
+                localStorage.removeItem("role");
+                window.location.href = "/";
+              }}
+            >
+              <LogOut size={16} />
+              <span>Logout</span>
+            </button>
           </div>
         </div>
       </div>
@@ -99,3 +120,4 @@ const MainNavbar = () => {
 };
 
 export default MainNavbar;
+
