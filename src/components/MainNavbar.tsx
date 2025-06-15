@@ -70,17 +70,9 @@ const MainNavbar = () => {
             })}
           </div>
 
-          {/* Auth Button - only show login button on public pages, logout when logged in */}
+          {/* Auth Button - only show logout when logged in and not on public pages */}
           <div className="flex items-center">
-            {!isLoggedIn && isPublicPage ? (
-              <Link
-                to="/login"
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-[#fd3572] to-[#be2251] text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-              >
-                <LogIn size={16} />
-                <span>Login</span>
-              </Link>
-            ) : isLoggedIn && !isPublicPage ? (
+            {isLoggedIn && !isPublicPage ? (
               <button
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                 onClick={() => {
