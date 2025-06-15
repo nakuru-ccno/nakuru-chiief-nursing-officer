@@ -95,15 +95,20 @@ export default function UserManagement() {
     }
   };
 
-  // Helper function to check RPC response shape
+  // Helper function to check RPC response shape robustly
   function isCreateUserResponse(data: any): data is { success: boolean; error?: string } {
-    return typeof data === "object" && data !== null && "success" in data;
+    return (
+      typeof data === "object" &&
+      data !== null &&
+      !Array.isArray(data) &&
+      "success" in data
+    );
   }
 
   const handleAddUser = async (userData: { full_name: string; email: string; role: string; password: string }) => {
     try {
       setIsLoading(true);
-      
+
       // Call the database function to create user
       const { data, error } = await supabase.rpc('create_admin_user', {
         user_email: userData.email,
@@ -122,13 +127,13 @@ export default function UserManagement() {
         return;
       }
 
-      // Safely check if data contains .success
+      // Use the improved type guard
       if (!isCreateUserResponse(data) || !data.success) {
-        console.error("Error creating user (rpc):", data && typeof data === 'object' ? data.error : data);
+        console.error("Error creating user (rpc):", isCreateUserResponse(data) ? data.error : data);
         toast({
           title: "Error",
-          description: data && typeof data === 'object' && "error" in data
-            ? (data.error as string)
+          description: isCreateUserResponse(data)
+            ? data.error || "Failed to create user. Please try again."
             : "Failed to create user. Please try again.",
           variant: "destructive",
         });
