@@ -1,4 +1,3 @@
-
 import {
   Card,
   CardContent,
@@ -185,41 +184,39 @@ export default function UserManagement() {
     }
   };
 
-  const handleUpdateUser = async (userId: string, userData: { full_name: string; email: string; role: string; password?: string }) => {
+  const handleUpdateUser = async (
+    userId: string,
+    userData: { full_name: string; email: string; role: string; password?: string }
+  ) => {
     try {
       setIsLoading(true);
 
-      // 1. Fetch existing user profile/email
+      // 1. Fetch old profile/email
       const { data: oldProfile } = await supabase
         .from("profiles")
-        .select("email")
+        .select("email, role")
         .eq("id", userId)
         .maybeSingle();
 
-      const updateData: any = {
-        full_name: userData.full_name,
-        email: userData.email,
-        role: userData.role,
-      };
-
-      // 2. If email or password changed, update via Auth Admin API
       const emailChanged = oldProfile && oldProfile.email !== userData.email;
-      if (emailChanged || userData.password) {
-        const authUpdate: any = {};
-        if (emailChanged) authUpdate.email = userData.email;
-        if (userData.password) authUpdate.password = userData.password;
+      const roleChanged = oldProfile && oldProfile.role !== userData.role;
 
-        // Must use Supabase Admin API for sensitive actions
-        const { error: authError } = await supabase.auth.admin.updateUserById(
-          userId,
-          authUpdate
-        );
-        if (authError) {
-          console.error("Error updating Auth user:", authError);
+      // 2. If email/password/role changed, update via Edge function for Auth
+      if (emailChanged || userData.password || roleChanged) {
+        const { error: fnError, data: fnData } = await supabase.functions.invoke("admin-update-user", {
+          body: {
+            user_id: userId,
+            ...(emailChanged && { new_email: userData.email }),
+            ...(userData.password && { new_password: userData.password }),
+            ...(roleChanged && { new_role: userData.role }),
+          },
+        });
+        if (fnError || fnData?.error) {
+          console.error("Edge function Auth update error:", fnError || fnData?.error);
           toast({
             title: "Error",
-            description: "Failed to update the authentication record. The user may not be able to log in.",
-            variant: "destructive",
+            description: `Failed to update authentication record. The user may not be able to log in.${fnData?.error ? " " + fnData.error : ""}`,
+            variant: "destructive"
           });
           setIsLoading(false);
           return;
@@ -227,6 +224,12 @@ export default function UserManagement() {
       }
 
       // 3. Always update the profile table
+      const updateData: any = {
+        full_name: userData.full_name,
+        email: userData.email,
+        role: userData.role,
+      };
+
       const { error } = await supabase
         .from("profiles")
         .update(updateData)
