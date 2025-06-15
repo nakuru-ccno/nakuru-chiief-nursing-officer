@@ -1,4 +1,11 @@
+
 import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import AddUserDialog from "./AddUserDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +25,7 @@ const UserPermissions = () => {
     defaultRole: "Staff Nurse",
     allowSelfRegistration: false,
     requireApproval: true,
-    allowRoleChange: false
+    allowRoleChange: false,
   });
   const { toast } = useToast();
 
@@ -26,20 +33,27 @@ const UserPermissions = () => {
   const roles = [
     "System Administrator",
     "Nakuru County Chief Nursing Officer",
-    "Nakuru County Deputy Chief Nursing Officer", 
+    "Nakuru County Deputy Chief Nursing Officer",
     "Chief Nurse Officer",
-    "Nurse Officer", 
+    "Nurse Officer",
     "Senior Nurse",
-    "Staff Nurse"
+    "Staff Nurse",
   ];
 
   const handleSave = () => {
     localStorage.setItem("userPermissions", JSON.stringify(permissions));
     toast({
       title: "Success",
-      description: "User permissions updated successfully"
+      description: "User permissions updated successfully",
     });
   };
+
+  // Helper type guard for Supabase RPC return value
+  function isCreateAdminUserResponse(
+    data: any
+  ): data is { success: boolean; error?: string } {
+    return typeof data === "object" && !!data && "success" in data;
+  }
 
   const handleAddUser = async ({
     full_name,
@@ -52,17 +66,24 @@ const UserPermissions = () => {
     role: string;
     password: string;
   }) => {
-    // Call the Supabase function to create admin user (RPC)
     const { data, error } = await supabase.rpc("create_admin_user", {
       user_email: email,
       user_password: password,
       user_full_name: full_name,
       user_role: role,
     });
-    if (error || !data || !data.success) {
+
+    if (
+      error ||
+      !isCreateAdminUserResponse(data) ||
+      !data.success
+    ) {
       toast({
         title: "Failed to add user",
-        description: error?.message || (data && data.error) || "Unknown error creating user.",
+        description:
+          error?.message ||
+          (isCreateAdminUserResponse(data) ? data.error : undefined) ||
+          "Unknown error creating user.",
         variant: "destructive",
       });
       return;
@@ -71,7 +92,6 @@ const UserPermissions = () => {
     toast({
       title: "User created",
       description: `${email} successfully added and activated.`,
-      variant: "success",
     });
     setShowAddUser(false);
 
@@ -92,13 +112,20 @@ const UserPermissions = () => {
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="defaultRole">Default role for new users</Label>
-            <Select value={permissions.defaultRole} onValueChange={(value) => setPermissions(prev => ({ ...prev, defaultRole: value }))}>
+            <Select
+              value={permissions.defaultRole}
+              onValueChange={(value) =>
+                setPermissions((prev) => ({ ...prev, defaultRole: value }))
+              }
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {roles.map(role => (
-                  <SelectItem key={role} value={role}>{role}</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -115,39 +142,65 @@ const UserPermissions = () => {
             <Switch
               id="allowSelfRegistration"
               checked={permissions.allowSelfRegistration}
-              onCheckedChange={(checked) => setPermissions(prev => ({ ...prev, allowSelfRegistration: checked }))}
+              onCheckedChange={(checked) =>
+                setPermissions((prev) => ({
+                  ...prev,
+                  allowSelfRegistration: checked,
+                }))
+              }
             />
-            <Label htmlFor="allowSelfRegistration">Allow self-registration</Label>
+            <Label htmlFor="allowSelfRegistration">
+              Allow self-registration
+            </Label>
           </div>
 
           <div className="flex items-center space-x-2">
             <Switch
               id="requireApproval"
               checked={permissions.requireApproval}
-              onCheckedChange={(checked) => setPermissions(prev => ({ ...prev, requireApproval: checked }))}
+              onCheckedChange={(checked) =>
+                setPermissions((prev) => ({
+                  ...prev,
+                  requireApproval: checked,
+                }))
+              }
             />
-            <Label htmlFor="requireApproval">Require admin approval for new accounts</Label>
+            <Label htmlFor="requireApproval">
+              Require admin approval for new accounts
+            </Label>
           </div>
 
           <div className="flex items-center space-x-2">
             <Switch
               id="allowRoleChange"
               checked={permissions.allowRoleChange}
-              onCheckedChange={(checked) => setPermissions(prev => ({ ...prev, allowRoleChange: checked }))}
+              onCheckedChange={(checked) =>
+                setPermissions((prev) => ({
+                  ...prev,
+                  allowRoleChange: checked,
+                }))
+              }
             />
-            <Label htmlFor="allowRoleChange">Allow users to request role changes</Label>
+            <Label htmlFor="allowRoleChange">
+              Allow users to request role changes
+            </Label>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-[#be2251]">Nakuru County Role Hierarchy</CardTitle>
+          <CardTitle className="text-[#be2251]">
+            Nakuru County Role Hierarchy
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             {roles.map((role, index) => (
-              <div key={role} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <div
+                key={role}
+                className="flex items-center justify-between p-2 bg-gray-50 rounded"
+              >
                 <span className="font-medium">{role}</span>
                 <Badge variant="outline">Level {roles.length - index}</Badge>
               </div>
@@ -156,7 +209,10 @@ const UserPermissions = () => {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
+      <Button
+        onClick={handleSave}
+        className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
+      >
         Save Permission Settings
       </Button>
 
