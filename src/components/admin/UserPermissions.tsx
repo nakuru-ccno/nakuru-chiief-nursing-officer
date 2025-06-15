@@ -1,15 +1,19 @@
-
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+import AddUserDialog from "./AddUserDialog";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import UserManagement from "./UserManagement";
 
+const predefinedRoles = [
+  "Staff Nurse",
+  "Charge Nurse",
+  "Matron",
+  "Chief Nurse Officer",
+  "System Administrator",
+];
+
 const UserPermissions = () => {
+  const [showAddUser, setShowAddUser] = useState(false);
   const [permissions, setPermissions] = useState({
     defaultRole: "Staff Nurse",
     allowSelfRegistration: false,
@@ -37,8 +41,46 @@ const UserPermissions = () => {
     });
   };
 
+  const handleAddUser = async ({
+    full_name,
+    email,
+    role,
+    password,
+  }: {
+    full_name: string;
+    email: string;
+    role: string;
+    password: string;
+  }) => {
+    // Call the Supabase function to create admin user (RPC)
+    const { data, error } = await supabase.rpc("create_admin_user", {
+      user_email: email,
+      user_password: password,
+      user_full_name: full_name,
+      user_role: role,
+    });
+    if (error || !data || !data.success) {
+      toast({
+        title: "Failed to add user",
+        description: error?.message || (data && data.error) || "Unknown error creating user.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "User created",
+      description: `${email} successfully added and activated.`,
+      variant: "success",
+    });
+    setShowAddUser(false);
+
+    // Optionally, refresh the user list here if needed
+    // await fetchUsers();
+  };
+
   return (
-    <div className="space-y-6">
+    <div>
       {/* User Management Section */}
       <UserManagement />
 
@@ -117,6 +159,20 @@ const UserPermissions = () => {
       <Button onClick={handleSave} className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
         Save Permission Settings
       </Button>
+
+      <button
+        className="bg-[#fd3572] hover:bg-[#be2251] text-white px-4 py-2 rounded font-semibold my-4"
+        onClick={() => setShowAddUser(true)}
+      >
+        Add User
+      </button>
+      {showAddUser && (
+        <AddUserDialog
+          onAddUser={handleAddUser}
+          onCancel={() => setShowAddUser(false)}
+          predefinedRoles={predefinedRoles}
+        />
+      )}
     </div>
   );
 };
