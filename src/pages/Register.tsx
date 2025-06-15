@@ -6,16 +6,25 @@ import CountyHeader from "@/components/CountyHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+const predefinedRoles = [
+  "Staff Nurse",
+  "Senior Nurse",
+  "Nurse Officer",
+  "Chief Nurse Officer",
+  "Nakuru County Deputy Chief Nursing Officer",
+  "Nakuru County Chief Nursing Officer"
+];
+
 const Register = () => {
-  const [userData, setUserData] = useState({ email: "", password: "" });
+  const [userData, setUserData] = useState({ email: "", password: "", role: "Staff Nurse" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // --- Removed: "redirect if already logged in" effect ---
+  // --- Redirect removed: Users can always access registration page even if logged in ---
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
   };
 
@@ -31,16 +40,17 @@ const Register = () => {
       options: {
         data: {
           full_name: "",
-          role: "Staff Nurse",
+          role: userData.role,
         },
         emailRedirectTo: window.location.origin + "/login"
       }
     });
 
+    // Notify backend to set profile as pending (if already created)
     if (!regError) {
       supabase
         .from("profiles")
-        .update({ status: "pending", email_verified: false })
+        .update({ status: "pending", email_verified: false, role: userData.role })
         .eq("email", userData.email);
     }
 
@@ -50,7 +60,7 @@ const Register = () => {
       setSuccess(
         "Registration submitted! Your account must be approved by an admin before you can log in."
       );
-      setUserData({ email: "", password: "" });
+      setUserData({ email: "", password: "", role: "Staff Nurse" });
     }
     setLoading(false);
   };
@@ -91,6 +101,21 @@ const Register = () => {
             autoFocus
           />
         </div>
+        <div className="mb-4">
+          <label className="block font-semibold mb-1">Role</label>
+          <select
+            name="role"
+            value={userData.role}
+            onChange={handleChange}
+            className="w-full border rounded-md py-2 px-3 bg-background"
+            disabled={loading || !!success}
+            required
+          >
+            {predefinedRoles.map((role) => (
+              <option value={role} key={role}>{role}</option>
+            ))}
+          </select>
+        </div>
         <div className="mb-6">
           <label className="block font-semibold mb-1">Password</label>
           <Input
@@ -121,10 +146,11 @@ const Register = () => {
         </div>
       </form>
       <div className="mt-2 text-xs text-center text-gray-500 opacity-70">
-        You can log in immediately after registering.
+        You must be approved by an admin after registering before you can log in.
       </div>
     </div>
   );
 };
 
 export default Register;
+
