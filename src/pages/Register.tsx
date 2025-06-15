@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import CountyHeader from "@/components/CountyHeader";
@@ -13,14 +13,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // If already logged in, redirect to dashboard (ONLY if session.user is fully loaded)
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && session.user && session.user.email) {
-        navigate("/dashboard", { replace: true });
-      }
-    });
-  }, [navigate]);
+  // --- Removed: "redirect if already logged in" effect ---
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
@@ -32,7 +25,6 @@ const Register = () => {
     setError("");
     setSuccess("");
     
-    // Register without automatic redirect, only upon confirmed account
     const { error: regError } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
@@ -45,10 +37,7 @@ const Register = () => {
       }
     });
 
-    // Mark the new profile as "pending" (if Registered in DB)
     if (!regError) {
-      // Set status in the profile to pending if exists (may not exist immediately)
-      // No need to await—we'll show UI regardless.
       supabase
         .from("profiles")
         .update({ status: "pending", email_verified: false })
