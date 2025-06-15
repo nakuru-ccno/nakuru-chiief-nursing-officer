@@ -5,24 +5,25 @@ import { Home, Activity, FileText, LogIn, LogOut, Settings } from "lucide-react"
 
 const MainNavbar = () => {
   const location = useLocation();
-  const isLoggedIn = !!localStorage.getItem("role");
+  const isLoggedIn = !!localStorage.getItem("role"); // still primary method
   const userRole = localStorage.getItem("role") || "";
-
   // Debug logging
   console.log("MainNavbar - Current role:", userRole);
   console.log("MainNavbar - Is logged in:", isLoggedIn);
-  
+
   // Check if user is admin - enhanced detection
-  const isAdmin = userRole === 'admin' || 
-                  userRole === 'System Administrator' || 
-                  userRole.toLowerCase().includes('admin');
+  const isAdmin =
+    userRole === "admin" ||
+    userRole === "System Administrator" ||
+    userRole.toLowerCase().includes("admin");
 
   console.log("MainNavbar - Is admin:", isAdmin);
 
   // Don't show navigation items on landing, login, or register pages
-  const isPublicPage = location.pathname === "/" || 
-                       location.pathname === "/login" || 
-                       location.pathname === "/register";
+  const isPublicPage =
+    location.pathname === "/" ||
+    location.pathname === "/login" ||
+    location.pathname === "/register";
 
   // Navigation items for regular users
   const userNavItems = [
@@ -41,19 +42,24 @@ const MainNavbar = () => {
 
   // Show appropriate navigation based on user role
   const navItems = isAdmin ? adminNavItems : userNavItems;
-  
+
+  // ------ FIX: Only hide navigation on actual public (landing/auth) pages ------
+  // Always show navigation on protected routes if isLoggedIn
+  const shouldShowNavbar = !isPublicPage && isLoggedIn;
+
+  console.log("MainNavbar - shouldShowNavbar:", shouldShowNavbar);
   console.log("MainNavbar - Selected nav items:", navItems.map(item => item.label));
 
-  return (
+  return shouldShowNavbar ? (
     <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg border-b border-gray-700">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Navigation Links - show for all logged in users */}
           <div className="flex space-x-1">
-            {!isPublicPage && isLoggedIn && navItems.map(item => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.to;
-              
+
               return (
                 <Link
                   key={item.to}
@@ -73,7 +79,7 @@ const MainNavbar = () => {
 
           {/* Auth Button */}
           <div className="flex items-center">
-            {isLoggedIn && !isPublicPage ? (
+            {shouldShowNavbar ? (
               <button
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                 onClick={() => {
@@ -89,7 +95,7 @@ const MainNavbar = () => {
         </div>
       </div>
     </nav>
-  );
+  ) : null;
 };
 
 export default MainNavbar;
