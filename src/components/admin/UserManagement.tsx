@@ -442,7 +442,8 @@ export default function UserManagement() {
                         <Pencil className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDeletingUser(user)}>
-                        <Trash className="mr-2 h-4 w-4" /> Delete
+                        <Trash className="mr-2 h-4 w-4 text-red-600" /> 
+                        <span className="text-red-600">Delete</span>
                       </DropdownMenuItem>
                     </>
                   )}
