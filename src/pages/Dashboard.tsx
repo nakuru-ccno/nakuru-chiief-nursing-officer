@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLiveTime } from "@/hooks/useLiveTime";
 import { supabase } from "@/integrations/supabase/client";
 import MainNavbar from "@/components/MainNavbar";
 import { Calendar } from "@/components/ui/calendar";
@@ -17,6 +18,7 @@ import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { currentTime, greeting } = useLiveTime();
   const [userData, setUserData] = useState({ email: "", full_name: "", role: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -159,10 +161,15 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gray-50">
       <MainNavbar />
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">
-          Welcome, {userData.full_name || userData.email}!
-        </h2>
-
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+          <h2 className="text-2xl font-bold text-gray-800">
+            {greeting},{" "}
+            {userData.full_name || userData.email}!
+          </h2>
+          <span className="font-mono text-base sm:text-lg text-[#fd3572]">
+            {currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}
+          </span>
+        </div>
         {/* Activity Submission Form */}
         <Card className="mb-8">
           <CardHeader>
