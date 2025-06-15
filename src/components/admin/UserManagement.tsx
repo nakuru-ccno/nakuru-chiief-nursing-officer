@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -8,7 +9,6 @@ import {
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -24,42 +24,53 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash, Plus, UserCheck, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AddUserDialog from "./AddUserDialog";
+import EditUserDialog from "./EditUserDialog";
+import DeleteUserDialog from "./DeleteUserDialog";
 
 interface User {
-  id: number;
-  name: string;
+  id: string;
+  full_name: string;
   email: string;
   role: string;
-  status: "active" | "inactive";
+  status: "active" | "pending" | "inactive";
+  email_verified: boolean;
+  approved_at: string | null;
+  approved_by: string | null;
+  created_at: string;
 }
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [activeUsers, setActiveUsers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
-  const [deletingUser, setDeletingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+
+  const predefinedRoles = [
+    "System Administrator",
+    "Nakuru County Chief Nursing Officer",
+    "Nakuru County Deputy Chief Nursing Officer",
+    "Chief Nurse Officer",
+    "Nurse Officer",
+    "Senior Nurse",
+    "Staff Nurse"
+  ];
 
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.from("profiles").select("*");
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .order('created_at', { ascending: false });
+
       if (error) {
         console.error("Error fetching users:", error);
         toast({
@@ -69,7 +80,10 @@ export default function UserManagement() {
         });
         return;
       }
-      setUsers(data);
+
+      const users = data as User[];
+      setActiveUsers(users.filter(user => user.status === 'active'));
+      setPendingUsers(users.filter(user => user.status === 'pending'));
     } catch (error) {
       console.error("Error fetching users:", error);
       toast({
@@ -82,17 +96,60 @@ export default function UserManagement() {
     }
   };
 
-  const handleUpdateUser = async (userId: string, userData: { name: string; email: string; role: string }) => {
+  const handleAddUser = async (userData: { full_name: string; email: string; role: string; password: string }) => {
     try {
       setIsLoading(true);
       
+      // Call the database function to create user
+      const { data, error } = await supabase.rpc('create_admin_user', {
+        user_email: userData.email,
+        user_password: userData.password,
+        user_full_name: userData.full_name,
+        user_role: userData.role
+      });
+
+      if (error || !data?.success) {
+        console.error("Error creating user:", error || data?.error);
+        toast({
+          title: "Error",
+          description: data?.error || "Failed to create user. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "User created successfully! They can now log in immediately.",
+      });
+
+      setShowAddDialog(false);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error creating user:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateUser = async (userId: string, userData: { full_name: string; email: string; role: string; password?: string }) => {
+    try {
+      setIsLoading(true);
+      
+      const updateData: any = {
+        full_name: userData.full_name,
+        email: userData.email,
+        role: userData.role,
+      };
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          full_name: userData.name,
-          email: userData.email,
-          role: userData.role,
-        })
+        .update(updateData)
         .eq("id", userId);
 
       if (error) {
@@ -162,66 +219,225 @@ export default function UserManagement() {
     }
   };
 
+  const handleApproveUser = async (userId: string, userData: { role: string }) => {
+    try {
+      setIsLoading(true);
+      
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          status: 'active',
+          email_verified: true,
+          role: userData.role,
+          approved_at: new Date().toISOString(),
+          approved_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq("id", userId);
+
+      if (error) {
+        console.error("Error approving user:", error);
+        toast({
+          title: "Error",
+          description: "Failed to approve user. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "User approved successfully!",
+      });
+
+      fetchUsers();
+    } catch (error) {
+      console.error("Error approving user:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectUser = async (userId: string) => {
+    try {
+      setIsLoading(true);
+      
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userId);
+
+      if (error) {
+        console.error("Error rejecting user:", error);
+        toast({
+          title: "Error",
+          description: "Failed to reject user. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "User registration rejected and removed.",
+      });
+
+      fetchUsers();
+    } catch (error) {
+      console.error("Error rejecting user:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>User Management</CardTitle>
-        <CardDescription>Manage users and their roles.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.full_name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.role}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={user.status === "active" ? "default" : "secondary"}
-                  >
-                    {user.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+  const UserTable = ({ users, showApprovalActions = false }: { users: User[]; showApprovalActions?: boolean }) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead>Role</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Verified</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {users.map((user) => (
+          <TableRow key={user.id}>
+            <TableCell>{user.full_name}</TableCell>
+            <TableCell>{user.email}</TableCell>
+            <TableCell>{user.role}</TableCell>
+            <TableCell>
+              <Badge
+                variant={user.status === "active" ? "default" : user.status === "pending" ? "secondary" : "destructive"}
+              >
+                {user.status}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <Badge variant={user.email_verified ? "default" : "destructive"}>
+                {user.email_verified ? "Yes" : "No"}
+              </Badge>
+            </TableCell>
+            <TableCell className="text-right">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  {showApprovalActions && user.status === 'pending' ? (
+                    <>
+                      <DropdownMenuItem onClick={() => handleApproveUser(user.id, { role: user.role || 'Staff Nurse' })}>
+                        <UserCheck className="mr-2 h-4 w-4" /> Approve
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleRejectUser(user.id)}>
+                        <UserX className="mr-2 h-4 w-4" /> Reject
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
                       <DropdownMenuItem onClick={() => setEditingUser(user)}>
                         <Pencil className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDeletingUser(user)}>
                         <Trash className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>View Details</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>User Management</CardTitle>
+        <CardDescription>Manage users, approvals, and system access.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="active" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="active">Active Users ({activeUsers.length})</TabsTrigger>
+            <TabsTrigger value="pending">Pending Approval ({pendingUsers.length})</TabsTrigger>
+            <TabsTrigger value="add">Add New User</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="active" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Active Users</h3>
+              <Button onClick={() => setShowAddDialog(true)} className="bg-[#fd3572] hover:bg-[#be2251]">
+                <Plus className="mr-2 h-4 w-4" />
+                Add User
+              </Button>
+            </div>
+            <UserTable users={activeUsers} />
+          </TabsContent>
+          
+          <TabsContent value="pending" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Pending Approval</h3>
+              <Badge variant="secondary">{pendingUsers.length} waiting</Badge>
+            </div>
+            {pendingUsers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No pending user registrations</p>
+              </div>
+            ) : (
+              <UserTable users={pendingUsers} showApprovalActions={true} />
+            )}
+          </TabsContent>
+          
+          <TabsContent value="add" className="space-y-4">
+            <div className="max-w-md mx-auto">
+              <h3 className="text-lg font-medium mb-4">Create New User</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Users created here will be able to log in immediately without email verification.
+              </p>
+              <Button 
+                onClick={() => setShowAddDialog(true)} 
+                className="w-full bg-[#fd3572] hover:bg-[#be2251]"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create New User Account
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
+
+      {/* Add User Dialog */}
+      {showAddDialog && (
+        <AddUserDialog
+          onAddUser={handleAddUser}
+          onCancel={() => setShowAddDialog(false)}
+          predefinedRoles={predefinedRoles}
+        />
+      )}
 
       {/* Edit User Dialog */}
       {editingUser && (
@@ -231,10 +447,11 @@ export default function UserManagement() {
             name: editingUser.full_name || "",
             email: editingUser.email,
             role: editingUser.role || "",
-            status: "active"
+            status: editingUser.status
           }}
           onUpdateUser={(userData) => handleUpdateUser(editingUser.id, userData)}
           onCancel={() => setEditingUser(null)}
+          predefinedRoles={predefinedRoles}
         />
       )}
 
@@ -245,118 +462,12 @@ export default function UserManagement() {
             id: parseInt(deletingUser.id),
             name: deletingUser.full_name || deletingUser.email,
             email: deletingUser.email,
-            role: deletingUser.role || "",
-            status: "active"
+            role: deletingUser.role || ""
           }}
-          onConfirm={() => handleDeleteUser(deletingUser.id)}
+          onConfirmDelete={() => handleDeleteUser(deletingUser.id)}
           onCancel={() => setDeletingUser(null)}
         />
       )}
     </Card>
-  );
-}
-
-interface EditUserDialogProps {
-  user: User;
-  onUpdateUser: (userData: { name: string; email: string; role: string }) => void;
-  onCancel: () => void;
-}
-
-function EditUserDialog({ user, onUpdateUser, onCancel }: EditUserDialogProps) {
-  const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
-  const [role, setRole] = useState(user.role);
-
-  const handleSubmit = () => {
-    onUpdateUser({ name, email, role });
-  };
-
-  return (
-    <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>
-            Make changes to the user's profile here. Click save when you're done.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
-              Name
-            </Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="email" className="text-right">
-              Email
-            </Label>
-            <Input
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="role" className="text-right">
-              Role
-            </Label>
-            <Select onValueChange={setRole} defaultValue={role}>
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="editor">Editor</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" onClick={handleSubmit}>
-            Save changes
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface DeleteUserDialogProps {
-  user: User;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-function DeleteUserDialog({ user, onConfirm, onCancel }: DeleteUserDialogProps) {
-  return (
-    <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Delete User</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete {user.name}? This action cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button type="button" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="destructive" onClick={onConfirm}>
-            Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

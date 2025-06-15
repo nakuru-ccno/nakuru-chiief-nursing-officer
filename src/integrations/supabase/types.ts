@@ -50,30 +50,50 @@ export type Database = {
       }
       profiles: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           created_at: string | null
           email: string
+          email_verified: boolean | null
           full_name: string | null
           id: string
           last_sign_in_at: string | null
           role: string | null
+          status: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string | null
           email: string
+          email_verified?: boolean | null
           full_name?: string | null
           id?: string
           last_sign_in_at?: string | null
           role?: string | null
+          status?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string | null
           email?: string
+          email_verified?: boolean | null
           full_name?: string | null
           id?: string
           last_sign_in_at?: string | null
           role?: string | null
+          status?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       users: {
         Row: {
@@ -95,7 +115,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_admin_user: {
+        Args: {
+          user_email: string
+          user_password: string
+          user_full_name: string
+          user_role: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
