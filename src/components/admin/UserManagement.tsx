@@ -98,12 +98,7 @@ export default function UserManagement() {
   const handleAddUser = async (userData: { full_name: string; email: string; role: string; password: string }) => {
     try {
       setIsLoading(true);
-      console.log("🔥 DEBUG: Starting user creation with data:", {
-        email: userData.email,
-        role: userData.role,
-        full_name: userData.full_name,
-        password_length: userData.password.length
-      });
+      console.log("Creating user with data:", userData);
 
       // Call the database function to create user
       const { data, error } = await supabase.rpc('create_admin_user', {
@@ -113,46 +108,34 @@ export default function UserManagement() {
         user_role: userData.role
       });
 
-      console.log("🔥 DEBUG: Supabase RPC response:", { data, error });
+      console.log("Supabase response:", { data, error });
 
       if (error) {
-        console.error("🔥 DEBUG: Supabase RPC error:", error);
+        console.error("Supabase error:", error);
         toast({
           title: "Error",
-          description: `Database error: ${error.message}`,
+          description: `Failed to create user: ${error.message}`,
           variant: "destructive",
         });
         return;
       }
 
-      // Check if the response indicates success
-      if (data && typeof data === 'object' && 'success' in data) {
-        if (data.success) {
-          console.log("🔥 DEBUG: User created successfully!");
-          toast({
-            title: "Success",
-            description: "User created successfully! They can now log in immediately.",
-          });
-          setShowAddDialog(false);
-          fetchUsers();
-        } else {
-          console.error("🔥 DEBUG: Function returned failure:", data.error);
-          toast({
-            title: "Error",
-            description: typeof data.error === 'string' ? data.error : "Failed to create user.",
-            variant: "destructive",
-          });
-        }
-      } else {
-        console.error("🔥 DEBUG: Unexpected response format:", data);
+      if (data?.success) {
         toast({
-          title: "Error",
-          description: "Unexpected response from server.",
+          title: "Success",
+          description: "User created successfully!",
+        });
+        setShowAddDialog(false);
+        fetchUsers();
+      } else {
+        toast({
+          title: "Error", 
+          description: data?.error || "Failed to create user",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error("🔥 DEBUG: Caught exception:", error);
+      console.error("Caught exception:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred during user creation.",
