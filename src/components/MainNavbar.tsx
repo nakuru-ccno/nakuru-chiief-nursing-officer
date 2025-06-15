@@ -83,7 +83,7 @@ const MainNavbar = () => {
               >
                 <LogOut size={16} />
                 <span>Logout</span>
-              </Button>
+              </button>
             ) : null}
           </div>
         </div>
