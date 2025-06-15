@@ -188,25 +188,58 @@ export default function UserManagement() {
   const handleUpdateUser = async (userId: string, userData: { full_name: string; email: string; role: string; password?: string }) => {
     try {
       setIsLoading(true);
-      
+
+      // 1. Fetch existing user profile/email
+      const { data: oldProfile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", userId)
+        .maybeSingle();
+
       const updateData: any = {
         full_name: userData.full_name,
         email: userData.email,
         role: userData.role,
       };
 
+      // 2. If email or password changed, update via Auth Admin API
+      const emailChanged = oldProfile && oldProfile.email !== userData.email;
+      if (emailChanged || userData.password) {
+        const authUpdate: any = {};
+        if (emailChanged) authUpdate.email = userData.email;
+        if (userData.password) authUpdate.password = userData.password;
+
+        // Must use Supabase Admin API for sensitive actions
+        const { error: authError } = await supabase.auth.admin.updateUserById(
+          userId,
+          authUpdate
+        );
+        if (authError) {
+          console.error("Error updating Auth user:", authError);
+          toast({
+            title: "Error",
+            description: "Failed to update the authentication record. The user may not be able to log in.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // 3. Always update the profile table
       const { error } = await supabase
         .from("profiles")
         .update(updateData)
         .eq("id", userId);
 
       if (error) {
-        console.error("Error updating user:", error);
+        console.error("Error updating user profile:", error);
         toast({
           title: "Error",
-          description: "Failed to update user. Please try again.",
+          description: "Failed to update user profile.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
