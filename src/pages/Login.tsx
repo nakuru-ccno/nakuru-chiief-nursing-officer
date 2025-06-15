@@ -36,9 +36,32 @@ const Login = () => {
           return;
         }
 
-        // Explicit check for confirmed user
         if (data?.user && data.user.email) {
-          // Set admin role based on known username or user metadata
+          // Fetch user profile to check status
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('status')
+            .eq('email', data.user.email)
+            .maybeSingle();
+
+          if (profileError || !profile) {
+            setError(
+              "Your account could not be validated. Please contact admin if issues persist."
+            );
+            setLoading(false);
+            return;
+          }
+          if (profile.status !== "active") {
+            setError(
+              "Your account is pending admin approval. Please wait for an admin to activate your account."
+            );
+            setLoading(false);
+            // Log out the user if they are not active
+            await supabase.auth.signOut();
+            return;
+          }
+
+          // Allow admin to login directly
           if (
             userData.username === "admin@nakuru.go.ke" ||
             data.user?.user_metadata?.name === "System Administrator"

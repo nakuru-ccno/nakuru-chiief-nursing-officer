@@ -31,18 +31,35 @@ const Register = () => {
     setLoading(true);
     setError("");
     setSuccess("");
-
+    
     // Register without automatic redirect, only upon confirmed account
     const { error: regError } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
+      options: {
+        data: {
+          full_name: "",
+          role: "Staff Nurse",
+        },
+        emailRedirectTo: window.location.origin + "/login"
+      }
     });
+
+    // Mark the new profile as "pending" (if Registered in DB)
+    if (!regError) {
+      // Set status in the profile to pending if exists (may not exist immediately)
+      // No need to await—we'll show UI regardless.
+      supabase
+        .from("profiles")
+        .update({ status: "pending", email_verified: false })
+        .eq("email", userData.email);
+    }
 
     if (regError) {
       setError(regError.message || "Registration failed.");
     } else {
       setSuccess(
-        "Registration successful! You can now log in with your credentials."
+        "Registration submitted! Your account must be approved by an admin before you can log in."
       );
       setUserData({ email: "", password: "" });
     }
