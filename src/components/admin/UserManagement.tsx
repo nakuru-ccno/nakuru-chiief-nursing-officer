@@ -387,6 +387,32 @@ export default function UserManagement() {
     fetchUsers();
   }, []);
 
+  // --- START: Add realtime sync effect below the initial fetchUsers effect ---
+  useEffect(() => {
+    // Listen for INSERT, UPDATE, DELETE events on profiles table
+    const channel = supabase
+      .channel('profiles-live-sync')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload) => {
+          console.log("🔄 Profiles table changed live!", payload);
+          // Refresh users when any change occurs
+          fetchUsers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+  // --- END: Realtime sync effect ---
+
   const UserTable = ({ users, showApprovalActions = false }: { users: User[]; showApprovalActions?: boolean }) => (
     <Table>
       <TableHeader>
