@@ -13,9 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, Clock, User, Activity, Plus, FileText } from "lucide-react";
+import { CalendarIcon, Clock, User, Activity, Plus, FileText, Edit, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
+import EditActivityDialog from "@/components/admin/EditActivityDialog";
+import DeleteActivityDialog from "@/components/admin/DeleteActivityDialog";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -33,10 +35,16 @@ const Dashboard = () => {
     date: format(date || new Date(), "yyyy-MM-dd"),
   });
   const [activities, setActivities] = useState<any[]>([]);
+  const [totalActivities, setTotalActivities] = useState(0);
+  const [todayActivities, setTodayActivities] = useState(0);
+  const [editingActivity, setEditingActivity] = useState<any>(null);
+  const [deletingActivity, setDeletingActivity] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const predefinedActivityTypes = [
     "Administrative",
-    "Meetings",
+    "Meetings", 
     "Training",
     "Documentation",
     "Supervision",
@@ -47,9 +55,16 @@ const Dashboard = () => {
     const { data, error } = await supabase
       .from("activities")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(5);
-    if (!error) setActivities(data ?? []);
+      .order("created_at", { ascending: false });
+    
+    if (!error && data) {
+      setActivities(data);
+      setTotalActivities(data.length);
+      
+      const today = format(new Date(), "yyyy-MM-dd");
+      const todayCount = data.filter(activity => activity.date === today).length;
+      setTodayActivities(todayCount);
+    }
   }, []);
 
   useEffect(() => {
@@ -160,6 +175,36 @@ const Dashboard = () => {
     }
   };
 
+  const handleEditActivity = (activity: any) => {
+    setEditingActivity(activity);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteActivity = (activity: any) => {
+    setDeletingActivity(activity);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleActivityUpdated = (updatedActivity: any) => {
+    fetchActivities();
+    setIsEditDialogOpen(false);
+    setEditingActivity(null);
+    toast({
+      title: "Success",
+      description: "Activity updated successfully!",
+    });
+  };
+
+  const handleActivityDeleted = () => {
+    fetchActivities();
+    setIsDeleteDialogOpen(false);
+    setDeletingActivity(null);
+    toast({
+      title: "Success",
+      description: "Activity deleted successfully!",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <MainNavbar />
@@ -195,49 +240,47 @@ const Dashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100">Today's Activities</p>
+                  <p className="text-3xl font-bold">{todayActivities}</p>
+                </div>
+                <Activity className="h-10 w-10 text-blue-200" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100">Total Activities</p>
+                  <p className="text-3xl font-bold">{totalActivities}</p>
+                </div>
+                <FileText className="h-10 w-10 text-green-200" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100">Current Time</p>
+                  <p className="text-xl font-bold">{format(new Date(), "MMM dd, yyyy")}</p>
+                </div>
+                <CalendarIcon className="h-10 w-10 text-purple-200" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Quick Stats */}
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-blue-100">Today's Activities</p>
-                      <p className="text-3xl font-bold">{activities.filter(a => a.date === format(new Date(), "yyyy-MM-dd")).length}</p>
-                    </div>
-                    <Activity className="h-10 w-10 text-blue-200" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-green-100">Total Activities</p>
-                      <p className="text-3xl font-bold">{activities.length}</p>
-                    </div>
-                    <FileText className="h-10 w-10 text-green-200" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-100">Current Time</p>
-                      <p className="text-xl font-bold">{format(new Date(), "MMM dd, yyyy")}</p>
-                    </div>
-                    <CalendarIcon className="h-10 w-10 text-purple-200" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
           {/* Activity Form */}
           <div className="lg:col-span-2">
             <Card className="shadow-lg border-0">
@@ -384,16 +427,16 @@ const Dashboard = () => {
             </Card>
           </div>
 
-          {/* Recent Activities */}
+          {/* Daily Activities Navigation */}
           <div className="lg:col-span-1">
             <Card className="shadow-lg border-0">
               <CardHeader className="bg-gray-50 rounded-t-lg">
                 <CardTitle className="flex items-center gap-2 text-gray-800">
                   <Activity className="h-5 w-5 text-[#fd3572]" />
-                  Recent Activities
+                  Daily Activities
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className="p-0 max-h-96 overflow-y-auto">
                 {activities.length === 0 ? (
                   <div className="p-6 text-center text-gray-500">
                     <Activity className="h-12 w-12 mx-auto text-gray-300 mb-3" />
@@ -402,9 +445,9 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100">
-                    {activities.map((activity, index) => (
+                    {activities.map((activity) => (
                       <div key={activity.id} className="p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex justify-between items-start">
+                        <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900 truncate">
                               {activity.title}
@@ -416,10 +459,26 @@ const Dashboard = () => {
                               {activity.date} • {activity.duration} min
                             </p>
                           </div>
-                          <div className={cn(
-                            "w-2 h-2 rounded-full flex-shrink-0 mt-2",
-                            index === 0 ? "bg-green-500" : "bg-gray-300"
-                          )} />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditActivity(activity)}
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8 px-2"
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteActivity(activity)}
+                            className="text-red-600 border-red-200 hover:bg-red-50 h-8 px-2"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -430,6 +489,32 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Activity Dialog */}
+      {editingActivity && (
+        <EditActivityDialog
+          activity={editingActivity}
+          open={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setEditingActivity(null);
+          }}
+          onActivityUpdated={handleActivityUpdated}
+        />
+      )}
+
+      {/* Delete Activity Dialog */}
+      {deletingActivity && (
+        <DeleteActivityDialog
+          activity={deletingActivity}
+          open={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setDeletingActivity(null);
+          }}
+          onActivityDeleted={handleActivityDeleted}
+        />
+      )}
     </div>
   );
 };
