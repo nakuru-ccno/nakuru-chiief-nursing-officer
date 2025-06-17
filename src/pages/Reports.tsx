@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -6,10 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit } from "lucide-react";
+import { Edit, FileText, Calendar, Clock, Users } from "lucide-react";
 import EditActivityDialog from "@/components/admin/EditActivityDialog";
-import ReportFilters from "@/components/reports/ReportFilters";
-import ExportTabs from "@/components/reports/ExportTabs";
 import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
 
 type Activity = {
@@ -27,17 +26,10 @@ type Activity = {
 
 export default function Reports() {
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
-  const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  
-  // Filter states
-  const [dateRange, setDateRange] = useState<string>("all");
-  const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
-  const [activityType, setActivityType] = useState<string>("all");
 
   const { toast } = useToast();
 
@@ -46,11 +38,6 @@ export default function Reports() {
     getCurrentUser();
     fetchActivities();
   }, []);
-
-  useEffect(() => {
-    console.log('🔍 Applying filters...');
-    applyFilters();
-  }, [allActivities, dateRange, startDate, endDate, activityType]);
 
   const getCurrentUser = async () => {
     try {
@@ -71,12 +58,22 @@ export default function Reports() {
   };
 
   const fetchActivities = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("activities")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (!error) setAllActivities(data ?? []);
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("activities")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      
+      if (!error && data) {
+        setAllActivities(data);
+      }
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -84,35 +81,6 @@ export default function Reports() {
   }, [fetchActivities]);
 
   useActivitiesRealtime(fetchActivities);
-
-  const applyFilters = () => {
-    let filtered = [...allActivities];
-    console.log('🔍 Starting with', filtered.length, 'activities');
-
-    // Apply date filters
-    if (startDate && endDate) {
-      filtered = filtered.filter(activity => {
-        const activityDate = new Date(activity.created_at);
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        start.setHours(0, 0, 0, 0);
-        end.setHours(23, 59, 59, 999);
-        return activityDate >= start && activityDate <= end;
-      });
-      console.log('📅 After date filter:', filtered.length, 'activities');
-    }
-
-    // Apply activity type filter
-    if (activityType !== "all") {
-      filtered = filtered.filter(activity => 
-        activity.type.toLowerCase() === activityType.toLowerCase()
-      );
-      console.log('🏷️ After type filter:', filtered.length, 'activities');
-    }
-
-    setFilteredActivities(filtered);
-    console.log('✅ Filters applied, showing:', filtered.length, 'activities');
-  };
 
   const handleEditActivity = (activity: Activity) => {
     setEditingActivity(activity);
@@ -145,32 +113,23 @@ export default function Reports() {
     return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return "Good Morning";
-    if (hour >= 12 && hour < 17) return "Good Afternoon";
-    if (hour >= 17 && hour < 22) return "Good Evening";
-    return "Good Night";
-  };
-
   // Calculate statistics
-  const totalActivities = filteredActivities.length;
+  const totalActivities = allActivities.length;
   const thisMonth = new Date();
   thisMonth.setDate(1);
-  const thisMonthActivities = filteredActivities.filter(activity => {
+  const thisMonthActivities = allActivities.filter(activity => {
     const activityDate = new Date(activity.created_at);
     return activityDate >= thisMonth;
   }).length;
-
-  const totalHours = Math.floor(filteredActivities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
-  const uniqueUsers = new Set(filteredActivities.map(activity => activity.submitted_by).filter(Boolean)).size;
+  const totalHours = Math.floor(allActivities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
+  const averageDuration = totalActivities > 0 ? Math.round(allActivities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <CountyHeader />
         <MainNavbar />
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto p-8">
           <div className="text-center py-8 text-gray-500">
             <p>Loading reports...</p>
           </div>
@@ -184,134 +143,143 @@ export default function Reports() {
       <CountyHeader />
       <MainNavbar />
       
-      <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{getGreeting()}, {currentUser}!</h1>
-          <p className="text-lg sm:text-xl mb-2">County of Unlimited Opportunities</p>
-          <p className="text-sm sm:text-base opacity-90">📊 Professional Reports & Analytics</p>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 -mt-6">
-        <ReportFilters
-          dateRange={dateRange}
-          setDateRange={setDateRange}
-          startDate={startDate}
-          setStartDate={setStartDate}
-          endDate={endDate}
-          setEndDate={setEndDate}
-          activityType={activityType}
-          setActivityType={setActivityType}
-          onApplyFilters={applyFilters}
-          totalRecords={filteredActivities.length}
-        />
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-red-50 border-red-200">
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-2xl sm:text-3xl font-bold text-red-600 mb-1">{totalActivities}</div>
-              <div className="text-xs sm:text-sm text-red-700 font-medium">Filtered Activities</div>
-              <div className="text-xs text-red-600">Matching criteria</div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-2xl sm:text-3xl font-bold text-blue-600 mb-1">{thisMonthActivities}</div>
-              <div className="text-xs sm:text-sm text-blue-700 font-medium">This Month</div>
-              <div className="text-xs text-blue-600">Current month</div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-green-50 border-green-200">
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-2xl sm:text-3xl font-bold text-green-600 mb-1">{totalHours}</div>
-              <div className="text-xs sm:text-sm text-green-700 font-medium">Total Hours</div>
-              <div className="text-xs text-green-600">Hours logged</div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-yellow-50 border-yellow-200">
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-2xl sm:text-3xl font-bold text-yellow-600 mb-1">{uniqueUsers}</div>
-              <div className="text-xs sm:text-sm text-yellow-700 font-medium">Contributors</div>
-              <div className="text-xs text-yellow-600">Unique users</div>
-            </CardContent>
-          </Card>
-        </div>
-
+      <div className="max-w-7xl mx-auto p-8">
+        {/* Header */}
         <div className="mb-8">
-          <ExportTabs
-            activities={filteredActivities}
-            dateRange={dateRange}
-            startDate={startDate}
-            endDate={endDate}
-            activityType={activityType}
-          />
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Activity Reports</h1>
+          <p className="text-gray-600">Comprehensive analysis of your daily activities</p>
+          <div className="flex justify-end mt-4">
+            <Button className="bg-pink-500 hover:bg-pink-600 text-white">
+              <FileText className="w-4 h-4 mr-2" />
+              Export Report
+            </Button>
+          </div>
         </div>
 
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="border-l-4 border-l-red-500">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Total Activities</p>
+                  <p className="text-3xl font-bold text-red-600">{totalActivities}</p>
+                  <p className="text-xs text-gray-500">All time activities recorded</p>
+                </div>
+                <FileText className="h-8 w-8 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-blue-500">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">This Month</p>
+                  <p className="text-3xl font-bold text-blue-600">{thisMonthActivities}</p>
+                  <p className="text-xs text-gray-500">Activities this month</p>
+                </div>
+                <Calendar className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-green-500">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Total Hours</p>
+                  <p className="text-3xl font-bold text-green-600">{totalHours}</p>
+                  <p className="text-xs text-gray-500">Hours of activities</p>
+                </div>
+                <Clock className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-yellow-500">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Average Duration</p>
+                  <p className="text-3xl font-bold text-yellow-600">{averageDuration}</p>
+                  <p className="text-xs text-gray-500">Minutes per activity</p>
+                </div>
+                <Users className="h-8 w-8 text-yellow-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Activities */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-green-700">Filtered Activities Preview</CardTitle>
-            <p className="text-sm text-gray-600">Preview of activities matching your current filters</p>
+            <CardTitle className="text-xl font-semibold text-gray-800">Recent Activities</CardTitle>
+            <p className="text-sm text-gray-600">Your latest recorded activities with detailed information</p>
           </CardHeader>
           <CardContent>
-            {filteredActivities.length > 0 ? (
+            {allActivities.length > 0 ? (
               <div className="space-y-4">
-                {filteredActivities.slice(0, 10).map((activity) => (
-                  <div key={activity.id} className="border-l-4 border-l-blue-500 pl-4 py-3 bg-gray-50 rounded-r">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                {allActivities.slice(0, 10).map((activity) => (
+                  <div key={activity.id} className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-sm text-gray-900 uppercase tracking-wide">
-                          {activity.title}
-                        </h4>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{activity.description}</p>
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-gray-900">{activity.title}</h3>
                           <Badge className={`${getTypeColor(activity.type)} text-xs`}>
                             {activity.type}
                           </Badge>
-                          <span className="text-xs text-gray-500">{activity.duration} min</span>
-                          <span className="text-xs text-gray-500">by {activity.submitted_by}</span>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditActivity(activity)}
-                          className="text-xs"
-                        >
-                          <Edit size={12} className="mr-1" />
-                          Edit
-                        </Button>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500">
+                        <p className="text-gray-600 text-sm mb-3 leading-relaxed">
+                          {activity.description}
+                        </p>
+                        <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
                             {new Date(activity.created_at).toLocaleDateString()}
-                          </div>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {activity.duration} minutes
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {activity.submitted_by}
+                          </span>
+                          {activity.facility && (
+                            <span>Facility: {activity.facility}</span>
+                          )}
                         </div>
                       </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditActivity(activity)}
+                        className="ml-4"
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
+                      </Button>
                     </div>
                   </div>
                 ))}
-                {filteredActivities.length > 10 && (
-                  <div className="text-center py-4">
+                {allActivities.length > 10 && (
+                  <div className="text-center py-4 border-t">
                     <p className="text-sm text-gray-500">
-                      Showing 10 of {filteredActivities.length} filtered activities. Use export options above to get complete reports.
+                      Showing 10 of {allActivities.length} activities
                     </p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">No activities match your current filters. Try adjusting the date range or activity type.</p>
+              <div className="text-center py-12">
+                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-2">No activities found</p>
+                <p className="text-sm text-gray-400">Start logging activities to see your reports here</p>
               </div>
             )}
           </CardContent>
         </Card>
-        
-        <div className="text-sm italic text-gray-500 mt-6 text-center">
-          Professional reporting system with advanced filtering and export capabilities.
-        </div>
       </div>
 
       {editingActivity && (
