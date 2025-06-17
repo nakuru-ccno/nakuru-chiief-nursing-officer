@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -9,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Edit, FileText, Calendar, Clock, Users } from "lucide-react";
 import EditActivityDialog from "@/components/admin/EditActivityDialog";
+import ReportsExportDialog from "@/components/reports/ReportsExportDialog";
 import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
 
 type Activity = {
@@ -30,6 +30,7 @@ export default function Reports() {
   const [currentUser, setCurrentUser] = useState<string>("");
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -149,7 +150,10 @@ export default function Reports() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Activity Reports</h1>
           <p className="text-gray-600">Comprehensive analysis of your daily activities</p>
           <div className="flex justify-end mt-4">
-            <Button className="bg-pink-500 hover:bg-pink-600 text-white">
+            <Button 
+              className="bg-pink-500 hover:bg-pink-600 text-white"
+              onClick={() => setIsExportDialogOpen(true)}
+            >
               <FileText className="w-4 h-4 mr-2" />
               Export Report
             </Button>
@@ -293,6 +297,12 @@ export default function Reports() {
           onActivityUpdated={handleActivityUpdated}
         />
       )}
+
+      <ReportsExportDialog
+        open={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        activities={allActivities}
+      />
     </div>
   );
 }
