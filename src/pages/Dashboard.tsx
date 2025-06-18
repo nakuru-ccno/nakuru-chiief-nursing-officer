@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLiveTime } from "@/hooks/useLiveTime";
@@ -13,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, Clock, User, Activity, Plus, FileText, Edit, Trash2 } from "lucide-react";
+import { CalendarIcon, Clock, User, Activity, Plus, FileText, Edit, Trash2, TrendingUp, BarChart3 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
 import EditActivityDialog from "@/components/admin/EditActivityDialog";
@@ -37,6 +36,9 @@ const Dashboard = () => {
   const [activities, setActivities] = useState<any[]>([]);
   const [totalActivities, setTotalActivities] = useState(0);
   const [todayActivities, setTodayActivities] = useState(0);
+  const [monthlyActivities, setMonthlyActivities] = useState(0);
+  const [totalHours, setTotalHours] = useState(0);
+  const [averageMinutes, setAverageMinutes] = useState(0);
   const [editingActivity, setEditingActivity] = useState<any>(null);
   const [deletingActivity, setDeletingActivity] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -62,8 +64,18 @@ const Dashboard = () => {
       setTotalActivities(data.length);
       
       const today = format(new Date(), "yyyy-MM-dd");
+      const currentMonth = format(new Date(), "yyyy-MM");
+      
       const todayCount = data.filter(activity => activity.date === today).length;
+      const monthlyCount = data.filter(activity => activity.date?.startsWith(currentMonth)).length;
+      
       setTodayActivities(todayCount);
+      setMonthlyActivities(monthlyCount);
+      
+      // Calculate total hours and average minutes
+      const totalMinutes = data.reduce((sum, activity) => sum + (activity.duration || 0), 0);
+      setTotalHours(Math.round((totalMinutes / 60) * 100) / 100);
+      setAverageMinutes(data.length > 0 ? Math.round(totalMinutes / data.length) : 0);
     }
   }, []);
 
@@ -206,287 +218,287 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <MainNavbar />
       
-      {/* Header Section */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-r from-[#fd3572] to-[#be2251] rounded-xl">
-                <User className="h-8 w-8 text-white" />
+      <div className="max-w-6xl mx-auto p-6">
+        {/* Header Section with Gradient */}
+        <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 rounded-2xl p-8 mb-8 text-white">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                {greeting}, {userData.full_name || "wendy"}
+              </h1>
+              <p className="text-xl mb-1">Nakuru County Chief Nursing Officer</p>
+              <p className="text-lg mb-4">County of Unlimited Opportunities</p>
+              <div className="flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <span>📍</span>
+                  <span>Nakuru County HQ</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    {currentTime.toLocaleTimeString([], { 
+                      hour: "2-digit", 
+                      minute: "2-digit", 
+                      second: "2-digit", 
+                      hour12: true 
+                    })}
+                  </span>
+                </div>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {greeting}, {userData.full_name || "User"}!
-                </h1>
-                <p className="text-gray-600 mt-1">{userData.role}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 bg-gray-50 px-4 py-3 rounded-xl">
-              <Clock className="h-5 w-5 text-[#fd3572]" />
-              <span className="font-mono text-lg text-gray-800">
-                {currentTime.toLocaleTimeString([], { 
-                  hour: "2-digit", 
-                  minute: "2-digit", 
-                  second: "2-digit", 
-                  hour12: true 
-                })}
-              </span>
+              <p className="text-sm mt-2">{format(new Date(), "EEEE, MMMM dd, yyyy")}</p>
             </div>
           </div>
+          <div className="mt-6 text-center">
+            <p className="text-sm">⭐ Real-time synchronized across all your devices</p>
+          </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Quick Stats */}
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="border-l-4 border-l-pink-500">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-600">Total Activities</h3>
+                <TrendingUp className="w-4 h-4 text-pink-500" />
+              </div>
+              <div className="text-3xl font-bold text-pink-600 mb-1">{totalActivities}</div>
+              <p className="text-xs text-gray-500">All time activities</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-blue-500">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-600">This Month</h3>
+                <BarChart3 className="w-4 h-4 text-blue-500" />
+              </div>
+              <div className="text-3xl font-bold text-blue-600 mb-1">{monthlyActivities}</div>
+              <p className="text-xs text-gray-500">Activities this month</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-green-500">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-600">Total Hours</h3>
+                <Clock className="w-4 h-4 text-green-500" />
+              </div>
+              <div className="text-3xl font-bold text-green-600 mb-1">{totalHours}</div>
+              <p className="text-xs text-gray-500">Hours logged</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-orange-500">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-600">Average</h3>
+                <Activity className="w-4 h-4 text-orange-500" />
+              </div>
+              <div className="text-3xl font-bold text-orange-600 mb-1">{averageMinutes}</div>
+              <p className="text-xs text-gray-500">Minutes per activity</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100">Today's Activities</p>
-                  <p className="text-3xl font-bold">{todayActivities}</p>
-                </div>
-                <Activity className="h-10 w-10 text-blue-200" />
-              </div>
-            </CardContent>
+          <Card className="text-center p-8 hover:shadow-lg transition-shadow">
+            <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Plus className="w-8 h-8 text-pink-500" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Add New Activity</h3>
+            <p className="text-gray-600 text-sm mb-4">Record your daily administrative tasks</p>
+            <Button 
+              className="bg-pink-500 hover:bg-pink-600 text-white px-8"
+              onClick={() => document.getElementById('activity-form')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              Create Activity
+            </Button>
           </Card>
-          
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100">Total Activities</p>
-                  <p className="text-3xl font-bold">{totalActivities}</p>
-                </div>
-                <FileText className="h-10 w-10 text-green-200" />
-              </div>
-            </CardContent>
+
+          <Card className="text-center p-8 hover:shadow-lg transition-shadow">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BarChart3 className="w-8 h-8 text-blue-500" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">View Activities</h3>
+            <p className="text-gray-600 text-sm mb-4">Browse and manage all your activities</p>
+            <Button 
+              variant="outline" 
+              className="border-blue-500 text-blue-500 hover:bg-blue-50 px-8"
+              onClick={() => navigate('/activities')}
+            >
+              View All ({totalActivities})
+            </Button>
           </Card>
-          
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100">Current Time</p>
-                  <p className="text-xl font-bold">{format(new Date(), "MMM dd, yyyy")}</p>
-                </div>
-                <CalendarIcon className="h-10 w-10 text-purple-200" />
-              </div>
-            </CardContent>
+
+          <Card className="text-center p-8 hover:shadow-lg transition-shadow">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-green-500" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Generate Reports</h3>
+            <p className="text-gray-600 text-sm mb-4">Export and analyze your activity data</p>
+            <Button 
+              variant="outline" 
+              className="border-green-500 text-green-500 hover:bg-green-50 px-8"
+              onClick={() => navigate('/reports')}
+            >
+              View Reports
+            </Button>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Activity Form */}
-          <div className="lg:col-span-2">
-            <Card className="shadow-lg border-0">
-              <CardHeader className="bg-gradient-to-r from-[#fd3572] to-[#be2251] text-white rounded-t-lg">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Plus className="h-6 w-6" />
-                  Log New Activity
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                      {error}
-                    </div>
-                  )}
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title" className="text-sm font-medium text-gray-700">
-                        Activity Title
-                      </Label>
-                      <Input
-                        id="title"
-                        name="title"
-                        value={activityData.title}
-                        onChange={handleChange}
-                        placeholder="Enter activity title"
-                        required
-                        disabled={loading}
-                        className="border-gray-300 focus:border-[#fd3572] focus:ring-[#fd3572]"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="type" className="text-sm font-medium text-gray-700">
-                        Activity Type
-                      </Label>
-                      <select
-                        id="type"
-                        name="type"
-                        value={activityData.type}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-md py-2 px-3 bg-white focus:border-[#fd3572] focus:ring-1 focus:ring-[#fd3572]"
-                        disabled={loading}
-                        required
-                      >
-                        {predefinedActivityTypes.map((type) => (
-                          <option value={type} key={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+        {/* Bottom Note */}
+        <div className="text-center py-4">
+          <p className="text-sm text-gray-500">⭐ Dashboard synchronized in real-time across all your devices</p>
+        </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-sm font-medium text-gray-700">
-                      Description
-                    </Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      value={activityData.description}
-                      onChange={handleChange}
-                      placeholder="Describe your activity..."
-                      rows={3}
-                      disabled={loading}
-                      className="border-gray-300 focus:border-[#fd3572] focus:ring-[#fd3572]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="facility" className="text-sm font-medium text-gray-700">
-                        Facility
-                      </Label>
-                      <Input
-                        id="facility"
-                        name="facility"
-                        value={activityData.facility}
-                        onChange={handleChange}
-                        placeholder="Enter facility name"
-                        disabled={loading}
-                        className="border-gray-300 focus:border-[#fd3572] focus:ring-[#fd3572]"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
-                        Duration (minutes)
-                      </Label>
-                      <Input
-                        type="number"
-                        id="duration"
-                        name="duration"
-                        value={activityData.duration}
-                        onChange={handleChange}
-                        min="5"
-                        max="720"
-                        disabled={loading}
-                        className="border-gray-300 focus:border-[#fd3572] focus:ring-[#fd3572]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal border-gray-300",
-                            !date && "text-muted-foreground"
-                          )}
-                          disabled={loading}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {date ? format(date, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={date}
-                          onSelect={setDate}
-                          disabled={loading}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    disabled={loading}
-                    className="w-full bg-gradient-to-r from-[#fd3572] to-[#be2251] hover:from-[#be2251] hover:to-[#9d1e42] text-white py-3 text-lg font-medium"
-                  >
-                    {loading ? "Submitting..." : "Log Activity"}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Daily Activities Navigation */}
-          <div className="lg:col-span-1">
-            <Card className="shadow-lg border-0">
-              <CardHeader className="bg-gray-50 rounded-t-lg">
-                <CardTitle className="flex items-center gap-2 text-gray-800">
-                  <Activity className="h-5 w-5 text-[#fd3572]" />
-                  Daily Activities
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 max-h-96 overflow-y-auto">
-                {activities.length === 0 ? (
-                  <div className="p-6 text-center text-gray-500">
-                    <Activity className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                    <p>No activities yet</p>
-                    <p className="text-sm">Log your first activity to get started!</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-100">
-                    {activities.map((activity) => (
-                      <div key={activity.id} className="p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 truncate">
-                              {activity.title}
-                            </h4>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {activity.type}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {activity.date} • {activity.duration} min
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditActivity(activity)}
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8 px-2"
-                          >
-                            <Edit className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteActivity(activity)}
-                            className="text-red-600 border-red-200 hover:bg-red-50 h-8 px-2"
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+        {/* Activity Form - Hidden by default, shown when Create Activity is clicked */}
+        <div id="activity-form" className="mt-8">
+          <Card className="shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-t-lg">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Plus className="h-6 w-6" />
+                Log New Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    {error}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title" className="text-sm font-medium text-gray-700">
+                      Activity Title
+                    </Label>
+                    <Input
+                      id="title"
+                      name="title"
+                      value={activityData.title}
+                      onChange={handleChange}
+                      placeholder="Enter activity title"
+                      required
+                      disabled={loading}
+                      className="border-gray-300 focus:border-pink-500 focus:ring-pink-500"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="type" className="text-sm font-medium text-gray-700">
+                      Activity Type
+                    </Label>
+                    <select
+                      id="type"
+                      name="type"
+                      value={activityData.type}
+                      onChange={handleChange}
+                      className="w-full border border-gray-300 rounded-md py-2 px-3 bg-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
+                      disabled={loading}
+                      required
+                    >
+                      {predefinedActivityTypes.map((type) => (
+                        <option value={type} key={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-sm font-medium text-gray-700">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={activityData.description}
+                    onChange={handleChange}
+                    placeholder="Describe your activity..."
+                    rows={3}
+                    disabled={loading}
+                    className="border-gray-300 focus:border-pink-500 focus:ring-pink-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="facility" className="text-sm font-medium text-gray-700">
+                      Facility
+                    </Label>
+                    <Input
+                      id="facility"
+                      name="facility"
+                      value={activityData.facility}
+                      onChange={handleChange}
+                      placeholder="Enter facility name"
+                      disabled={loading}
+                      className="border-gray-300 focus:border-pink-500 focus:ring-pink-500"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="duration" className="text-sm font-medium text-gray-700">
+                      Duration (minutes)
+                    </Label>
+                    <Input
+                      type="number"
+                      id="duration"
+                      name="duration"
+                      value={activityData.duration}
+                      onChange={handleChange}
+                      min="5"
+                      max="720"
+                      disabled={loading}
+                      className="border-gray-300 focus:border-pink-500 focus:ring-pink-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal border-gray-300",
+                          !date && "text-muted-foreground"
+                        )}
+                        disabled={loading}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        disabled={loading}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white py-3 text-lg font-medium"
+                >
+                  {loading ? "Submitting..." : "Log Activity"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
