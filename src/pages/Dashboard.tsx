@@ -1,229 +1,184 @@
+
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useLiveTime } from "@/hooks/useLiveTime";
-import { supabase } from "@/integrations/supabase/client";
+import CountyHeader from "@/components/CountyHeader";
 import MainNavbar from "@/components/MainNavbar";
-import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/components/ui/use-toast";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { CalendarIcon, Clock, User, Activity, Plus, FileText, Edit, Trash2, TrendingUp, BarChart3, Target, Award, MapPin, Users } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
-import EditActivityDialog from "@/components/admin/EditActivityDialog";
-import DeleteActivityDialog from "@/components/admin/DeleteActivityDialog";
+import { Calendar, Clock, MapPin, User, Plus, BarChart3, FileText, Users, TrendingUp, Activity, Target, Award, Zap } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useLiveTime } from "@/hooks/useLiveTime";
+
+interface ActivityData {
+  id: string;
+  title: string;
+  type: string;
+  date: string;
+  duration: number;
+  facility: string;
+  description: string;
+  submitted_by: string;
+  created_at: string;
+}
 
 const Dashboard = () => {
-  const navigate = useNavigate();
+  const { toast } = useToast();
   const { currentTime, greeting } = useLiveTime();
-  const [userData, setUserData] = useState({ email: "", full_name: "", role: "" });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [activityData, setActivityData] = useState({
-    title: "",
-    type: "Administrative",
-    description: "",
-    facility: "",
-    duration: 30,
-    date: format(date || new Date(), "yyyy-MM-dd"),
-  });
-  const [activities, setActivities] = useState<any[]>([]);
-  const [totalActivities, setTotalActivities] = useState(0);
-  const [todayActivities, setTodayActivities] = useState(0);
-  const [monthlyActivities, setMonthlyActivities] = useState(0);
-  const [totalHours, setTotalHours] = useState(0);
-  const [averageMinutes, setAverageMinutes] = useState(0);
-  const [editingActivity, setEditingActivity] = useState<any>(null);
-  const [deletingActivity, setDeletingActivity] = useState<any>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [activities, setActivities] = useState<ActivityData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userData, setUserData] = useState<{
+    email: string;
+    full_name: string;
+    role: string;
+  } | null>(null);
 
-  const predefinedActivityTypes = [
-    "Administrative",
-    "Meetings", 
-    "Training",
-    "Documentation",
-    "Supervision",
-    "General",
-  ];
+  // Get current user data
+  const fetchUserData = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.auth.getUser();
 
-  const fetchActivities = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("activities")
-      .select("*")
-      .order("created_at", { ascending: false });
-    
-    if (!error && data) {
-      setActivities(data);
-      setTotalActivities(data.length);
-      
-      const today = format(new Date(), "yyyy-MM-dd");
-      const currentMonth = format(new Date(), "yyyy-MM");
-      
-      const todayCount = data.filter(activity => activity.date === today).length;
-      const monthlyCount = data.filter(activity => activity.date?.startsWith(currentMonth)).length;
-      
-      setTodayActivities(todayCount);
-      setMonthlyActivities(monthlyCount);
-      
-      // Calculate total hours and average minutes
-      const totalMinutes = data.reduce((sum, activity) => sum + (activity.duration || 0), 0);
-      setTotalHours(Math.round((totalMinutes / 60) * 100) / 100);
-      setAverageMinutes(data.length > 0 ? Math.round(totalMinutes / data.length) : 0);
-    }
-  }, []);
+      if (error) {
+        console.error("Error fetching user:", error);
+        return;
+      }
 
-  useEffect(() => {
-    fetchActivities();
-  }, [fetchActivities]);
+      if (data?.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("full_name, role")
+          .eq("id", data.user.id)
+          .single();
 
-  useActivitiesRealtime(fetchActivities);
-
-  useEffect(() => {
-    const getUserData = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.auth.getUser();
-
-        if (error) {
-          console.error("Error fetching user:", error);
-          setError(error.message || "Failed to fetch user data.");
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
           return;
         }
 
-        if (data?.user) {
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("full_name, role")
-            .eq("id", data.user.id)
-            .single();
-
-          if (profileError) {
-            console.error("Error fetching profile:", profileError);
-            setError(
-              profileError.message || "Failed to fetch user profile data."
-            );
-            return;
-          }
-
-          setUserData({
-            email: data.user.email || "",
-            full_name: profile?.full_name || "",
-            role: profile?.role || "",
-          });
-        }
-      } catch (err) {
-        console.error("Unexpected error:", err);
-        setError("An unexpected error occurred.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getUserData();
-  }, []);
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    setActivityData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const { error } = await supabase.from("activities").insert([
-        {
-          ...activityData,
-          submitted_by: userData.email,
-          date: format(date || new Date(), "yyyy-MM-dd"),
-        },
-      ]);
-
-      if (error) {
-        setError(error.message || "Failed to submit activity.");
-        toast({
-          title: "Error",
-          description: error.message || "Failed to submit activity.",
-          variant: "destructive",
-        });
-      } else {
-        setActivityData({
-          title: "",
-          type: "Administrative",
-          description: "",
-          facility: "",
-          duration: 30,
-          date: format(date || new Date(), "yyyy-MM-dd"),
-        });
-        setDate(new Date());
-        toast({
-          title: "Success",
-          description: "Activity submitted successfully!",
+        setUserData({
+          email: data.user.email || "",
+          full_name: profile?.full_name || "",
+          role: profile?.role || "",
         });
       }
     } catch (err) {
       console.error("Unexpected error:", err);
-      setError("An unexpected error occurred.");
+    }
+  }, []);
+
+  // Fetch user's activities (RLS will automatically filter based on user)
+  const fetchActivities = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log('🔄 Fetching user activities from Supabase');
+      
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching activities:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load activities",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('✅ Dashboard - Activities loaded:', data?.length || 0);
+      setActivities(data || []);
+
+    } catch (error) {
+      console.error('Error fetching activities:', error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred.",
+        description: "Failed to load activities",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleEditActivity = (activity: any) => {
-    setEditingActivity(activity);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDeleteActivity = (activity: any) => {
-    setDeletingActivity(activity);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleActivityUpdated = (updatedActivity: any) => {
+  useEffect(() => {
+    fetchUserData();
     fetchActivities();
-    setIsEditDialogOpen(false);
-    setEditingActivity(null);
-    toast({
-      title: "Success",
-      description: "Activity updated successfully!",
-    });
+  }, [fetchUserData, fetchActivities]);
+
+  // Real-time subscription for activities
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-activities')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'activities'
+        },
+        () => {
+          console.log('🔄 Real-time update - refreshing activities');
+          fetchActivities();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchActivities]);
+
+  const getTypeColor = (type: string) => {
+    const colors = {
+      'meetings': 'bg-red-100 text-red-800',
+      'administrative': 'bg-pink-100 text-pink-800',
+      'training': 'bg-green-100 text-green-800',
+      'documentation': 'bg-yellow-100 text-yellow-800',
+      'supervision': 'bg-purple-100 text-purple-800',
+      'general': 'bg-gray-100 text-gray-800'
+    };
+    return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  const handleActivityDeleted = () => {
-    fetchActivities();
-    setIsDeleteDialogOpen(false);
-    setDeletingActivity(null);
-    toast({
-      title: "Success",
-      description: "Activity deleted successfully!",
-    });
-  };
+  // Calculate user-specific statistics
+  const totalActivities = activities.length;
+  const thisMonth = new Date();
+  thisMonth.setDate(1);
+  const thisMonthActivities = activities.filter(activity => {
+    const activityDate = new Date(activity.created_at);
+    return activityDate >= thisMonth;
+  }).length;
+  const totalHours = Math.floor(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
+  const averageDuration = totalActivities > 0 ? Math.round(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
+
+  const isAdmin = userData?.role === 'admin' || userData?.role === 'System Administrator';
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <CountyHeader />
+        <MainNavbar />
+        <div className="max-w-7xl mx-auto p-8">
+          <div className="text-center py-8 text-gray-500">
+            <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p>Loading your dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <CountyHeader />
       <MainNavbar />
       
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        {/* Enhanced Header Section */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-8 mb-8 text-white shadow-2xl">
+      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {/* Enhanced Header */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 rounded-3xl p-8 mb-8 text-white shadow-2xl">
           <div className="absolute inset-0 bg-black opacity-10"></div>
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
@@ -231,17 +186,22 @@ const Dashboard = () => {
           <div className="relative z-10">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
               <div className="mb-6 lg:mb-0">
-                <h1 className="text-4xl lg:text-5xl font-bold mb-3 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-                  {greeting}, {userData.full_name || "Welcome"}
-                </h1>
-                <div className="flex items-center gap-2 text-xl font-semibold mb-2">
-                  <Award className="w-6 h-6 text-yellow-300" />
-                  <span>Chief Nursing Officer</span>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 bg-gradient-to-r from-pink-500 to-red-600 rounded-2xl shadow-lg">
+                    <Activity className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                      {greeting}
+                    </h1>
+                    <p className="text-slate-300 text-lg">{userData?.full_name || userData?.email || "Welcome back"}</p>
+                  </div>
                 </div>
+                
                 <div className="flex items-center gap-6 text-sm opacity-90 mb-4">
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>Nakuru County HQ</span>
+                    <User className="w-4 h-4" />
+                    <span>{isAdmin ? 'Administrator Dashboard' : 'Personal Dashboard'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
@@ -254,14 +214,16 @@ const Dashboard = () => {
                     </span>
                   </div>
                 </div>
-                <p className="text-blue-100">{format(new Date(), "EEEE, MMMM dd, yyyy")}</p>
               </div>
               
               <div className="text-center lg:text-right">
                 <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                  <h3 className="text-lg font-semibold mb-2">County of Unlimited Opportunities</h3>
-                  <div className="text-3xl font-bold">{totalActivities}</div>
-                  <p className="text-sm opacity-90">Total Activities Logged</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="w-5 h-5 text-green-400" />
+                    <h3 className="text-lg font-semibold">Today's Goal</h3>
+                  </div>
+                  <div className="text-3xl font-bold text-green-400">{totalActivities}</div>
+                  <p className="text-sm opacity-90">Activities logged</p>
                 </div>
               </div>
             </div>
@@ -269,346 +231,226 @@ const Dashboard = () => {
             <div className="mt-6 text-center">
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm">Real-time synchronized across all devices</span>
+                <span className="text-sm">{isAdmin ? 'Administrative view - All data visible' : 'Personal view - Your data only'}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Statistics Cards */}
+        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-pink-500 to-rose-600">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-6 text-white relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <TrendingUp className="w-6 h-6" />
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm border-l-4 border-l-pink-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">My Activities</p>
+                  <p className="text-3xl font-bold text-pink-600">{totalActivities}</p>
+                  <p className="text-xs text-gray-500">Total recorded</p>
                 </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold">{totalActivities}</div>
-                  <p className="text-pink-100 text-sm">All Time</p>
+                <div className="p-3 bg-pink-100 rounded-xl">
+                  <FileText className="h-8 w-8 text-pink-600" />
                 </div>
               </div>
-              <h3 className="font-semibold">Total Activities</h3>
-              <p className="text-pink-100 text-xs">Complete activity log</p>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-blue-500 to-cyan-600">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-6 text-white relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <BarChart3 className="w-6 h-6" />
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm border-l-4 border-l-blue-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">This Month</p>
+                  <p className="text-3xl font-bold text-blue-600">{thisMonthActivities}</p>
+                  <p className="text-xs text-gray-500">Monthly progress</p>
                 </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold">{monthlyActivities}</div>
-                  <p className="text-blue-100 text-sm">This Month</p>
+                <div className="p-3 bg-blue-100 rounded-xl">
+                  <Calendar className="h-8 w-8 text-blue-600" />
                 </div>
               </div>
-              <h3 className="font-semibold">Monthly Activities</h3>
-              <p className="text-blue-100 text-xs">Current month progress</p>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-emerald-500 to-teal-600">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-6 text-white relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <Clock className="w-6 h-6" />
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm border-l-4 border-l-green-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Total Hours</p>
+                  <p className="text-3xl font-bold text-green-600">{totalHours}</p>
+                  <p className="text-xs text-gray-500">Time invested</p>
                 </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold">{totalHours}</div>
-                  <p className="text-emerald-100 text-sm">Hours</p>
+                <div className="p-3 bg-green-100 rounded-xl">
+                  <Clock className="h-8 w-8 text-green-600" />
                 </div>
               </div>
-              <h3 className="font-semibold">Total Hours</h3>
-              <p className="text-emerald-100 text-xs">Time invested</p>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-amber-500 to-orange-600">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-6 text-white relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <Target className="w-6 h-6" />
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm border-l-4 border-l-purple-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Average Duration</p>
+                  <p className="text-3xl font-bold text-purple-600">{averageDuration}</p>
+                  <p className="text-xs text-gray-500">Minutes per activity</p>
                 </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold">{averageMinutes}</div>
-                  <p className="text-amber-100 text-sm">Minutes</p>
+                <div className="p-3 bg-purple-100 rounded-xl">
+                  <TrendingUp className="h-8 w-8 text-purple-600" />
                 </div>
               </div>
-              <h3 className="font-semibold">Average Duration</h3>
-              <p className="text-amber-100 text-xs">Per activity</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Enhanced Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0 bg-white/70 backdrop-blur-sm">
-            <CardContent className="p-8 text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <Plus className="w-10 h-10 text-white" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-800">Add New Activity</h3>
-              <p className="text-gray-600 mb-6 leading-relaxed">Record your daily administrative tasks and track your professional activities</p>
-              <Button 
-                className="bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                onClick={() => document.getElementById('activity-form')?.scrollIntoView({ behavior: 'smooth' })}
-              >
-                Create Activity
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0 bg-white/70 backdrop-blur-sm">
-            <CardContent className="p-8 text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <BarChart3 className="w-10 h-10 text-white" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-800">View Activities</h3>
-              <p className="text-gray-600 mb-6 leading-relaxed">Browse, manage and analyze all your recorded activities with detailed insights</p>
-              <Button 
-                variant="outline" 
-                className="border-2 border-blue-500 text-blue-600 hover:bg-blue-50 px-8 py-3 rounded-xl font-semibold transition-all duration-300"
-                onClick={() => navigate('/activities')}
-              >
-                View All ({totalActivities})
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0 bg-white/70 backdrop-blur-sm">
-            <CardContent className="p-8 text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <FileText className="w-10 h-10 text-white" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-800">Generate Reports</h3>
-              <p className="text-gray-600 mb-6 leading-relaxed">Export and analyze your activity data with professional reports</p>
-              <Button 
-                variant="outline" 
-                className="border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 px-8 py-3 rounded-xl font-semibold transition-all duration-300"
-                onClick={() => navigate('/reports')}
-              >
-                View Reports
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Enhanced Activity Form */}
-        <div id="activity-form" className="mt-8">
-          <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-t-2xl">
-              <CardTitle className="flex items-center gap-3 text-2xl font-bold">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <Plus className="h-7 w-7" />
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm overflow-hidden group hover:shadow-3xl transition-all duration-300">
+            <CardHeader className="bg-gradient-to-r from-pink-500 to-red-600 text-white">
+              <CardTitle className="flex items-center gap-3 text-xl font-bold">
+                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
+                  <Plus className="h-6 w-6" />
                 </div>
-                Log New Activity
+                Quick Add Activity
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8">
-              <form onSubmit={handleSubmit} className="space-y-8">
-                {error && (
-                  <div className="bg-red-50 border-l-4 border-red-400 text-red-700 px-6 py-4 rounded-lg shadow-sm">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm">{error}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <Label htmlFor="title" className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Activity Title
-                    </Label>
-                    <Input
-                      id="title"
-                      name="title"
-                      value={activityData.title}
-                      onChange={handleChange}
-                      placeholder="Enter activity title"
-                      required
-                      disabled={loading}
-                      className="border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-xl py-3 px-4 text-lg transition-all duration-200"
-                    />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <Label htmlFor="type" className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4" />
-                      Activity Type
-                    </Label>
-                    <select
-                      id="type"
-                      name="type"
-                      value={activityData.type}
-                      onChange={handleChange}
-                      className="w-full border-2 border-gray-200 rounded-xl py-3 px-4 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-lg transition-all duration-200"
-                      disabled={loading}
-                      required
-                    >
-                      {predefinedActivityTypes.map((type) => (
-                        <option value={type} key={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="description" className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                    <Edit className="w-4 h-4" />
-                    Description
-                  </Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={activityData.description}
-                    onChange={handleChange}
-                    placeholder="Describe your activity in detail..."
-                    rows={4}
-                    disabled={loading}
-                    className="border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-xl py-3 px-4 text-lg transition-all duration-200 resize-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <Label htmlFor="facility" className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      Facility
-                    </Label>
-                    <Input
-                      id="facility"
-                      name="facility"
-                      value={activityData.facility}
-                      onChange={handleChange}
-                      placeholder="Enter facility name"
-                      disabled={loading}
-                      className="border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-xl py-3 px-4 text-lg transition-all duration-200"
-                    />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <Label htmlFor="duration" className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      Duration (minutes)
-                    </Label>
-                    <Input
-                      type="number"
-                      id="duration"
-                      name="duration"
-                      value={activityData.duration}
-                      onChange={handleChange}
-                      min="5"
-                      max="720"
-                      disabled={loading}
-                      className="border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-xl py-3 px-4 text-lg transition-all duration-200"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4" />
-                    Date
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal border-2 border-gray-200 hover:border-indigo-300 rounded-xl py-3 px-4 text-lg h-auto",
-                          !date && "text-muted-foreground"
-                        )}
-                        disabled={loading}
-                      >
-                        <CalendarIcon className="mr-3 h-5 w-5" />
-                        {date ? format(date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white border-2 border-gray-200 rounded-xl shadow-xl" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={setDate}
-                        disabled={loading}
-                        initialFocus
-                        className="rounded-xl"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <Button 
-                  type="submit" 
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white py-4 text-xl font-bold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
-                >
-                  {loading ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Submitting...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <Plus className="w-6 h-6" />
-                      Log Activity
-                    </div>
-                  )}
-                </Button>
-              </form>
+            <CardContent className="p-6">
+              <p className="text-gray-600 mb-4">Record your daily activities and track your progress efficiently.</p>
+              <Button 
+                onClick={() => window.location.href = '/activities'}
+                className="w-full bg-gradient-to-r from-pink-500 to-red-600 hover:from-pink-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                Add New Activity
+              </Button>
             </CardContent>
           </Card>
+
+          <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm overflow-hidden group hover:shadow-3xl transition-all duration-300">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+              <CardTitle className="flex items-center gap-3 text-xl font-bold">
+                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
+                  <BarChart3 className="h-6 w-6" />
+                </div>
+                View Reports
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <p className="text-gray-600 mb-4">Analyze your activity patterns and generate comprehensive reports.</p>
+              <Button 
+                onClick={() => window.location.href = '/reports'}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                View My Reports
+              </Button>
+            </CardContent>
+          </Card>
+
+          {isAdmin && (
+            <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm overflow-hidden group hover:shadow-3xl transition-all duration-300">
+              <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+                <CardTitle className="flex items-center gap-3 text-xl font-bold">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
+                    <Users className="h-6 w-6" />
+                  </div>
+                  Admin Panel
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <p className="text-gray-600 mb-4">Access administrative functions and manage system-wide data.</p>
+                <Button 
+                  onClick={() => window.location.href = '/admin'}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  Open Admin Panel
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* Enhanced Footer Note */}
-        <div className="text-center py-8">
-          <div className="inline-flex items-center gap-3 bg-white/70 backdrop-blur-sm rounded-full px-6 py-3 border border-gray-200 shadow-lg">
-            <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse"></div>
-            <span className="text-gray-700 font-medium">Dashboard synchronized in real-time across all your devices</span>
-          </div>
-        </div>
+        {/* Recent Activities */}
+        <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-slate-600 to-slate-700 text-white">
+            <CardTitle className="flex items-center gap-3 text-2xl font-bold">
+              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                <Activity className="h-7 w-7" />
+              </div>
+              My Recent Activities
+              <div className="ml-auto flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm font-normal">Live Updates</span>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8">
+            {activities.length > 0 ? (
+              <div className="space-y-4">
+                {activities.slice(0, 5).map((activity) => (
+                  <div key={activity.id} className="bg-white border rounded-xl p-6 hover:shadow-lg transition-all duration-300 border-l-4 border-l-gray-200 hover:border-l-pink-500">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <h3 className="font-bold text-lg text-gray-900">{activity.title}</h3>
+                          <Badge className={`${getTypeColor(activity.type)} text-xs`}>
+                            {activity.type}
+                          </Badge>
+                        </div>
+                        <p className="text-gray-600 mb-4 leading-relaxed">
+                          {activity.description}
+                        </p>
+                        <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(activity.date).toLocaleDateString()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {activity.duration} minutes
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4" />
+                            {activity.facility}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <User className="w-4 h-4" />
+                            {activity.submitted_by}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {activities.length > 5 && (
+                  <div className="text-center py-6 border-t">
+                    <p className="text-gray-500 mb-4">
+                      Showing 5 of {activities.length} activities
+                    </p>
+                    <Button 
+                      onClick={() => window.location.href = '/activities'}
+                      variant="outline"
+                      className="border-pink-300 text-pink-600 hover:bg-pink-50"
+                    >
+                      View All My Activities
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Activity className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No activities yet</h3>
+                <p className="text-gray-500 mb-6">Start tracking your daily activities to see them here</p>
+                <Button 
+                  onClick={() => window.location.href = '/activities'}
+                  className="bg-gradient-to-r from-pink-500 to-red-600 hover:from-pink-600 hover:to-red-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Your First Activity
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-
-      {/* Edit Activity Dialog */}
-      {editingActivity && (
-        <EditActivityDialog
-          activity={editingActivity}
-          open={isEditDialogOpen}
-          onClose={() => {
-            setIsEditDialogOpen(false);
-            setEditingActivity(null);
-          }}
-          onActivityUpdated={handleActivityUpdated}
-        />
-      )}
-
-      {/* Delete Activity Dialog */}
-      {deletingActivity && (
-        <DeleteActivityDialog
-          activity={deletingActivity}
-          open={isDeleteDialogOpen}
-          onClose={() => {
-            setIsDeleteDialogOpen(false);
-            setDeletingActivity(null);
-          }}
-          onActivityDeleted={handleActivityDeleted}
-        />
-      )}
     </div>
   );
 };
