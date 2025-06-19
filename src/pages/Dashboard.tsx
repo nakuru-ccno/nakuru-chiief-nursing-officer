@@ -66,12 +66,23 @@ const Dashboard = () => {
     }
   }, []);
 
-  // Fetch user's activities (RLS will automatically filter based on user)
+  // Fetch activities - RLS policies will automatically filter based on user permissions
   const fetchActivities = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 Fetching user activities from Supabase');
+      console.log('🔄 Dashboard - Fetching user activities (RLS will filter automatically)');
       
+      // Get current user to determine admin status
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser?.user) {
+        console.log('❌ No authenticated user found');
+        setActivities([]);
+        return;
+      }
+
+      // RLS policies will automatically filter results:
+      // - Regular users will only see activities where submitted_by = their email
+      // - Admins will see all activities
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -88,7 +99,7 @@ const Dashboard = () => {
         return;
       }
 
-      console.log('✅ Dashboard - Activities loaded:', data?.length || 0);
+      console.log('✅ Dashboard - Activities loaded (filtered by RLS):', data?.length || 0);
       setActivities(data || []);
 
     } catch (error) {
@@ -143,7 +154,7 @@ const Dashboard = () => {
     return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Calculate user-specific statistics
+  // Calculate user-specific statistics (RLS ensures these are filtered properly)
   const totalActivities = activities.length;
   const thisMonth = new Date();
   thisMonth.setDate(1);
@@ -220,7 +231,7 @@ const Dashboard = () => {
                 <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Target className="w-5 h-5 text-green-400" />
-                    <h3 className="text-lg font-semibold">Today's Goal</h3>
+                    <h3 className="text-lg font-semibold">My Activities</h3>
                   </div>
                   <div className="text-3xl font-bold text-green-400">{totalActivities}</div>
                   <p className="text-sm opacity-90">Activities logged</p>
@@ -231,7 +242,9 @@ const Dashboard = () => {
             <div className="mt-6 text-center">
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm">{isAdmin ? 'Administrative view - All data visible' : 'Personal view - Your data only'}</span>
+                <span className="text-sm">
+                  {isAdmin ? 'Administrative view - All data visible' : 'Personal view - Your data only'}
+                </span>
               </div>
             </div>
           </div>
