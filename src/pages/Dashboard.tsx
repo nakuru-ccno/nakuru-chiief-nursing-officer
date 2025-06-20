@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import CountyHeader from "@/components/CountyHeader";
 import MainNavbar from "@/components/MainNavbar";
@@ -44,6 +43,8 @@ const Dashboard = () => {
       }
 
       if (data?.user) {
+        console.log('🔐 Current authenticated user:', data.user.email);
+        
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("full_name, role")
@@ -66,11 +67,11 @@ const Dashboard = () => {
     }
   }, []);
 
-  // Fetch activities - RLS policies will automatically filter based on user permissions
+  // Fetch activities with explicit email filtering for non-admins
   const fetchActivities = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 Dashboard - Fetching activities (RLS will filter automatically)');
+      console.log('🔄 Dashboard - Fetching activities with RLS filtering');
       
       // Get current user to log their info
       const { data: currentUser } = await supabase.auth.getUser();
@@ -82,14 +83,29 @@ const Dashboard = () => {
 
       console.log('👤 Current user email:', currentUser.user.email);
 
-      // RLS policies will automatically filter results:
-      // - Regular users will only see activities where submitted_by = their email
-      // - Admins will see all activities
-      const { data, error } = await supabase
+      // Get user profile to check role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.user.id)
+        .single();
+
+      const isAdmin = profile?.role === 'admin' || profile?.role === 'System Administrator';
+      console.log('🔒 User role:', profile?.role, 'Is Admin:', isAdmin);
+
+      let query = supabase
         .from('activities')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
+
+      // For non-admins, explicitly filter by email to ensure data isolation
+      if (!isAdmin && currentUser.user.email) {
+        console.log('🔒 Non-admin user - filtering by email:', currentUser.user.email);
+        query = query.eq('submitted_by', currentUser.user.email);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('❌ Error fetching activities:', error);
@@ -102,8 +118,22 @@ const Dashboard = () => {
       }
 
       console.log('✅ Dashboard - Activities loaded:', data?.length || 0, 'activities');
-      console.log('📊 Activity details:', data?.map(a => ({ id: a.id, submitted_by: a.submitted_by, title: a.title })));
-      setActivities(data || []);
+      console.log('📊 Activity details:', data?.map(a => ({ 
+        id: a.id, 
+        submitted_by: a.submitted_by, 
+        title: a.title,
+        current_user: currentUser.user.email,
+        matches_user: a.submitted_by === currentUser.user.email
+      })));
+
+      // Double check - filter client side for non-admins as extra security
+      let filteredData = data || [];
+      if (!isAdmin && currentUser.user.email) {
+        filteredData = data?.filter(activity => activity.submitted_by === currentUser.user.email) || [];
+        console.log('🔒 Client-side filtering applied. Showing', filteredData.length, 'activities');
+      }
+
+      setActivities(filteredData);
 
     } catch (error) {
       console.error('❌ Error fetching activities:', error);

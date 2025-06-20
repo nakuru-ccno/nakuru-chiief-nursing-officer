@@ -28,23 +28,71 @@ const LiveActivityFeed: React.FC = () => {
 
   const fetchActivities = async () => {
     try {
-      const { data, error } = await supabase
+      console.log('🔄 LiveActivityFeed - Fetching activities with RLS filtering');
+      
+      // Get current user info
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser?.user) {
+        console.log('❌ No authenticated user found in LiveActivityFeed');
+        setActivities([]);
+        setConnectionStatus('No authenticated user');
+        setIsConnected(false);
+        return;
+      }
+
+      console.log('👤 LiveActivityFeed - Current user email:', currentUser.user.email);
+
+      // Get user profile to check role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.user.id)
+        .single();
+
+      const isAdmin = profile?.role === 'admin' || profile?.role === 'System Administrator';
+      console.log('🔒 LiveActivityFeed - User role:', profile?.role, 'Is Admin:', isAdmin);
+
+      let query = supabase
         .from('activities')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(15);
 
+      // For non-admins, explicitly filter by email to ensure data isolation
+      if (!isAdmin && currentUser.user.email) {
+        console.log('🔒 LiveActivityFeed - Non-admin user, filtering by email:', currentUser.user.email);
+        query = query.eq('submitted_by', currentUser.user.email);
+      }
+
+      const { data, error } = await query;
+
       if (error) {
-        console.error('Error fetching activities:', error);
+        console.error('❌ LiveActivityFeed - Error fetching activities:', error);
         setConnectionStatus('Error fetching data');
         return;
       }
 
-      setActivities(data || []);
-      setConnectionStatus('Connected');
+      console.log('✅ LiveActivityFeed - Activities loaded:', data?.length || 0, 'activities');
+      console.log('📊 LiveActivityFeed - Activity details:', data?.map(a => ({ 
+        id: a.id, 
+        submitted_by: a.submitted_by, 
+        title: a.title,
+        current_user: currentUser.user.email,
+        matches_user: a.submitted_by === currentUser.user.email
+      })));
+
+      // Double check - filter client side for non-admins as extra security
+      let filteredData = data || [];
+      if (!isAdmin && currentUser.user.email) {
+        filteredData = data?.filter(activity => activity.submitted_by === currentUser.user.email) || [];
+        console.log('🔒 LiveActivityFeed - Client-side filtering applied. Showing', filteredData.length, 'activities');
+      }
+
+      setActivities(filteredData);
+      setConnectionStatus(isAdmin ? 'Connected - Admin View' : 'Connected - Personal View');
       setIsConnected(true);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error('❌ LiveActivityFeed - Error fetching activities:', error);
       setConnectionStatus('Connection error');
       setIsConnected(false);
     }
@@ -70,7 +118,7 @@ const LiveActivityFeed: React.FC = () => {
             table: 'activities'
           },
           (payload) => {
-            console.log('🔥 Activity feed update:', payload.eventType);
+            console.log('🔥 LiveActivityFeed - Activity update:', payload.eventType);
             if (isMounted) {
               fetchActivities();
             }
