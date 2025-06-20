@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import MainNavbar from "@/components/MainNavbar";
@@ -243,7 +242,7 @@ const Admin = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="group">
                   <Button 
                     className="w-full h-auto p-6 bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
@@ -276,6 +275,23 @@ const Admin = () => {
                       <div className="text-center">
                         <div className="font-bold text-lg">System Status</div>
                         <div className="text-emerald-100 text-sm">Check health</div>
+                      </div>
+                    </div>
+                  </Button>
+                </div>
+
+                <div className="group">
+                  <Button 
+                    className="w-full h-auto p-6 bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                    onClick={() => window.location.href = '/admin/settings'}
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="p-3 bg-white/20 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                        <Settings className="h-6 w-6" />
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-lg">Admin Settings</div>
+                        <div className="text-orange-100 text-sm">Data & Types</div>
                       </div>
                     </div>
                   </Button>

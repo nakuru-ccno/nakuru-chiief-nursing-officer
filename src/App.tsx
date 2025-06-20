@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import Register from "./pages/Register";
 import Admin from "./pages/Admin";
 import LiveAdmin from "./pages/LiveAdmin";
+import AdminSettings from "./pages/AdminSettings";
 
 function ProtectedRoute() {
   const location = useLocation();
@@ -66,6 +66,7 @@ const App = () => {
               <Route element={<ProtectedRoute />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/live-admin" element={<LiveAdmin />} />
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/reports" element={<Reports />} />
