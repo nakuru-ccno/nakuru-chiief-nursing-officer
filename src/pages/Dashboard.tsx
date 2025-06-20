@@ -70,15 +70,17 @@ const Dashboard = () => {
   const fetchActivities = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 Dashboard - Fetching user activities (RLS will filter automatically)');
+      console.log('🔄 Dashboard - Fetching activities (RLS will filter automatically)');
       
-      // Get current user to determine admin status
+      // Get current user to log their info
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser?.user) {
         console.log('❌ No authenticated user found');
         setActivities([]);
         return;
       }
+
+      console.log('👤 Current user email:', currentUser.user.email);
 
       // RLS policies will automatically filter results:
       // - Regular users will only see activities where submitted_by = their email
@@ -90,7 +92,7 @@ const Dashboard = () => {
         .limit(10);
 
       if (error) {
-        console.error('Error fetching activities:', error);
+        console.error('❌ Error fetching activities:', error);
         toast({
           title: "Error",
           description: "Failed to load activities",
@@ -99,11 +101,12 @@ const Dashboard = () => {
         return;
       }
 
-      console.log('✅ Dashboard - Activities loaded (filtered by RLS):', data?.length || 0);
+      console.log('✅ Dashboard - Activities loaded:', data?.length || 0, 'activities');
+      console.log('📊 Activity details:', data?.map(a => ({ id: a.id, submitted_by: a.submitted_by, title: a.title })));
       setActivities(data || []);
 
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error('❌ Error fetching activities:', error);
       toast({
         title: "Error",
         description: "Failed to load activities",
@@ -231,10 +234,10 @@ const Dashboard = () => {
                 <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Target className="w-5 h-5 text-green-400" />
-                    <h3 className="text-lg font-semibold">My Activities</h3>
+                    <h3 className="text-lg font-semibold">{isAdmin ? 'All Activities' : 'My Activities'}</h3>
                   </div>
                   <div className="text-3xl font-bold text-green-400">{totalActivities}</div>
-                  <p className="text-sm opacity-90">Activities logged</p>
+                  <p className="text-sm opacity-90">{isAdmin ? 'System-wide' : 'Activities logged'}</p>
                 </div>
               </div>
             </div>
@@ -243,7 +246,7 @@ const Dashboard = () => {
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                 <span className="text-sm">
-                  {isAdmin ? 'Administrative view - All data visible' : 'Personal view - Your data only'}
+                  {isAdmin ? 'Administrative view - All data visible via RLS' : 'Personal view - Your data only via RLS'}
                 </span>
               </div>
             </div>
@@ -385,10 +388,10 @@ const Dashboard = () => {
               <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
                 <Activity className="h-7 w-7" />
               </div>
-              My Recent Activities
+              {isAdmin ? 'All Recent Activities' : 'My Recent Activities'}
               <div className="ml-auto flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm font-normal">Live Updates</span>
+                <span className="text-sm font-normal">RLS Protected</span>
               </div>
             </CardTitle>
           </CardHeader>
@@ -440,7 +443,7 @@ const Dashboard = () => {
                       variant="outline"
                       className="border-pink-300 text-pink-600 hover:bg-pink-50"
                     >
-                      View All My Activities
+                      View All {isAdmin ? 'System' : 'My'} Activities
                     </Button>
                   </div>
                 )}
@@ -450,14 +453,18 @@ const Dashboard = () => {
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Activity className="w-8 h-8 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No activities yet</h3>
-                <p className="text-gray-500 mb-6">Start tracking your daily activities to see them here</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {isAdmin ? 'No activities in system' : 'No activities yet'}
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  {isAdmin ? 'No users have logged activities yet' : 'Start tracking your daily activities to see them here'}
+                </p>
                 <Button 
                   onClick={() => window.location.href = '/activities'}
                   className="bg-gradient-to-r from-pink-500 to-red-600 hover:from-pink-600 hover:to-red-700 text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Activity
+                  {isAdmin ? 'View All Activities' : 'Add Your First Activity'}
                 </Button>
               </div>
             )}

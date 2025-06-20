@@ -29,6 +29,22 @@ const LiveStats: React.FC = () => {
     try {
       console.log('🔄 Admin - Fetching system-wide statistics');
       
+      // Check if current user is admin
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser?.user) {
+        console.log('❌ No authenticated user found');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.user.id)
+        .single();
+
+      const isAdmin = profile?.role === 'admin' || profile?.role === 'System Administrator';
+      console.log('👤 Current user admin status:', isAdmin);
+
       // Fetch all activities (admin sees everything due to RLS policies)
       const { data: activities, error: activitiesError } = await supabase
         .from('activities')
@@ -51,7 +67,8 @@ const LiveStats: React.FC = () => {
 
       console.log('✅ Admin - Stats data loaded:', {
         activities: activities?.length || 0,
-        profiles: profiles?.length || 0
+        profiles: profiles?.length || 0,
+        isAdminView: isAdmin
       });
 
       // Calculate statistics
@@ -232,7 +249,7 @@ const LiveStats: React.FC = () => {
         </span>
         <Badge variant="outline" className="ml-2">
           <Database className="w-3 h-3 mr-1" />
-          Admin View
+          RLS Protected Admin View
         </Badge>
       </div>
 
