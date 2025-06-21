@@ -3,9 +3,10 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, User, Shield, Clock } from "lucide-react";
+import { Edit, Trash2, User, Shield, Clock, CheckCircle, XCircle } from "lucide-react";
 import EditUserDialog from "./EditUserDialog";
 import DeleteUserDialog from "./DeleteUserDialog";
 
@@ -132,6 +133,71 @@ const UserManagement = () => {
     });
   };
 
+  const renderUserCard = (user: UserProfile) => (
+    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+      <div className="flex items-center gap-4 flex-1">
+        <div className="w-10 h-10 bg-[#fd3572] text-white rounded-full flex items-center justify-center font-bold">
+          {user.full_name?.charAt(0)?.toUpperCase() || user.email.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-gray-900">
+            {user.full_name || user.email}
+          </h3>
+          <p className="text-sm text-gray-600">{user.email}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge className={`text-xs ${getRoleColor(user.role)}`}>
+              {user.role}
+            </Badge>
+            <Badge className={`text-xs ${getStatusColor(user.status)}`}>
+              {user.status}
+            </Badge>
+            {user.email_verified && (
+              <Badge className="text-xs bg-blue-100 text-blue-800">
+                <Shield className="w-3 h-3 mr-1" />
+                Verified
+              </Badge>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="text-right text-sm text-gray-500 mr-4">
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            <span>Created: {formatDate(user.created_at)}</span>
+          </div>
+          {user.last_sign_in_at && (
+            <div className="flex items-center gap-1 mt-1">
+              <Clock className="w-3 h-3" />
+              <span>Last login: {formatDate(user.last_sign_in_at)}</span>
+            </div>
+          )}
+        </div>
+        <Button
+          onClick={() => handleEditUser(user)}
+          size="sm"
+          variant="outline"
+          className="border-blue-300 text-blue-600 hover:bg-blue-50"
+        >
+          <Edit size={16} />
+        </Button>
+        <Button
+          onClick={() => handleDeleteUser(user)}
+          size="sm"
+          variant="outline"
+          className="border-red-300 text-red-600 hover:bg-red-50"
+        >
+          <Trash2 size={16} />
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Separate users by status
+  const activeUsers = users.filter(user => user.status === 'active');
+  const pendingUsers = users.filter(user => user.status === 'pending');
+  const inactiveUsers = users.filter(user => user.status === 'inactive');
+
   if (isLoading) {
     return (
       <Card>
@@ -159,80 +225,69 @@ const UserManagement = () => {
             <User className="w-5 h-5" />
             User Management
             <Badge variant="outline" className="ml-auto">
-              {users.length} users
+              {users.length} total users
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {users.length > 0 ? (
-              users.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-10 h-10 bg-[#fd3572] text-white rounded-full flex items-center justify-center font-bold">
-                      {user.full_name?.charAt(0)?.toUpperCase() || user.email.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">
-                        {user.full_name || user.email}
-                      </h3>
-                      <p className="text-sm text-gray-600">{user.email}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge className={`text-xs ${getRoleColor(user.role)}`}>
-                          {user.role}
-                        </Badge>
-                        <Badge className={`text-xs ${getStatusColor(user.status)}`}>
-                          {user.status}
-                        </Badge>
-                        {user.email_verified && (
-                          <Badge className="text-xs bg-blue-100 text-blue-800">
-                            <Shield className="w-3 h-3 mr-1" />
-                            Verified
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+          <Tabs defaultValue="active" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="active" className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                Active ({activeUsers.length})
+              </TabsTrigger>
+              <TabsTrigger value="pending" className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-yellow-600" />
+                Pending ({pendingUsers.length})
+              </TabsTrigger>
+              <TabsTrigger value="inactive" className="flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-red-600" />
+                Inactive ({inactiveUsers.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="active" className="mt-6">
+              <div className="space-y-4">
+                {activeUsers.length > 0 ? (
+                  activeUsers.map(renderUserCard)
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium">No active users</p>
+                    <p className="text-sm">Active users will appear here</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-right text-sm text-gray-500 mr-4">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <span>Created: {formatDate(user.created_at)}</span>
-                      </div>
-                      {user.last_sign_in_at && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Clock className="w-3 h-3" />
-                          <span>Last login: {formatDate(user.last_sign_in_at)}</span>
-                        </div>
-                      )}
-                    </div>
-                    <Button
-                      onClick={() => handleEditUser(user)}
-                      size="sm"
-                      variant="outline"
-                      className="border-blue-300 text-blue-600 hover:bg-blue-50"
-                    >
-                      <Edit size={16} />
-                    </Button>
-                    <Button
-                      onClick={() => handleDeleteUser(user)}
-                      size="sm"
-                      variant="outline"
-                      className="border-red-300 text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <User className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium">No users found</p>
-                <p className="text-sm">Users will appear here once they register</p>
+                )}
               </div>
-            )}
-          </div>
+            </TabsContent>
+
+            <TabsContent value="pending" className="mt-6">
+              <div className="space-y-4">
+                {pendingUsers.length > 0 ? (
+                  pendingUsers.map(renderUserCard)
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium">No pending users</p>
+                    <p className="text-sm">Users awaiting approval will appear here</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="inactive" className="mt-6">
+              <div className="space-y-4">
+                {inactiveUsers.length > 0 ? (
+                  inactiveUsers.map(renderUserCard)
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <XCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium">No inactive users</p>
+                    <p className="text-sm">Inactive users will appear here</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

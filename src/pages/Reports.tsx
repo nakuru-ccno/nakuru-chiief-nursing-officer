@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -28,6 +29,7 @@ export default function Reports() {
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -48,34 +50,64 @@ export default function Reports() {
                            user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
                            "User";
         setCurrentUser(displayName);
-        console.log('👤 Current user:', displayName);
+        setCurrentUserEmail(user.email);
+        console.log('👤 Current user:', displayName, 'Email:', user.email);
       } else {
         setCurrentUser("User");
+        setCurrentUserEmail("");
       }
     } catch (error) {
       console.error('❌ Error getting current user:', error);
       setCurrentUser("User");
+      setCurrentUserEmail("");
     }
   };
 
   const fetchActivities = useCallback(async () => {
     try {
       setIsLoading(true);
+      console.log('📊 Reports - Fetching activities with user filtering');
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        console.log('❌ No authenticated user found');
+        setAllActivities([]);
+        return;
+      }
+
+      console.log('🔐 Reports - Current authenticated user:', user.email);
+
       const { data, error } = await supabase
         .from("activities")
         .select("*")
+        .eq('submitted_by', user.email)
         .order("created_at", { ascending: false })
         .limit(100);
       
-      if (!error && data) {
-        setAllActivities(data);
+      if (error) {
+        console.error('❌ Error fetching activities:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load activities",
+          variant: "destructive",
+        });
+        return;
       }
+
+      console.log('✅ Reports - Activities loaded:', data?.length || 0);
+      console.log('📊 Reports - Filtered activities for user:', user.email, data);
+      setAllActivities(data || []);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error('❌ Error fetching activities:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load activities",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchActivities();
@@ -114,7 +146,7 @@ export default function Reports() {
     return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Calculate statistics
+  // Calculate statistics from filtered activities
   const totalActivities = allActivities.length;
   const thisMonth = new Date();
   thisMonth.setDate(1);
@@ -147,8 +179,8 @@ export default function Reports() {
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Activity Reports</h1>
-          <p className="text-gray-600">Comprehensive analysis of your daily activities</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Activity Reports</h1>
+          <p className="text-gray-600">Personal analysis of your daily activities - {currentUserEmail}</p>
           <div className="flex justify-end mt-4">
             <Button 
               className="bg-pink-500 hover:bg-pink-600 text-white"
@@ -166,9 +198,9 @@ export default function Reports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Activities</p>
+                  <p className="text-sm text-gray-600 mb-1">My Total Activities</p>
                   <p className="text-3xl font-bold text-red-600">{totalActivities}</p>
-                  <p className="text-xs text-gray-500">All time activities recorded</p>
+                  <p className="text-xs text-gray-500">Your activities recorded</p>
                 </div>
                 <FileText className="h-8 w-8 text-red-500" />
               </div>
@@ -181,7 +213,7 @@ export default function Reports() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">This Month</p>
                   <p className="text-3xl font-bold text-blue-600">{thisMonthActivities}</p>
-                  <p className="text-xs text-gray-500">Activities this month</p>
+                  <p className="text-xs text-gray-500">Your activities this month</p>
                 </div>
                 <Calendar className="h-8 w-8 text-blue-500" />
               </div>
@@ -194,7 +226,7 @@ export default function Reports() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Hours</p>
                   <p className="text-3xl font-bold text-green-600">{totalHours}</p>
-                  <p className="text-xs text-gray-500">Hours of activities</p>
+                  <p className="text-xs text-gray-500">Your hours of activities</p>
                 </div>
                 <Clock className="h-8 w-8 text-green-500" />
               </div>
@@ -218,7 +250,7 @@ export default function Reports() {
         {/* Recent Activities */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-gray-800">Recent Activities</CardTitle>
+            <CardTitle className="text-xl font-semibold text-gray-800">My Recent Activities</CardTitle>
             <p className="text-sm text-gray-600">Your latest recorded activities with detailed information</p>
           </CardHeader>
           <CardContent>
