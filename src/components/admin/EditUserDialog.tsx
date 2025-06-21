@@ -5,33 +5,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-interface EditUserDialogProps {
-  user: {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-    status: string;
-  };
-  onUpdateUser: (userData: { full_name: string; email: string; role: string; password?: string }) => void;
-  onCancel: () => void;
-  predefinedRoles?: string[];
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  status: string;
+  created_at: string;
+  last_sign_in_at: string;
+  email_verified: boolean;
 }
 
-const EditUserDialog = ({ user, onUpdateUser, onCancel, predefinedRoles = [] }: EditUserDialogProps) => {
+interface EditUserDialogProps {
+  user: UserProfile;
+  open: boolean;
+  onClose: () => void;
+  onUserUpdated: (updatedUser: UserProfile) => void;
+}
+
+const EditUserDialog = ({ user, open, onClose, onUserUpdated }: EditUserDialogProps) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
-    name: user.name,
+    full_name: user.full_name || "",
     email: user.email,
-    role: user.role,
-    customRole: "",
-    password: "",
-    confirmPassword: "",
+    role: user.role || "",
+    status: user.status || "active",
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [showCustomRole, setShowCustomRole] = useState(!predefinedRoles.includes(user.role));
+  const [isLoading, setIsLoading] = useState(false);
 
-  const defaultRoles = predefinedRoles.length > 0 ? predefinedRoles : [
+  const defaultRoles = [
     "System Administrator",
     "Nakuru County Chief Nursing Officer", 
     "Nakuru County Deputy Chief Nursing Officer",
@@ -39,6 +45,12 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel, predefinedRoles = [] }: 
     "Nurse Officer",
     "Senior Nurse",
     "Staff Nurse"
+  ];
+
+  const statusOptions = [
+    { value: "active", label: "Active" },
+    { value: "pending", label: "Pending" },
+    { value: "inactive", label: "Inactive" }
   ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,24 +61,11 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel, predefinedRoles = [] }: 
     }
   };
 
-  const handleRoleChange = (value: string) => {
-    if (value === "custom") {
-      setShowCustomRole(true);
-      setFormData(prev => ({ ...prev, role: "", customRole: user.role }));
-    } else {
-      setShowCustomRole(false);
-      setFormData(prev => ({ ...prev, role: value, customRole: "" }));
-    }
-    if (errors.role) {
-      setErrors(prev => ({ ...prev, role: "" }));
-    }
-  };
-
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
+    if (!formData.full_name.trim()) {
+      newErrors.full_name = "Name is required";
     }
 
     if (!formData.email.trim()) {
@@ -75,46 +74,64 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel, predefinedRoles = [] }: 
       newErrors.email = "Please enter a valid email address";
     }
 
-    const finalRole = showCustomRole ? formData.customRole : formData.role;
-    if (!finalRole.trim()) {
+    if (!formData.role.trim()) {
       newErrors.role = "Role is required";
-    }
-
-    if (formData.password || formData.confirmPassword) {
-      if (formData.password.length < 6) {
-        newErrors.password = "Password must be at least 6 characters";
-      }
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = "Passwords do not match";
-      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
 
-    const finalRole = showCustomRole ? formData.customRole.trim() : formData.role;
+    setIsLoading(true);
+    
+    try {
+      console.log('📝 Updating user:', user.id, formData);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.full_name.trim(),
+          email: formData.email.trim(),
+          role: formData.role,
+          status: formData.status,
+        })
+        .eq('id', user.id)
+        .select()
+        .single();
 
-    const updateData = {
-      full_name: formData.name.trim(),
-      email: formData.email.trim(),
-      role: finalRole,
-      ...(formData.password && { password: formData.password })
-    };
+      if (error) {
+        console.error('❌ Error updating user:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update user",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    console.log("Updating user with data:", updateData);
-    onUpdateUser(updateData);
+      console.log('✅ User updated successfully:', data);
+      onUserUpdated(data);
+    } catch (error) {
+      console.error('❌ Error in handleSubmit:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update user",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <Dialog open={true} onOpenChange={onCancel}>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-[#be2251]">Edit User - Nakuru County</DialogTitle>
@@ -122,17 +139,17 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel, predefinedRoles = [] }: 
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="name">Full Name</Label>
+            <Label htmlFor="full_name">Full Name</Label>
             <Input
-              id="name"
-              name="name"
+              id="full_name"
+              name="full_name"
               type="text"
-              value={formData.name}
+              value={formData.full_name}
               onChange={handleInputChange}
               placeholder="Enter full name"
-              className={errors.name ? "border-red-500" : ""}
+              className={errors.full_name ? "border-red-500" : ""}
             />
-            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+            {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name}</p>}
           </div>
 
           <div>
@@ -152,8 +169,8 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel, predefinedRoles = [] }: 
           <div>
             <Label htmlFor="role">Role</Label>
             <Select 
-              value={showCustomRole ? "custom" : formData.role} 
-              onValueChange={handleRoleChange}
+              value={formData.role} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
             >
               <SelectTrigger className={errors.role ? "border-red-500" : ""}>
                 <SelectValue placeholder="Select a role" />
@@ -162,67 +179,42 @@ const EditUserDialog = ({ user, onUpdateUser, onCancel, predefinedRoles = [] }: 
                 {defaultRoles.map(role => (
                   <SelectItem key={role} value={role}>{role}</SelectItem>
                 ))}
-                <SelectItem value="custom">Custom Role...</SelectItem>
               </SelectContent>
             </Select>
             {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
           </div>
 
-          {showCustomRole && (
-            <div>
-              <Label htmlFor="customRole">Custom Role</Label>
-              <Input
-                id="customRole"
-                name="customRole"
-                type="text"
-                value={formData.customRole}
-                onChange={handleInputChange}
-                placeholder="Enter custom role title"
-                className={errors.role ? "border-red-500" : ""}
-              />
-            </div>
-          )}
-
           <div>
-            <Label htmlFor="password">New Password (optional)</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              placeholder="Enter new password"
-              className={errors.password ? "border-red-500" : ""}
-            />
-            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-          </div>
-
-          <div>
-            <Label htmlFor="confirmPassword">Confirm New Password</Label>
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={handleInputChange}
-              placeholder="Confirm new password"
-              className={errors.confirmPassword ? "border-red-500" : ""}
-            />
-            {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
+            <Label htmlFor="status">Status</Label>
+            <Select 
+              value={formData.status} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex gap-2 pt-4">
             <Button
               type="submit"
               className="flex-1 bg-[#be2251] hover:bg-[#fd3572] text-white"
+              disabled={isLoading}
             >
-              Update User
+              {isLoading ? "Updating..." : "Update User"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              onClick={onCancel}
+              onClick={onClose}
               className="flex-1"
+              disabled={isLoading}
             >
               Cancel
             </Button>
