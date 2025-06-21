@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import CountyHeader from "@/components/CountyHeader";
 import MainNavbar from "@/components/MainNavbar";
@@ -200,6 +201,16 @@ const Dashboard = () => {
 
   const isAdmin = userData?.role === 'admin' || userData?.role === 'System Administrator';
 
+  // Format user display name and role for greeting
+  const getFormattedGreeting = () => {
+    if (!userData) return greeting;
+    
+    const displayName = userData.full_name || userData.email?.split('@')[0] || 'User';
+    const roleDisplay = userData.role || 'Staff';
+    
+    return `${greeting} ${displayName}, ${roleDisplay}`;
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -235,10 +246,10 @@ const Dashboard = () => {
                     <Activity className="w-8 h-8" />
                   </div>
                   <div>
-                    <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-                      {greeting}
+                    <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                      {getFormattedGreeting()}
                     </h1>
-                    <p className="text-slate-300 text-lg">{userData?.full_name || userData?.email || "Welcome back"}</p>
+                    <p className="text-slate-300 text-base mt-1">Welcome to your Nakuru County dashboard</p>
                   </div>
                 </div>
                 

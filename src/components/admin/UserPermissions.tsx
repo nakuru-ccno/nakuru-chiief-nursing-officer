@@ -66,42 +66,51 @@ const UserPermissions = () => {
     role: string;
     password: string;
   }) => {
-    const { data, error } = await supabase.rpc("create_admin_user", {
-      user_email: email,
-      user_password: password,
-      user_full_name: full_name,
-      user_role: role,
-    });
+    try {
+      const { data, error } = await supabase.rpc("create_admin_user", {
+        user_email: email,
+        user_password: password,
+        user_full_name: full_name,
+        user_role: role,
+      });
 
-    if (
-      error ||
-      !isCreateAdminUserResponse(data) ||
-      !data.success
-    ) {
+      if (
+        error ||
+        !isCreateAdminUserResponse(data) ||
+        !data.success
+      ) {
+        toast({
+          title: "Failed to add user",
+          description:
+            error?.message ||
+            (isCreateAdminUserResponse(data) ? data.error : undefined) ||
+            "Unknown error creating user.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
-        title: "Failed to add user",
-        description:
-          error?.message ||
-          (isCreateAdminUserResponse(data) ? data.error : undefined) ||
-          "Unknown error creating user.",
+        title: "User created",
+        description: `${email} successfully added and activated.`,
+      });
+      setShowAddUser(false);
+
+      // Don't automatically refresh - let user manually refresh if needed
+      console.log('✅ User created successfully');
+    } catch (err) {
+      console.error('❌ Error creating user:', err);
+      toast({
+        title: "Error",
+        description: "Failed to create user",
         variant: "destructive",
       });
-      return;
     }
-
-    toast({
-      title: "User created",
-      description: `${email} successfully added and activated.`,
-    });
-    setShowAddUser(false);
-
-    // Optionally, refresh the user list here if needed
-    // await fetchUsers();
   };
 
   return (
-    <div>
-      {/* User Management Section */}
+    <div className="space-y-6">
+      {/* User Management Section - No auto-refresh */}
       <UserManagement />
 
       {/* Permission Settings */}
