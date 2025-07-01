@@ -51,10 +51,15 @@ const UserPermissions = () => {
         .from('admin_settings')
         .select('setting_value')
         .eq('setting_key', 'user_permissions')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching permissions:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load permissions. Using defaults.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -63,6 +68,11 @@ const UserPermissions = () => {
       }
     } catch (error) {
       console.error('Error fetching permissions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load permissions. Using defaults.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoadingSettings(false);
     }
@@ -70,11 +80,23 @@ const UserPermissions = () => {
 
   const handleSave = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to save settings.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('admin_settings')
         .upsert({
           setting_key: 'user_permissions',
           setting_value: permissions,
+          updated_by: user.id,
           updated_at: new Date().toISOString()
         });
 
@@ -90,7 +112,7 @@ const UserPermissions = () => {
 
       toast({
         title: "Success",
-        description: "User permissions saved permanently",
+        description: "User permissions saved successfully",
       });
     } catch (error) {
       console.error('Error saving permissions:', error);
@@ -186,12 +208,12 @@ const UserPermissions = () => {
                 setPermissions((prev) => ({ ...prev, defaultRole: value }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="bg-white border border-gray-200 shadow-sm z-40">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                 {roles.map((role) => (
-                  <SelectItem key={role} value={role}>
+                  <SelectItem key={role} value={role} className="cursor-pointer hover:bg-gray-50">
                     {role}
                   </SelectItem>
                 ))}

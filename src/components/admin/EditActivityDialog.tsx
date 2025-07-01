@@ -40,7 +40,7 @@ const EditActivityDialog: React.FC<EditActivityDialogProps> = ({
     title: activity.title,
     type: activity.type,
     description: activity.description || '',
-    facility: activity.facility || 'HQ',
+    location: activity.facility || '',
     duration: activity.duration || 0,
     date: activity.date
   });
@@ -54,14 +54,6 @@ const EditActivityDialog: React.FC<EditActivityDialogProps> = ({
     'General'
   ];
 
-  const facilities = [
-    'HQ',
-    'Branch Office A',
-    'Branch Office B',
-    'Remote',
-    'Field Office'
-  ];
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -73,7 +65,7 @@ const EditActivityDialog: React.FC<EditActivityDialogProps> = ({
           title: formData.title,
           type: formData.type,
           description: formData.description,
-          facility: formData.facility,
+          facility: formData.location,
           duration: formData.duration,
           date: formData.date
         })
@@ -141,12 +133,12 @@ const EditActivityDialog: React.FC<EditActivityDialogProps> = ({
           <div className="space-y-2">
             <Label htmlFor="type">Activity Type</Label>
             <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white border border-gray-200 shadow-sm">
                 <SelectValue placeholder="Select activity type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                 {activityTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
+                  <SelectItem key={type} value={type} className="cursor-pointer hover:bg-gray-50">
                     {type}
                   </SelectItem>
                 ))}
@@ -155,19 +147,13 @@ const EditActivityDialog: React.FC<EditActivityDialogProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="facility">Facility</Label>
-            <Select value={formData.facility} onValueChange={(value) => handleInputChange('facility', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select facility" />
-              </SelectTrigger>
-              <SelectContent>
-                {facilities.map((facility) => (
-                  <SelectItem key={facility} value={facility}>
-                    {facility}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="location">Location</Label>
+            <Input
+              id="location"
+              value={formData.location}
+              onChange={(e) => handleInputChange('location', e.target.value)}
+              placeholder="Enter location"
+            />
           </div>
 
           <div className="space-y-2">

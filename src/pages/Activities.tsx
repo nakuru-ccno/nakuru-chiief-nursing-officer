@@ -29,7 +29,7 @@ const Activities = () => {
     type: "",
     date: new Date(),
     duration: "",
-    facility: "HQ",
+    location: "",
     description: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,7 +110,7 @@ const Activities = () => {
             type: formData.type,
             date: format(formData.date, 'yyyy-MM-dd'),
             duration: formData.duration ? parseInt(formData.duration) : null,
-            facility: formData.facility,
+            facility: formData.location || null,
             description: formData.description || null,
             submitted_by: user.email,
             submitted_at: new Date().toISOString()
@@ -138,7 +138,7 @@ const Activities = () => {
         type: "",
         date: new Date(),
         duration: "",
-        facility: "HQ",
+        location: "",
         description: ""
       });
 
@@ -216,9 +216,9 @@ const Activities = () => {
                     <SelectTrigger className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500">
                       <SelectValue placeholder="Select activity type" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                       {activityTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.name}>
+                        <SelectItem key={type.id} value={type.name} className="cursor-pointer hover:bg-gray-50">
                           <div>
                             <div className="font-medium">{type.name}</div>
                             {type.description && (
@@ -278,24 +278,19 @@ const Activities = () => {
                   />
                 </div>
 
-                {/* Facility */}
+                {/* Location */}
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="facility" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <Label htmlFor="location" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-orange-600" />
-                    Facility
+                    Location
                   </Label>
-                  <Select value={formData.facility} onValueChange={(value) => setFormData(prev => ({ ...prev, facility: value }))}>
-                    <SelectTrigger className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="HQ">HQ - Headquarters</SelectItem>
-                      <SelectItem value="Nakuru Level 5 Hospital">Nakuru Level 5 Hospital</SelectItem>
-                      <SelectItem value="Naivasha Sub-County Hospital">Naivasha Sub-County Hospital</SelectItem>
-                      <SelectItem value="Community Health Unit">Community Health Unit</SelectItem>
-                      <SelectItem value="Field Work">Field Work</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                    placeholder="Enter location (e.g., HQ, Nakuru Level 5 Hospital, Field Office)"
+                    className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 transition-colors"
+                  />
                 </div>
               </div>
 

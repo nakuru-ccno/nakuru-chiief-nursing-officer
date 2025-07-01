@@ -53,10 +53,15 @@ const DataManagement = () => {
         .from('admin_settings')
         .select('setting_value')
         .eq('setting_key', 'data_retention')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching settings:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load settings. Using defaults.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -65,6 +70,11 @@ const DataManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load settings. Using defaults.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoadingSettings(false);
     }
@@ -138,11 +148,23 @@ const DataManagement = () => {
 
   const handleSave = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to save settings.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('admin_settings')
         .upsert({
           setting_key: 'data_retention',
           setting_value: settings,
+          updated_by: user.id,
           updated_at: new Date().toISOString()
         });
 
@@ -158,7 +180,7 @@ const DataManagement = () => {
 
       toast({
         title: "Success",
-        description: "Data management settings saved permanently"
+        description: "Data management settings saved successfully"
       });
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -179,7 +201,7 @@ const DataManagement = () => {
 
   const handleBackupNow = () => {
     toast({
-      title: "Backup Started",
+      title: "Backup Started",  
       description: "Manual backup has been initiated successfully."
     });
   };
