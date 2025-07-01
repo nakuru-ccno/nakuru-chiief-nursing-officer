@@ -207,16 +207,21 @@ const Activities = () => {
                 </div>
 
                 {/* Activity Type */}
-                <div className="space-y-2 relative">
+                <div className="space-y-2">
                   <Label htmlFor="type" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <User className="w-4 h-4 text-orange-600" />
                     Activity Type *
                   </Label>
                   <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
-                    <SelectTrigger className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 bg-white relative z-10">
+                    <SelectTrigger className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 bg-white">
                       <SelectValue placeholder="Select activity type" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white border-2 border-gray-200 shadow-2xl z-[9999] max-h-60 overflow-y-auto">
+                    <SelectContent 
+                      className="bg-white border-2 border-gray-200 shadow-2xl max-h-60 overflow-y-auto"
+                      style={{ zIndex: 99999 }}
+                      position="popper"
+                      sideOffset={4}
+                    >
                       {activityTypes.map((type) => (
                         <SelectItem key={type.id} value={type.name} className="cursor-pointer hover:bg-gray-50 py-3 px-4">
                           <div>
@@ -250,7 +255,7 @@ const Activities = () => {
                         {formData.date ? format(formData.date, "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[9999] bg-white border-2 border-gray-200 shadow-2xl">
+                    <PopoverContent className="w-auto p-0 z-[99999] bg-white border-2 border-gray-200 shadow-2xl">
                       <Calendar
                         mode="single"
                         selected={formData.date}
