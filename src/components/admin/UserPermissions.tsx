@@ -28,6 +28,7 @@ const UserPermissions = () => {
     allowRoleChange: false,
   });
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const { toast } = useToast();
 
   const roles = [
@@ -80,6 +81,7 @@ const UserPermissions = () => {
 
   const handleSave = async () => {
     try {
+      setIsSavingSettings(true);
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -121,6 +123,8 @@ const UserPermissions = () => {
         description: "Failed to save permissions. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSavingSettings(false);
     }
   };
 
@@ -301,9 +305,17 @@ const UserPermissions = () => {
 
       <Button
         onClick={handleSave}
+        disabled={isSavingSettings}
         className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
       >
-        Save Permission Settings Permanently
+        {isSavingSettings ? (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            Saving Settings...
+          </div>
+        ) : (
+          "Save Permission Settings Permanently"
+        )}
       </Button>
 
       <button

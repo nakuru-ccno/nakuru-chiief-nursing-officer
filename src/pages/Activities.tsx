@@ -207,22 +207,22 @@ const Activities = () => {
                 </div>
 
                 {/* Activity Type */}
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <Label htmlFor="type" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <User className="w-4 h-4 text-orange-600" />
                     Activity Type *
                   </Label>
                   <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
-                    <SelectTrigger className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500">
+                    <SelectTrigger className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 bg-white relative z-10">
                       <SelectValue placeholder="Select activity type" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
+                    <SelectContent className="bg-white border-2 border-gray-200 shadow-2xl z-[9999] max-h-60 overflow-y-auto">
                       {activityTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.name} className="cursor-pointer hover:bg-gray-50">
+                        <SelectItem key={type.id} value={type.name} className="cursor-pointer hover:bg-gray-50 py-3 px-4">
                           <div>
-                            <div className="font-medium">{type.name}</div>
+                            <div className="font-medium text-gray-900">{type.name}</div>
                             {type.description && (
-                              <div className="text-sm text-gray-500">{type.description}</div>
+                              <div className="text-sm text-gray-500 mt-1">{type.description}</div>
                             )}
                           </div>
                         </SelectItem>
@@ -242,7 +242,7 @@ const Activities = () => {
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "h-12 w-full justify-start text-left text-lg border-2 border-gray-200 hover:border-orange-500 transition-colors",
+                          "h-12 w-full justify-start text-left text-lg border-2 border-gray-200 hover:border-orange-500 transition-colors bg-white",
                           !formData.date && "text-muted-foreground"
                         )}
                       >
@@ -250,7 +250,7 @@ const Activities = () => {
                         {formData.date ? format(formData.date, "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent className="w-auto p-0 z-[9999] bg-white border-2 border-gray-200 shadow-2xl">
                       <Calendar
                         mode="single"
                         selected={formData.date}
