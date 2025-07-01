@@ -37,12 +37,38 @@ const DataManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
-  const [searchEmail, setSearchEmail] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   useEffect(() => {
     fetchUsers();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setIsLoadingSettings(true);
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'data_retention')
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching settings:', error);
+        return;
+      }
+
+      if (data?.setting_value) {
+        setSettings(data.setting_value as any);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -69,7 +95,6 @@ const DataManagement = () => {
     try {
       setIsLoading(true);
       
-      // Delete all activities for the selected user
       const { error } = await supabase
         .from('activities')
         .delete()
@@ -92,7 +117,7 @@ const DataManagement = () => {
 
       setShowClearDialog(false);
       setSelectedUser(null);
-      setSearchEmail("");
+      setSearchTerm("");
     } catch (error) {
       console.error('Error clearing user data:', error);
       toast({
@@ -106,16 +131,43 @@ const DataManagement = () => {
   };
 
   const filteredUsers = users.filter(user => 
-    user.email.toLowerCase().includes(searchEmail.toLowerCase()) ||
-    user.full_name?.toLowerCase().includes(searchEmail.toLowerCase())
+    searchTerm === "" || 
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSave = () => {
-    localStorage.setItem("dataSettings", JSON.stringify(settings));
-    toast({
-      title: "Success",
-      description: "Data management settings saved successfully"
-    });
+  const handleSave = async () => {
+    try {
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert({
+          setting_key: 'data_retention',
+          setting_value: settings,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error saving settings:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save settings. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Data management settings saved permanently"
+      });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExportData = () => {
@@ -132,9 +184,18 @@ const DataManagement = () => {
     });
   };
 
+  if (isLoadingSettings) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin"></div>
+        <span className="ml-3 text-gray-600">Loading settings...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* User Data Management */}
+      {/* Simplified User Data Management */}
       <Card>
         <CardHeader>
           <CardTitle className="text-[#be2251] flex items-center gap-2">
@@ -144,47 +205,50 @@ const DataManagement = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="userSearch">Search User by Email or Name</Label>
+            <Label htmlFor="userSearch">Search User</Label>
             <div className="flex gap-2 mt-2">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   id="userSearch"
-                  placeholder="Enter email or name..."
-                  value={searchEmail}
-                  onChange={(e) => setSearchEmail(e.target.value)}
+                  placeholder="Type name or email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
           </div>
 
-          {searchEmail && filteredUsers.length > 0 && (
-            <div className="border rounded-lg max-h-48 overflow-y-auto">
-              {filteredUsers.slice(0, 10).map((user) => (
-                <div
-                  key={user.id}
-                  className="p-3 hover:bg-gray-50 border-b last:border-b-0 cursor-pointer"
-                  onClick={() => {
-                    setSelectedUser(user);
-                    setSearchEmail(user.email);
-                  }}
-                >
-                  <div className="font-medium">{user.email}</div>
-                  <div className="text-sm text-gray-500">
-                    {user.full_name} - {user.role}
+          {searchTerm && (
+            <div className="border rounded-lg max-h-64 overflow-y-auto">
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className={`p-3 hover:bg-gray-50 border-b last:border-b-0 cursor-pointer ${
+                      selectedUser?.id === user.id ? 'bg-blue-50 border-blue-200' : ''
+                    }`}
+                    onClick={() => setSelectedUser(user)}
+                  >
+                    <div className="font-medium">{user.full_name || user.email}</div>
+                    <div className="text-sm text-gray-500">
+                      {user.email} • {user.role}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="p-3 text-gray-500 text-center">No users found</div>
+              )}
             </div>
           )}
 
           {selectedUser && (
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <div className="mb-3">
-                <h4 className="font-medium">Selected User:</h4>
-                <p className="text-sm text-gray-600">{selectedUser.email}</p>
-                <p className="text-sm text-gray-600">{selectedUser.full_name} - {selectedUser.role}</p>
+                <h4 className="font-medium text-blue-900">Selected User:</h4>
+                <p className="text-sm text-blue-700">{selectedUser.full_name || selectedUser.email}</p>
+                <p className="text-sm text-blue-600">{selectedUser.email} • {selectedUser.role}</p>
               </div>
               <Button
                 onClick={() => setShowClearDialog(true)}
@@ -314,7 +378,7 @@ const DataManagement = () => {
 
       {/* Save Button */}
       <Button onClick={handleSave} className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white">
-        Save Data Settings
+        Save Data Settings Permanently
       </Button>
 
       {/* Clear User Data Confirmation Dialog */}
@@ -326,8 +390,8 @@ const DataManagement = () => {
               <p>Are you sure you want to permanently delete ALL activity data for this user?</p>
               {selectedUser && (
                 <div className="bg-gray-50 p-3 rounded-md space-y-1">
+                  <p><strong>Name:</strong> {selectedUser.full_name || 'Not set'}</p>
                   <p><strong>Email:</strong> {selectedUser.email}</p>
-                  <p><strong>Name:</strong> {selectedUser.full_name}</p>
                   <p><strong>Role:</strong> {selectedUser.role}</p>
                 </div>
               )}

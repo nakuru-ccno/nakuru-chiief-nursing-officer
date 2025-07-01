@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,9 +27,9 @@ const UserPermissions = () => {
     requireApproval: true,
     allowRoleChange: false,
   });
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const { toast } = useToast();
 
-  // Updated roles for Nakuru County
   const roles = [
     "System Administrator",
     "Nakuru County Chief Nursing Officer",
@@ -40,15 +40,68 @@ const UserPermissions = () => {
     "Staff Nurse",
   ];
 
-  const handleSave = () => {
-    localStorage.setItem("userPermissions", JSON.stringify(permissions));
-    toast({
-      title: "Success",
-      description: "User permissions updated successfully",
-    });
+  useEffect(() => {
+    fetchPermissions();
+  }, []);
+
+  const fetchPermissions = async () => {
+    try {
+      setIsLoadingSettings(true);
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'user_permissions')
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching permissions:', error);
+        return;
+      }
+
+      if (data?.setting_value) {
+        setPermissions(data.setting_value as any);
+      }
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
+    } finally {
+      setIsLoadingSettings(false);
+    }
   };
 
-  // Helper type guard for Supabase RPC return value
+  const handleSave = async () => {
+    try {
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert({
+          setting_key: 'user_permissions',
+          setting_value: permissions,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error saving permissions:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save permissions. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "User permissions saved permanently",
+      });
+    } catch (error) {
+      console.error('Error saving permissions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save permissions. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   function isCreateAdminUserResponse(
     data: any
   ): data is { success: boolean; error?: string } {
@@ -96,7 +149,6 @@ const UserPermissions = () => {
       });
       setShowAddUser(false);
 
-      // Don't automatically refresh - let user manually refresh if needed
       console.log('✅ User created successfully');
     } catch (err) {
       console.error('❌ Error creating user:', err);
@@ -108,12 +160,19 @@ const UserPermissions = () => {
     }
   };
 
+  if (isLoadingSettings) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin"></div>
+        <span className="ml-3 text-gray-600">Loading settings...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* User Management Section - No auto-refresh */}
       <UserManagement />
 
-      {/* Permission Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="text-[#be2251]">Default User Settings</CardTitle>
@@ -222,7 +281,7 @@ const UserPermissions = () => {
         onClick={handleSave}
         className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
       >
-        Save Permission Settings
+        Save Permission Settings Permanently
       </Button>
 
       <button
