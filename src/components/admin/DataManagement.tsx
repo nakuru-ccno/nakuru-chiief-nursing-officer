@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -89,6 +88,8 @@ const DataManagement = () => {
   const saveSettings = async () => {
     try {
       setIsSavingSettings(true);
+      console.log('💾 Saving data management settings...', settings);
+      
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -100,23 +101,48 @@ const DataManagement = () => {
         return;
       }
 
-      const { error } = await supabase
+      // First, try to update existing record
+      const { data: updateData, error: updateError } = await supabase
         .from('admin_settings')
-        .upsert({
-          setting_key: 'data_retention',
+        .update({
           setting_value: settings,
           updated_by: user.id,
           updated_at: new Date().toISOString()
-        });
+        })
+        .eq('setting_key', 'data_retention')
+        .select();
 
-      if (error) {
-        console.error('Error saving settings:', error);
+      if (updateError) {
+        console.error('Error updating settings:', updateError);
         toast({
           title: "Error",
-          description: "Failed to save settings. Please try again.",
+          description: `Failed to save settings: ${updateError.message}`,
           variant: "destructive",
         });
         return;
+      }
+
+      // If no rows were updated, insert a new record
+      if (!updateData || updateData.length === 0) {
+        console.log('📝 No existing record found, inserting new one...');
+        const { error: insertError } = await supabase
+          .from('admin_settings')
+          .insert({
+            setting_key: 'data_retention',
+            setting_value: settings,
+            updated_by: user.id,
+            updated_at: new Date().toISOString()
+          });
+
+        if (insertError) {
+          console.error('Error inserting settings:', insertError);
+          toast({
+            title: "Error",
+            description: `Failed to save settings: ${insertError.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       toast({

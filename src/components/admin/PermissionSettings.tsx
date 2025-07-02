@@ -75,7 +75,7 @@ const PermissionSettings = () => {
   const handleSave = async () => {
     try {
       setIsSavingSettings(true);
-      console.log('💾 Saving admin settings...', permissions);
+      console.log('💾 Saving permission settings...', permissions);
       
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -108,25 +108,48 @@ const PermissionSettings = () => {
         return;
       }
 
-      const { error } = await supabase
+      // First, try to update existing record
+      const { data: updateData, error: updateError } = await supabase
         .from('admin_settings')
-        .upsert({
-          setting_key: 'user_permissions',
+        .update({
           setting_value: permissions,
           updated_by: user.id,
           updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'setting_key'
-        });
+        })
+        .eq('setting_key', 'user_permissions')
+        .select();
 
-      if (error) {
-        console.error('❌ Error saving permissions:', error);
+      if (updateError) {
+        console.error('❌ Error updating permissions:', updateError);
         toast({
           title: "Error",
-          description: `Failed to save settings: ${error.message}`,
+          description: `Failed to save settings: ${updateError.message}`,
           variant: "destructive",
         });
         return;
+      }
+
+      // If no rows were updated, insert a new record
+      if (!updateData || updateData.length === 0) {
+        console.log('📝 No existing record found, inserting new one...');
+        const { error: insertError } = await supabase
+          .from('admin_settings')
+          .insert({
+            setting_key: 'user_permissions',
+            setting_value: permissions,
+            updated_by: user.id,
+            updated_at: new Date().toISOString()
+          });
+
+        if (insertError) {
+          console.error('❌ Error inserting permissions:', insertError);
+          toast({
+            title: "Error",
+            description: `Failed to save settings: ${insertError.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       console.log('✅ Settings saved successfully');
