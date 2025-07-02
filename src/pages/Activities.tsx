@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,42 +49,32 @@ const Activities = () => {
 
       if (error) {
         console.error('❌ Error fetching activity types:', error);
-        // Fallback to default types if database fetch fails
-        setActivityTypes([
-          { id: '1', name: 'Administrative', description: 'Administrative tasks', is_active: true },
-          { id: '2', name: 'Clinical Care', description: 'Patient care activities', is_active: true },
-          { id: '3', name: 'Training', description: 'Training and education', is_active: true },
-          { id: '4', name: 'Meetings', description: 'Meetings and conferences', is_active: true },
-          { id: '5', name: 'Documentation', description: 'Documentation work', is_active: true }
-        ]);
+        toast({
+          title: "Warning",
+          description: "Failed to load activity types. Please contact your administrator.",
+          variant: "destructive",
+        });
         return;
       }
 
       console.log('✅ Activity types loaded:', data?.length || 0);
+      setActivityTypes(data || []);
       
-      // If no data from database, use fallback types
       if (!data || data.length === 0) {
-        console.log('⚠️ No activity types in database, using fallback types');
-        setActivityTypes([
-          { id: '1', name: 'Administrative', description: 'Administrative tasks', is_active: true },
-          { id: '2', name: 'Clinical Care', description: 'Patient care activities', is_active: true },
-          { id: '3', name: 'Training', description: 'Training and education', is_active: true },
-          { id: '4', name: 'Meetings', description: 'Meetings and conferences', is_active: true },
-          { id: '5', name: 'Documentation', description: 'Documentation work', is_active: true }
-        ]);
-      } else {
-        setActivityTypes(data);
+        console.log('⚠️ No activity types found in database');
+        toast({
+          title: "No Activity Types",
+          description: "No activity types available. Please contact your administrator to add activity types.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('❌ Error in fetchActivityTypes:', error);
-      // Fallback to default types
-      setActivityTypes([
-        { id: '1', name: 'Administrative', description: 'Administrative tasks', is_active: true },
-        { id: '2', name: 'Clinical Care', description: 'Patient care activities', is_active: true },
-        { id: '3', name: 'Training', description: 'Training and education', is_active: true },
-        { id: '4', name: 'Meetings', description: 'Meetings and conferences', is_active: true },
-        { id: '5', name: 'Documentation', description: 'Documentation work', is_active: true }
-      ]);
+      toast({
+        title: "Error",
+        description: "Failed to load activity types. Please try refreshing the page.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -225,13 +214,13 @@ const Activities = () => {
                     <User className="w-4 h-4 text-orange-600" />
                     Activity Type *
                   </Label>
-                  <div className="relative">
-                    <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
-                      <SelectTrigger className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 bg-white">
-                        <SelectValue placeholder="Select activity type" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-gray-300 shadow-xl z-[100000] max-h-60 overflow-y-auto">
-                        {activityTypes.map((type) => (
+                  <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+                    <SelectTrigger className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 bg-white">
+                      <SelectValue placeholder="Select activity type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border border-gray-300 shadow-xl z-[100000] max-h-60 overflow-y-auto">
+                      {activityTypes.length > 0 ? (
+                        activityTypes.map((type) => (
                           <SelectItem key={type.id} value={type.name} className="cursor-pointer hover:bg-gray-50 py-3 px-4">
                             <div>
                               <div className="font-medium text-gray-900">{type.name}</div>
@@ -240,10 +229,14 @@ const Activities = () => {
                               )}
                             </div>
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        ))
+                      ) : (
+                        <SelectItem value="no-types" disabled className="text-gray-500 py-3 px-4">
+                          No activity types available
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Date */}

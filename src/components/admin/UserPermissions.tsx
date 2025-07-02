@@ -48,6 +48,8 @@ const UserPermissions = () => {
   const fetchPermissions = async () => {
     try {
       setIsLoadingSettings(true);
+      console.log('🔄 Fetching admin settings...');
+      
       const { data, error } = await supabase
         .from('admin_settings')
         .select('setting_value')
@@ -55,23 +57,26 @@ const UserPermissions = () => {
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching permissions:', error);
+        console.error('❌ Error fetching permissions:', error);
         toast({
-          title: "Error",
-          description: "Failed to load permissions. Using defaults.",
+          title: "Warning",
+          description: "Failed to load saved settings. Using defaults.",
           variant: "destructive",
         });
         return;
       }
 
       if (data?.setting_value) {
+        console.log('✅ Loaded saved permissions:', data.setting_value);
         setPermissions(data.setting_value as any);
+      } else {
+        console.log('⚠️ No saved permissions found, using defaults');
       }
     } catch (error) {
-      console.error('Error fetching permissions:', error);
+      console.error('❌ Error fetching permissions:', error);
       toast({
-        title: "Error",
-        description: "Failed to load permissions. Using defaults.",
+        title: "Warning",
+        description: "Failed to load saved settings. Using defaults.",
         variant: "destructive",
       });
     } finally {
@@ -82,12 +87,34 @@ const UserPermissions = () => {
   const handleSave = async () => {
     try {
       setIsSavingSettings(true);
+      console.log('💾 Saving admin settings...', permissions);
+      
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         toast({
           title: "Error",
           description: "You must be logged in to save settings.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('👤 Current user:', user.email);
+
+      // Check if user has admin role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      console.log('🔒 User profile role:', profile?.role);
+
+      if (!profile || !['admin', 'System Administrator'].includes(profile.role || '')) {
+        toast({
+          title: "Access Denied",
+          description: "You don't have permission to save settings.",
           variant: "destructive",
         });
         return;
@@ -100,27 +127,30 @@ const UserPermissions = () => {
           setting_value: permissions,
           updated_by: user.id,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'setting_key'
         });
 
       if (error) {
-        console.error('Error saving permissions:', error);
+        console.error('❌ Error saving permissions:', error);
         toast({
           title: "Error",
-          description: "Failed to save permissions. Please try again.",
+          description: `Failed to save settings: ${error.message}`,
           variant: "destructive",
         });
         return;
       }
 
+      console.log('✅ Settings saved successfully');
       toast({
         title: "Success",
         description: "User permissions saved successfully",
       });
     } catch (error) {
-      console.error('Error saving permissions:', error);
+      console.error('❌ Error saving permissions:', error);
       toast({
         title: "Error",
-        description: "Failed to save permissions. Please try again.",
+        description: "Failed to save settings. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -212,7 +242,7 @@ const UserPermissions = () => {
                 setPermissions((prev) => ({ ...prev, defaultRole: value }))
               }
             >
-              <SelectTrigger className="bg-white border border-gray-200 shadow-sm z-40">
+              <SelectTrigger className="bg-white border border-gray-200 shadow-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
@@ -314,7 +344,7 @@ const UserPermissions = () => {
             Saving Settings...
           </div>
         ) : (
-          "Save Permission Settings Permanently"
+          "Save Permission Settings"
         )}
       </Button>
 
