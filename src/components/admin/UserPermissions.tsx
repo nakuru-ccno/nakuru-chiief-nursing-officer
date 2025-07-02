@@ -10,153 +10,20 @@ import AddUserDialog from "./AddUserDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import UserManagement from "./UserManagement";
-
-const predefinedRoles = [
-  "Staff Nurse",
-  "Charge Nurse",
-  "Matron",
-  "Chief Nurse Officer",
-  "System Administrator",
-];
+import PermissionSettings from "./PermissionSettings";
+import RoleHierarchy from "./RoleHierarchy";
 
 const UserPermissions = () => {
   const [showAddUser, setShowAddUser] = useState(false);
-  const [permissions, setPermissions] = useState({
-    defaultRole: "Staff Nurse",
-    allowSelfRegistration: false,
-    requireApproval: true,
-    allowRoleChange: false,
-  });
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const { toast } = useToast();
 
-  const roles = [
-    "System Administrator",
-    "Nakuru County Chief Nursing Officer",
-    "Nakuru County Deputy Chief Nursing Officer",
-    "Chief Nurse Officer",
-    "Nurse Officer",
-    "Senior Nurse",
+  const predefinedRoles = [
     "Staff Nurse",
+    "Charge Nurse", 
+    "Matron",
+    "Chief Nurse Officer",
+    "System Administrator",
   ];
-
-  useEffect(() => {
-    fetchPermissions();
-  }, []);
-
-  const fetchPermissions = async () => {
-    try {
-      setIsLoadingSettings(true);
-      console.log('🔄 Fetching admin settings...');
-      
-      const { data, error } = await supabase
-        .from('admin_settings')
-        .select('setting_value')
-        .eq('setting_key', 'user_permissions')
-        .maybeSingle();
-
-      if (error) {
-        console.error('❌ Error fetching permissions:', error);
-        toast({
-          title: "Warning",
-          description: "Failed to load saved settings. Using defaults.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data?.setting_value) {
-        console.log('✅ Loaded saved permissions:', data.setting_value);
-        setPermissions(data.setting_value as any);
-      } else {
-        console.log('⚠️ No saved permissions found, using defaults');
-      }
-    } catch (error) {
-      console.error('❌ Error fetching permissions:', error);
-      toast({
-        title: "Warning",
-        description: "Failed to load saved settings. Using defaults.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoadingSettings(false);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      setIsSavingSettings(true);
-      console.log('💾 Saving admin settings...', permissions);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to save settings.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('👤 Current user:', user.email);
-
-      // Check if user has admin role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      console.log('🔒 User profile role:', profile?.role);
-
-      if (!profile || !['admin', 'System Administrator'].includes(profile.role || '')) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have permission to save settings.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('admin_settings')
-        .upsert({
-          setting_key: 'user_permissions',
-          setting_value: permissions,
-          updated_by: user.id,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'setting_key'
-        });
-
-      if (error) {
-        console.error('❌ Error saving permissions:', error);
-        toast({
-          title: "Error",
-          description: `Failed to save settings: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('✅ Settings saved successfully');
-      toast({
-        title: "Success",
-        description: "User permissions saved successfully",
-      });
-    } catch (error) {
-      console.error('❌ Error saving permissions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSavingSettings(false);
-    }
-  };
 
   function isCreateAdminUserResponse(
     data: any
@@ -176,6 +43,8 @@ const UserPermissions = () => {
     password: string;
   }) => {
     try {
+      console.log('🔄 Creating user:', { email, full_name, role });
+      
       const { data, error } = await supabase.rpc("create_admin_user", {
         user_email: email,
         user_password: password,
@@ -183,29 +52,22 @@ const UserPermissions = () => {
         user_role: role,
       });
 
-      if (
-        error ||
-        !isCreateAdminUserResponse(data) ||
-        !data.success
-      ) {
+      if (error || !isCreateAdminUserResponse(data) || !data.success) {
+        console.error('❌ Error creating user:', error || data?.error);
         toast({
           title: "Failed to add user",
-          description:
-            error?.message ||
-            (isCreateAdminUserResponse(data) ? data.error : undefined) ||
-            "Unknown error creating user.",
+          description: error?.message || (isCreateAdminUserResponse(data) ? data.error : undefined) || "Unknown error creating user.",
           variant: "destructive",
         });
         return;
       }
 
+      console.log('✅ User created successfully:', data);
       toast({
         title: "User created",
         description: `${email} successfully added and activated.`,
       });
       setShowAddUser(false);
-
-      console.log('✅ User created successfully');
     } catch (err) {
       console.error('❌ Error creating user:', err);
       toast({
@@ -216,144 +78,19 @@ const UserPermissions = () => {
     }
   };
 
-  if (isLoadingSettings) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin"></div>
-        <span className="ml-3 text-gray-600">Loading settings...</span>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <UserManagement />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[#be2251]">Default User Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="defaultRole">Default role for new users</Label>
-            <Select
-              value={permissions.defaultRole}
-              onValueChange={(value) =>
-                setPermissions((prev) => ({ ...prev, defaultRole: value }))
-              }
-            >
-              <SelectTrigger className="bg-white border border-gray-200 shadow-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
-                {roles.map((role) => (
-                  <SelectItem key={role} value={role} className="cursor-pointer hover:bg-gray-50">
-                    {role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[#be2251]">Registration Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="allowSelfRegistration"
-              checked={permissions.allowSelfRegistration}
-              onCheckedChange={(checked) =>
-                setPermissions((prev) => ({
-                  ...prev,
-                  allowSelfRegistration: checked,
-                }))
-              }
-            />
-            <Label htmlFor="allowSelfRegistration">
-              Allow self-registration
-            </Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="requireApproval"
-              checked={permissions.requireApproval}
-              onCheckedChange={(checked) =>
-                setPermissions((prev) => ({
-                  ...prev,
-                  requireApproval: checked,
-                }))
-              }
-            />
-            <Label htmlFor="requireApproval">
-              Require admin approval for new accounts
-            </Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="allowRoleChange"
-              checked={permissions.allowRoleChange}
-              onCheckedChange={(checked) =>
-                setPermissions((prev) => ({
-                  ...prev,
-                  allowRoleChange: checked,
-                }))
-              }
-            />
-            <Label htmlFor="allowRoleChange">
-              Allow users to request role changes
-            </Label>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[#be2251]">
-            Nakuru County Role Hierarchy
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {roles.map((role, index) => (
-              <div
-                key={role}
-                className="flex items-center justify-between p-2 bg-gray-50 rounded"
-              >
-                <span className="font-medium">{role}</span>
-                <Badge variant="outline">Level {roles.length - index}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <PermissionSettings />
+      <RoleHierarchy />
 
       <Button
-        onClick={handleSave}
-        disabled={isSavingSettings}
-        className="w-full bg-[#fd3572] hover:bg-[#be2251] text-white"
+        onClick={() => setShowAddUser(true)}
+        className="bg-[#fd3572] hover:bg-[#be2251] text-white px-6 py-3 rounded-lg font-semibold"
       >
-        {isSavingSettings ? (
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            Saving Settings...
-          </div>
-        ) : (
-          "Save Permission Settings"
-        )}
+        Add New User
       </Button>
 
-      <button
-        className="bg-[#fd3572] hover:bg-[#be2251] text-white px-4 py-2 rounded font-semibold my-4"
-        onClick={() => setShowAddUser(true)}
-      >
-        Add User
-      </button>
       {showAddUser && (
         <AddUserDialog
           onAddUser={handleAddUser}
