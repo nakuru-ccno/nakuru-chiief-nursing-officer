@@ -13,6 +13,14 @@ import UserManagement from "./UserManagement";
 import PermissionSettings from "./PermissionSettings";
 import RoleHierarchy from "./RoleHierarchy";
 
+// Type for the create_admin_user response
+interface CreateAdminUserResponse {
+  success: boolean;
+  error?: string;
+  user_id?: string;
+  email?: string;
+}
+
 const UserPermissions = () => {
   const [showAddUser, setShowAddUser] = useState(false);
   const { toast } = useToast();
@@ -27,8 +35,8 @@ const UserPermissions = () => {
 
   function isCreateAdminUserResponse(
     data: any
-  ): data is { success: boolean; error?: string } {
-    return typeof data === "object" && !!data && "success" in data;
+  ): data is CreateAdminUserResponse {
+    return typeof data === "object" && data !== null && "success" in data;
   }
 
   const handleAddUser = async ({
@@ -52,11 +60,22 @@ const UserPermissions = () => {
         user_role: role,
       });
 
-      if (error || !isCreateAdminUserResponse(data) || !data.success) {
-        console.error('❌ Error creating user:', error || data?.error);
+      if (error) {
+        console.error('❌ RPC Error:', error);
         toast({
           title: "Failed to add user",
-          description: error?.message || (isCreateAdminUserResponse(data) ? data.error : undefined) || "Unknown error creating user.",
+          description: error.message || "Database error occurred.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!isCreateAdminUserResponse(data) || !data.success) {
+        console.error('❌ User creation failed:', data);
+        const errorMessage = isCreateAdminUserResponse(data) ? data.error : "Unknown error creating user.";
+        toast({
+          title: "Failed to add user",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
