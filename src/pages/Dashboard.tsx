@@ -4,10 +4,12 @@ import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Clock, Users, FileText, Edit, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Calendar, Clock, Users, FileText, Edit, Trash2, Sun, Moon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
+import { useLiveTime } from "@/hooks/useLiveTime";
 import EditActivityDialog from "@/components/admin/EditActivityDialog";
 import DeleteActivityDialog from "@/components/admin/DeleteActivityDialog";
 
@@ -34,7 +36,36 @@ export default function Dashboard() {
   const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const { toast } = useToast();
+
+  // Live time hook
+  const { currentTime, greeting } = useLiveTime();
+
+  // Format time with seconds
+  const formatTime = () => {
+    return currentTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
+  const formatDate = () => {
+    return currentTime.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Theme toggle
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+    document.documentElement.classList.toggle('dark');
+  };
 
   const getCurrentUser = async () => {
     try {
@@ -208,7 +239,7 @@ export default function Dashboard() {
       <MainNavbar />
       
       <div className="max-w-7xl mx-auto p-8">
-        {/* Enhanced Header with Role */}
+        {/* Enhanced Header with Role and Live Time */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Welcome back, {currentUser}!
@@ -218,6 +249,35 @@ export default function Dashboard() {
               {currentUserRole}
             </h2>
           )}
+          
+          {/* Live Time Display with Greeting */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-lg font-semibold text-blue-800">{greeting}</span>
+                </div>
+                <div className="flex items-center gap-2 text-blue-700">
+                  <Clock className="w-4 h-4" />
+                  <span className="font-mono text-lg font-bold">{formatTime()}</span>
+                </div>
+                <span className="text-sm text-blue-600">{formatDate()}</span>
+              </div>
+              
+              {/* Light/Dark Mode Toggle */}
+              <div className="flex items-center gap-3 bg-white/50 rounded-lg px-3 py-2">
+                <Sun className="w-4 h-4 text-yellow-500" />
+                <Switch
+                  checked={isDarkMode}
+                  onCheckedChange={toggleTheme}
+                  className="data-[state=checked]:bg-slate-700"
+                />
+                <Moon className="w-4 h-4 text-slate-600" />
+              </div>
+            </div>
+          </div>
+          
           <p className="text-gray-600">Here's an overview of your activities - {currentUserEmail}</p>
           <div className="mt-4 bg-green-100 border border-green-300 rounded-lg px-4 py-2 inline-flex items-center">
             <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
