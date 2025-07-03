@@ -1,113 +1,83 @@
-
 import React, { useState, useEffect, useCallback } from "react";
-import CountyHeader from "@/components/CountyHeader";
 import MainNavbar from "@/components/MainNavbar";
+import CountyHeader from "@/components/CountyHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, User, Plus, BarChart3, FileText, Users, TrendingUp, Activity, Target, Award, Zap } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Plus, Calendar, Clock, Users, FileText, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useLiveTime } from "@/hooks/useLiveTime";
+import { supabase } from "@/integrations/supabase/client";
+import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
+import EditActivityDialog from "@/components/admin/EditActivityDialog";
+import DeleteActivityDialog from "@/components/admin/DeleteActivityDialog";
 
-interface ActivityData {
+interface Activity {
   id: string;
+  date: string;
+  facility: string;
   title: string;
   type: string;
-  date: string;
   duration: number;
-  facility: string;
   description: string;
   submitted_by: string;
+  submitted_at: string;
   created_at: string;
 }
 
-const Dashboard = () => {
-  const { toast } = useToast();
-  const { currentTime, greeting } = useLiveTime();
-  const [activities, setActivities] = useState<ActivityData[]>([]);
+export default function Dashboard() {
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userData, setUserData] = useState<{
-    email: string;
-    full_name: string;
-    role: string;
-  } | null>(null);
+  const [currentUser, setCurrentUser] = useState<string>("");
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
 
-  // Get current user data
-  const fetchUserData = useCallback(async () => {
+  const getCurrentUser = async () => {
     try {
-      const { data, error } = await supabase.auth.getUser();
-
-      if (error) {
-        console.error("Error fetching user:", error);
-        return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        const displayName = user.user_metadata?.full_name || 
+                           user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
+                           "User";
+        setCurrentUser(displayName);
+        setCurrentUserEmail(user.email);
+        console.log('👤 Current user:', displayName, 'Email:', user.email);
+      } else {
+        setCurrentUser("User");
+        setCurrentUserEmail("");
       }
-
-      if (data?.user) {
-        console.log('🔐 Current authenticated user:', data.user.email);
-        
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("full_name, role")
-          .eq("id", data.user.id)
-          .single();
-
-        if (profileError) {
-          console.error("Error fetching profile:", profileError);
-          return;
-        }
-
-        setUserData({
-          email: data.user.email || "",
-          full_name: profile?.full_name || "",
-          role: profile?.role || "",
-        });
-      }
-    } catch (err) {
-      console.error("Unexpected error:", err);
+    } catch (error) {
+      console.error('❌ Error getting current user:', error);
+      setCurrentUser("User");
+      setCurrentUserEmail("");
     }
-  }, []);
-
-  // Fetch activities with explicit email filtering for non-admins
+  };
+  
   const fetchActivities = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 Dashboard - Fetching activities with RLS filtering');
+      console.log('🏠 Dashboard - Fetching user activities');
       
-      // Get current user to log their info
-      const { data: currentUser } = await supabase.auth.getUser();
-      if (!currentUser?.user) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
         console.log('❌ No authenticated user found');
         setActivities([]);
         return;
       }
 
-      console.log('👤 Current user email:', currentUser.user.email);
+      console.log('🔐 Dashboard - Current authenticated user:', user.email);
 
-      // Get user profile to check role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', currentUser.user.id)
-        .single();
-
-      const isAdmin = profile?.role === 'admin' || profile?.role === 'System Administrator';
-      console.log('🔒 User role:', profile?.role, 'Is Admin:', isAdmin);
-
-      let query = supabase
-        .from('activities')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      // For non-admins, explicitly filter by email to ensure data isolation
-      if (!isAdmin && currentUser.user.email) {
-        console.log('🔒 Non-admin user - filtering by email:', currentUser.user.email);
-        query = query.eq('submitted_by', currentUser.user.email);
-      }
-
-      const { data, error } = await query;
-
+      // Use the same query as Reports page for consistency
+      const { data, error } = await supabase
+        .from("activities")
+        .select("*")
+        .eq('submitted_by', user.email)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      
       if (error) {
         console.error('❌ Error fetching activities:', error);
         toast({
@@ -118,24 +88,9 @@ const Dashboard = () => {
         return;
       }
 
-      console.log('✅ Dashboard - Activities loaded:', data?.length || 0, 'activities');
-      console.log('📊 Activity details:', data?.map(a => ({ 
-        id: a.id, 
-        submitted_by: a.submitted_by, 
-        title: a.title,
-        current_user: currentUser.user.email,
-        matches_user: a.submitted_by === currentUser.user.email
-      })));
-
-      // Double check - filter client side for non-admins as extra security
-      let filteredData = data || [];
-      if (!isAdmin && currentUser.user.email) {
-        filteredData = data?.filter(activity => activity.submitted_by === currentUser.user.email) || [];
-        console.log('🔒 Client-side filtering applied. Showing', filteredData.length, 'activities');
-      }
-
-      setActivities(filteredData);
-
+      console.log('✅ Dashboard - Activities loaded:', data?.length || 0);
+      console.log('📊 Dashboard - Filtered activities for user:', user.email, data);
+      setActivities(data || []);
     } catch (error) {
       console.error('❌ Error fetching activities:', error);
       toast({
@@ -149,32 +104,47 @@ const Dashboard = () => {
   }, [toast]);
 
   useEffect(() => {
-    fetchUserData();
+    getCurrentUser();
     fetchActivities();
-  }, [fetchUserData, fetchActivities]);
-
-  // Real-time subscription for activities
-  useEffect(() => {
-    const channel = supabase
-      .channel('dashboard-activities')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'activities'
-        },
-        () => {
-          console.log('🔄 Real-time update - refreshing activities');
-          fetchActivities();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [fetchActivities]);
+
+  useActivitiesRealtime(fetchActivities);
+
+  const handleEditActivity = (activity: Activity) => {
+    setEditingActivity(activity);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteActivity = (activity: Activity) => {
+    setDeletingActivity(activity);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleActivityUpdated = (updatedActivity: Activity) => {
+    setActivities(prev => 
+      prev.map(activity => 
+        activity.id === updatedActivity.id ? updatedActivity : activity
+      )
+    );
+    setIsEditDialogOpen(false);
+    setEditingActivity(null);
+    toast({
+      title: "Success",
+      description: "Activity updated successfully",
+    });
+  };
+
+  const handleActivityDeleted = () => {
+    if (deletingActivity) {
+      setActivities(prev => prev.filter(activity => activity.id !== deletingActivity.id));
+      setIsDeleteDialogOpen(false);
+      setDeletingActivity(null);
+      toast({
+        title: "Success",
+        description: "Activity deleted successfully",
+      });
+    }
+  };
 
   const getTypeColor = (type: string) => {
     const colors = {
@@ -188,7 +158,7 @@ const Dashboard = () => {
     return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Calculate user-specific statistics (RLS ensures these are filtered properly)
+  // Calculate statistics using the same logic as Reports page
   const totalActivities = activities.length;
   const thisMonth = new Date();
   thisMonth.setDate(1);
@@ -199,18 +169,6 @@ const Dashboard = () => {
   const totalHours = Math.floor(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
   const averageDuration = totalActivities > 0 ? Math.round(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
 
-  const isAdmin = userData?.role === 'admin' || userData?.role === 'System Administrator';
-
-  // Format user display name and role for greeting
-  const getFormattedGreeting = () => {
-    if (!userData) return greeting;
-    
-    const displayName = userData.full_name || userData.email?.split('@')[0] || 'User';
-    const roleDisplay = userData.role || 'Staff';
-    
-    return `${greeting} ${displayName}, ${roleDisplay}`;
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -218,8 +176,7 @@ const Dashboard = () => {
         <MainNavbar />
         <div className="max-w-7xl mx-auto p-8">
           <div className="text-center py-8 text-gray-500">
-            <div className="w-8 h-8 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p>Loading your dashboard...</p>
+            <p>Loading dashboard...</p>
           </div>
         </div>
       </div>
@@ -227,293 +184,186 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gray-50">
       <CountyHeader />
       <MainNavbar />
       
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        {/* Enhanced Header */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 rounded-3xl p-8 mb-8 text-white shadow-2xl">
-          <div className="absolute inset-0 bg-black opacity-10"></div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
-          
-          <div className="relative z-10">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-              <div className="mb-6 lg:mb-0">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 bg-gradient-to-r from-pink-500 to-red-600 rounded-2xl shadow-lg">
-                    <Activity className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-                      {getFormattedGreeting()}
-                    </h1>
-                    <p className="text-slate-300 text-base mt-1">Welcome to your Nakuru County dashboard</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-6 text-sm opacity-90 mb-4">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    <span>{isAdmin ? 'Administrator Dashboard' : 'Personal Dashboard'}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    <span className="font-mono">
-                      {currentTime.toLocaleTimeString([], { 
-                        hour: "2-digit", 
-                        minute: "2-digit", 
-                        hour12: true 
-                      })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="text-center lg:text-right">
-                <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target className="w-5 h-5 text-green-400" />
-                    <h3 className="text-lg font-semibold">{isAdmin ? 'All Activities' : 'My Activities'}</h3>
-                  </div>
-                  <div className="text-3xl font-bold text-green-400">{totalActivities}</div>
-                  <p className="text-sm opacity-90">{isAdmin ? 'System-wide' : 'Activities logged'}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-6 text-center">
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm">
-                  {isAdmin ? 'Administrative view - All data visible via RLS' : 'Personal view - Your data only via RLS'}
-                </span>
-              </div>
-            </div>
-          </div>
+      <div className="max-w-7xl mx-auto p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome back, {currentUser}!
+          </h1>
+          <p className="text-gray-600">Here's an overview of your activities - {currentUserEmail}</p>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm border-l-4 border-l-pink-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+        {/* Stats Cards - Using same calculation as Reports page */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="border-l-4 border-l-red-500">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">My Activities</p>
-                  <p className="text-3xl font-bold text-pink-600">{totalActivities}</p>
-                  <p className="text-xs text-gray-500">Total recorded</p>
+                  <p className="text-sm text-gray-600 mb-1">My Total Activities</p>
+                  <p className="text-3xl font-bold text-red-600">{totalActivities}</p>
+                  <p className="text-xs text-gray-500">Your activities recorded</p>
                 </div>
-                <div className="p-3 bg-pink-100 rounded-xl">
-                  <FileText className="h-8 w-8 text-pink-600" />
-                </div>
+                <FileText className="h-8 w-8 text-red-500" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm border-l-4 border-l-blue-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+          <Card className="border-l-4 border-l-blue-500">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">This Month</p>
                   <p className="text-3xl font-bold text-blue-600">{thisMonthActivities}</p>
-                  <p className="text-xs text-gray-500">Monthly progress</p>
+                  <p className="text-xs text-gray-500">Your activities this month</p>
                 </div>
-                <div className="p-3 bg-blue-100 rounded-xl">
-                  <Calendar className="h-8 w-8 text-blue-600" />
-                </div>
+                <Calendar className="h-8 w-8 text-blue-500" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm border-l-4 border-l-green-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+          <Card className="border-l-4 border-l-green-500">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Hours</p>
                   <p className="text-3xl font-bold text-green-600">{totalHours}</p>
-                  <p className="text-xs text-gray-500">Time invested</p>
+                  <p className="text-xs text-gray-500">Your hours of activities</p>
                 </div>
-                <div className="p-3 bg-green-100 rounded-xl">
-                  <Clock className="h-8 w-8 text-green-600" />
-                </div>
+                <Clock className="h-8 w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm border-l-4 border-l-purple-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+          <Card className="border-l-4 border-l-yellow-500">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Average Duration</p>
-                  <p className="text-3xl font-bold text-purple-600">{averageDuration}</p>
+                  <p className="text-3xl font-bold text-yellow-600">{averageDuration}</p>
                   <p className="text-xs text-gray-500">Minutes per activity</p>
                 </div>
-                <div className="p-3 bg-purple-100 rounded-xl">
-                  <TrendingUp className="h-8 w-8 text-purple-600" />
-                </div>
+                <Users className="h-8 w-8 text-yellow-500" />
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm overflow-hidden group hover:shadow-3xl transition-all duration-300">
-            <CardHeader className="bg-gradient-to-r from-pink-500 to-red-600 text-white">
-              <CardTitle className="flex items-center gap-3 text-xl font-bold">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
-                  <Plus className="h-6 w-6" />
-                </div>
-                Quick Add Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <p className="text-gray-600 mb-4">Record your daily activities and track your progress efficiently.</p>
-              <Button 
-                onClick={() => window.location.href = '/activities'}
-                className="w-full bg-gradient-to-r from-pink-500 to-red-600 hover:from-pink-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                Add New Activity
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm overflow-hidden group hover:shadow-3xl transition-all duration-300">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-              <CardTitle className="flex items-center gap-3 text-xl font-bold">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
-                  <BarChart3 className="h-6 w-6" />
-                </div>
-                View Reports
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <p className="text-gray-600 mb-4">Analyze your activity patterns and generate comprehensive reports.</p>
-              <Button 
-                onClick={() => window.location.href = '/reports'}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                View My Reports
-              </Button>
-            </CardContent>
-          </Card>
-
-          {isAdmin && (
-            <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm overflow-hidden group hover:shadow-3xl transition-all duration-300">
-              <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-                <CardTitle className="flex items-center gap-3 text-xl font-bold">
-                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
-                    <Users className="h-6 w-6" />
-                  </div>
-                  Admin Panel
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <p className="text-gray-600 mb-4">Access administrative functions and manage system-wide data.</p>
-                <Button 
-                  onClick={() => window.location.href = '/admin'}
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  Open Admin Panel
-                </Button>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {/* Recent Activities */}
-        <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm">
-          <CardHeader className="bg-gradient-to-r from-slate-600 to-slate-700 text-white">
-            <CardTitle className="flex items-center gap-3 text-2xl font-bold">
-              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                <Activity className="h-7 w-7" />
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="text-xl font-semibold text-gray-800">Recent Activities</CardTitle>
+                <p className="text-sm text-gray-600">Your latest activities</p>
               </div>
-              {isAdmin ? 'All Recent Activities' : 'My Recent Activities'}
-              <div className="ml-auto flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm font-normal">RLS Protected</span>
-              </div>
-            </CardTitle>
+              <Button size="sm" className="bg-pink-500 hover:bg-pink-600 text-white">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Activity
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="p-8">
+          <CardContent>
             {activities.length > 0 ? (
               <div className="space-y-4">
                 {activities.slice(0, 5).map((activity) => (
-                  <div key={activity.id} className="bg-white border rounded-xl p-6 hover:shadow-lg transition-all duration-300 border-l-4 border-l-gray-200 hover:border-l-pink-500">
+                  <div key={activity.id} className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h3 className="font-bold text-lg text-gray-900">{activity.title}</h3>
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-gray-900">{activity.title}</h3>
                           <Badge className={`${getTypeColor(activity.type)} text-xs`}>
                             {activity.type}
                           </Badge>
                         </div>
-                        <p className="text-gray-600 mb-4 leading-relaxed">
+                        <p className="text-gray-600 text-sm mb-3 leading-relaxed">
                           {activity.description}
                         </p>
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                        <div className="flex flex-wrap gap-4 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {new Date(activity.date).toLocaleDateString()}
+                            <Calendar className="w-3 h-3" />
+                            {new Date(activity.created_at).toLocaleDateString()}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
+                            <Clock className="w-3 h-3" />
                             {activity.duration} minutes
                           </span>
                           <span className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            {activity.facility}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <User className="w-4 h-4" />
+                            <Users className="w-3 h-3" />
                             {activity.submitted_by}
                           </span>
+                          {activity.facility && (
+                            <span>Facility: {activity.facility}</span>
+                          )}
                         </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditActivity(activity)}
+                          className="ml-4"
+                        >
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteActivity(activity)}
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Delete
+                        </Button>
                       </div>
                     </div>
                   </div>
                 ))}
                 {activities.length > 5 && (
-                  <div className="text-center py-6 border-t">
-                    <p className="text-gray-500 mb-4">
+                  <div className="text-center py-4 border-t">
+                    <p className="text-sm text-gray-500">
                       Showing 5 of {activities.length} activities
                     </p>
-                    <Button 
-                      onClick={() => window.location.href = '/activities'}
-                      variant="outline"
-                      className="border-pink-300 text-pink-600 hover:bg-pink-50"
-                    >
-                      View All {isAdmin ? 'System' : 'My'} Activities
-                    </Button>
                   </div>
                 )}
               </div>
             ) : (
               <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Activity className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {isAdmin ? 'No activities in system' : 'No activities yet'}
-                </h3>
-                <p className="text-gray-500 mb-6">
-                  {isAdmin ? 'No users have logged activities yet' : 'Start tracking your daily activities to see them here'}
-                </p>
-                <Button 
-                  onClick={() => window.location.href = '/activities'}
-                  className="bg-gradient-to-r from-pink-500 to-red-600 hover:from-pink-600 hover:to-red-700 text-white"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  {isAdmin ? 'View All Activities' : 'Add Your First Activity'}
-                </Button>
+                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-2">No activities found</p>
+                <p className="text-sm text-gray-400">Start logging activities to see them here</p>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {editingActivity && (
+        <EditActivityDialog
+          activity={editingActivity}
+          open={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setEditingActivity(null);
+          }}
+          onActivityUpdated={handleActivityUpdated}
+        />
+      )}
+
+      {deletingActivity && (
+        <DeleteActivityDialog
+          activity={deletingActivity}
+          open={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setDeletingActivity(null);
+          }}
+          onActivityDeleted={handleActivityDeleted}
+        />
+      )}
     </div>
   );
-};
-
-export default Dashboard;
+}
