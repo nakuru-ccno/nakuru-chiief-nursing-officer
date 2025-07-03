@@ -44,13 +44,13 @@ export default function Dashboard() {
                            "User";
         setCurrentUser(displayName);
         setCurrentUserEmail(user.email);
-        console.log('👤 Current user:', displayName, 'Email:', user.email);
+        console.log('👤 Dashboard - Current user:', displayName, 'Email:', user.email);
       } else {
         setCurrentUser("User");
         setCurrentUserEmail("");
       }
     } catch (error) {
-      console.error('❌ Error getting current user:', error);
+      console.error('❌ Dashboard - Error getting current user:', error);
       setCurrentUser("User");
       setCurrentUserEmail("");
     }
@@ -63,23 +63,22 @@ export default function Dashboard() {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
-        console.log('❌ No authenticated user found');
+        console.log('❌ Dashboard - No authenticated user found');
         setActivities([]);
         return;
       }
 
       console.log('🔐 Dashboard - Current authenticated user:', user.email);
 
-      // Use the same query as Reports page for consistency
+      // Use exactly the same query as Reports page for consistency
       const { data, error } = await supabase
         .from("activities")
         .select("*")
         .eq('submitted_by', user.email)
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("created_at", { ascending: false });
       
       if (error) {
-        console.error('❌ Error fetching activities:', error);
+        console.error('❌ Dashboard - Error fetching activities:', error);
         toast({
           title: "Error",
           description: "Failed to load activities",
@@ -89,10 +88,10 @@ export default function Dashboard() {
       }
 
       console.log('✅ Dashboard - Activities loaded:', data?.length || 0);
-      console.log('📊 Dashboard - Filtered activities for user:', user.email, data);
+      console.log('📊 Dashboard - Raw activities data:', data);
       setActivities(data || []);
     } catch (error) {
-      console.error('❌ Error fetching activities:', error);
+      console.error('❌ Dashboard - Error fetching activities:', error);
       toast({
         title: "Error",
         description: "Failed to load activities",
@@ -158,14 +157,19 @@ export default function Dashboard() {
     return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Calculate statistics using the same logic as Reports page
+  // Calculate statistics using exactly the same logic as Reports page
   const totalActivities = activities.length;
+  console.log('📊 Dashboard - Total activities calculated:', totalActivities);
+  
   const thisMonth = new Date();
   thisMonth.setDate(1);
+  thisMonth.setHours(0, 0, 0, 0);
   const thisMonthActivities = activities.filter(activity => {
     const activityDate = new Date(activity.created_at);
     return activityDate >= thisMonth;
   }).length;
+  console.log('📊 Dashboard - This month activities:', thisMonthActivities);
+  
   const totalHours = Math.floor(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
   const averageDuration = totalActivities > 0 ? Math.round(activities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -51,13 +50,13 @@ export default function Reports() {
                            "User";
         setCurrentUser(displayName);
         setCurrentUserEmail(user.email);
-        console.log('👤 Current user:', displayName, 'Email:', user.email);
+        console.log('👤 Reports - Current user:', displayName, 'Email:', user.email);
       } else {
         setCurrentUser("User");
         setCurrentUserEmail("");
       }
     } catch (error) {
-      console.error('❌ Error getting current user:', error);
+      console.error('❌ Reports - Error getting current user:', error);
       setCurrentUser("User");
       setCurrentUserEmail("");
     }
@@ -70,22 +69,22 @@ export default function Reports() {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
-        console.log('❌ No authenticated user found');
+        console.log('❌ Reports - No authenticated user found');
         setAllActivities([]);
         return;
       }
 
       console.log('🔐 Reports - Current authenticated user:', user.email);
 
+      // Use exactly the same query as Dashboard page for consistency
       const { data, error } = await supabase
         .from("activities")
         .select("*")
         .eq('submitted_by', user.email)
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("created_at", { ascending: false });
       
       if (error) {
-        console.error('❌ Error fetching activities:', error);
+        console.error('❌ Reports - Error fetching activities:', error);
         toast({
           title: "Error",
           description: "Failed to load activities",
@@ -95,10 +94,10 @@ export default function Reports() {
       }
 
       console.log('✅ Reports - Activities loaded:', data?.length || 0);
-      console.log('📊 Reports - Filtered activities for user:', user.email, data);
+      console.log('📊 Reports - Raw activities data:', data);
       setAllActivities(data || []);
     } catch (error) {
-      console.error('❌ Error fetching activities:', error);
+      console.error('❌ Reports - Error fetching activities:', error);
       toast({
         title: "Error",
         description: "Failed to load activities",
@@ -146,14 +145,19 @@ export default function Reports() {
     return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Calculate statistics from filtered activities
+  // Calculate statistics using exactly the same logic as Dashboard page
   const totalActivities = allActivities.length;
+  console.log('📊 Reports - Total activities calculated:', totalActivities);
+  
   const thisMonth = new Date();
   thisMonth.setDate(1);
+  thisMonth.setHours(0, 0, 0, 0);
   const thisMonthActivities = allActivities.filter(activity => {
     const activityDate = new Date(activity.created_at);
     return activityDate >= thisMonth;
   }).length;
+  console.log('📊 Reports - This month activities:', thisMonthActivities);
+  
   const totalHours = Math.floor(allActivities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
   const averageDuration = totalActivities > 0 ? Math.round(allActivities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
 
