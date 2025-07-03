@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -39,20 +40,34 @@ export default function Dashboard() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) {
-        const displayName = user.user_metadata?.full_name || 
+        // Get user profile for role information
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, full_name")
+          .eq("email", user.email)
+          .maybeSingle();
+
+        const displayName = profile?.full_name || 
+                           user.user_metadata?.full_name || 
                            user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 
                            "User";
+        
+        const userRole = profile?.role || "User";
+        
         setCurrentUser(displayName);
         setCurrentUserEmail(user.email);
-        console.log('👤 Dashboard - Current user:', displayName, 'Email:', user.email);
+        setCurrentUserRole(userRole);
+        console.log('👤 Dashboard - Current user:', displayName, 'Email:', user.email, 'Role:', userRole);
       } else {
         setCurrentUser("User");
         setCurrentUserEmail("");
+        setCurrentUserRole("");
       }
     } catch (error) {
       console.error('❌ Dashboard - Error getting current user:', error);
       setCurrentUser("User");
       setCurrentUserEmail("");
+      setCurrentUserRole("");
     }
   };
   
@@ -70,7 +85,6 @@ export default function Dashboard() {
 
       console.log('🔐 Dashboard - Current authenticated user:', user.email);
 
-      // Use exactly the same query as Reports page for consistency
       const { data, error } = await supabase
         .from("activities")
         .select("*")
@@ -107,6 +121,7 @@ export default function Dashboard() {
     fetchActivities();
   }, [fetchActivities]);
 
+  // Enhanced real-time updates
   useActivitiesRealtime(fetchActivities);
 
   const handleEditActivity = (activity: Activity) => {
@@ -157,7 +172,7 @@ export default function Dashboard() {
     return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Calculate statistics using exactly the same logic as Reports page
+  // Calculate statistics
   const totalActivities = activities.length;
   console.log('📊 Dashboard - Total activities calculated:', totalActivities);
   
@@ -193,22 +208,37 @@ export default function Dashboard() {
       <MainNavbar />
       
       <div className="max-w-7xl mx-auto p-8">
-        {/* Header */}
+        {/* Enhanced Header with Role */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Welcome back, {currentUser}!
           </h1>
+          {currentUserRole && (
+            <h2 className="text-xl font-semibold text-blue-600 mb-2">
+              {currentUserRole}
+            </h2>
+          )}
           <p className="text-gray-600">Here's an overview of your activities - {currentUserEmail}</p>
+          <div className="mt-4 bg-green-100 border border-green-300 rounded-lg px-4 py-2 inline-flex items-center">
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+            <span className="text-green-700 font-medium">Personal view - Your data only via RLS</span>
+          </div>
         </div>
 
-        {/* Stats Cards - Using same calculation as Reports page */}
+        {/* Stats Cards with Real-time Badge */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="border-l-4 border-l-red-500">
+          <Card className="border-l-4 border-l-red-500 relative">
+            <div className="absolute top-2 right-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">My Total Activities</p>
-                  <p className="text-3xl font-bold text-red-600">{totalActivities}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-3xl font-bold text-red-600">{totalActivities}</p>
+                    <Badge className="bg-green-100 text-green-800 text-xs">Live</Badge>
+                  </div>
                   <p className="text-xs text-gray-500">Your activities recorded</p>
                 </div>
                 <FileText className="h-8 w-8 text-red-500" />
@@ -216,12 +246,18 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-blue-500">
+          <Card className="border-l-4 border-l-blue-500 relative">
+            <div className="absolute top-2 right-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">This Month</p>
-                  <p className="text-3xl font-bold text-blue-600">{thisMonthActivities}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-3xl font-bold text-blue-600">{thisMonthActivities}</p>
+                    <Badge className="bg-green-100 text-green-800 text-xs">Live</Badge>
+                  </div>
                   <p className="text-xs text-gray-500">Your activities this month</p>
                 </div>
                 <Calendar className="h-8 w-8 text-blue-500" />
@@ -229,12 +265,18 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-green-500">
+          <Card className="border-l-4 border-l-green-500 relative">
+            <div className="absolute top-2 right-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Hours</p>
-                  <p className="text-3xl font-bold text-green-600">{totalHours}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-3xl font-bold text-green-600">{totalHours}</p>
+                    <Badge className="bg-green-100 text-green-800 text-xs">Live</Badge>
+                  </div>
                   <p className="text-xs text-gray-500">Your hours of activities</p>
                 </div>
                 <Clock className="h-8 w-8 text-green-500" />
@@ -242,12 +284,18 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-yellow-500">
+          <Card className="border-l-4 border-l-yellow-500 relative">
+            <div className="absolute top-2 right-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Average Duration</p>
-                  <p className="text-3xl font-bold text-yellow-600">{averageDuration}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-3xl font-bold text-yellow-600">{averageDuration}</p>
+                    <Badge className="bg-green-100 text-green-800 text-xs">Live</Badge>
+                  </div>
                   <p className="text-xs text-gray-500">Minutes per activity</p>
                 </div>
                 <Users className="h-8 w-8 text-yellow-500" />
@@ -256,12 +304,18 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Recent Activities */}
+        {/* Recent Activities with Real-time indicator */}
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle className="text-xl font-semibold text-gray-800">Recent Activities</CardTitle>
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-xl font-semibold text-gray-800">Recent Activities</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <Badge className="bg-green-100 text-green-800 text-xs">Real-time updates</Badge>
+                  </div>
+                </div>
                 <p className="text-sm text-gray-600">Your latest activities</p>
               </div>
               <Button size="sm" className="bg-pink-500 hover:bg-pink-600 text-white">
