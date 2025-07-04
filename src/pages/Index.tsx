@@ -4,6 +4,8 @@ import MainNavbar from "@/components/MainNavbar";
 import { Link } from "react-router-dom";
 
 export default function Index() {
+  console.log("Index page rendered");
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <CountyHeader />

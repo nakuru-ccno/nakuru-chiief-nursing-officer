@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,9 +23,12 @@ function ProtectedRoute() {
 
   useEffect(() => {
     const checkAuth = async () => {
+      console.log("ProtectedRoute - Checking authentication...");
+      
       // Check for Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
+        console.log("ProtectedRoute - Supabase session found");
         setIsAuthenticated(true);
         return;
       }
@@ -32,10 +36,12 @@ function ProtectedRoute() {
       // Check for demo role
       const demoRole = localStorage.getItem("role");
       if (demoRole) {
+        console.log("ProtectedRoute - Demo role found:", demoRole);
         setIsAuthenticated(true);
         return;
       }
 
+      console.log("ProtectedRoute - No authentication found");
       setIsAuthenticated(false);
     };
 
@@ -44,7 +50,9 @@ function ProtectedRoute() {
 
   if (isAuthenticated === null) {
     // Still checking authentication
-    return <div>Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="text-lg">Loading...</div>
+    </div>;
   }
 
   return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace state={{ from: location }} />;
@@ -55,7 +63,7 @@ const queryClient = new QueryClient();
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename="/nakuru-chiief-nursing-officer">
         <TooltipProvider>
           <div className="App">
             <Routes>

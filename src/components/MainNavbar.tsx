@@ -44,7 +44,7 @@ const MainNavbar = () => {
     userRole === "System Administrator" ||
     userRole.toLowerCase().includes("admin");
 
-  // Don't show navigation items on landing, login, or register pages
+  // Only show navbar on authenticated pages, not on public pages
   const isPublicPage =
     location.pathname === "/" ||
     location.pathname === "/login" ||
@@ -69,8 +69,10 @@ const MainNavbar = () => {
   const shouldShowNavbar = !isPublicPage && isLoggedIn && !!role;
 
   // Debug logs
+  console.log("MainNavbar - Current path:", location.pathname);
   console.log("MainNavbar - Current role:", role);
   console.log("MainNavbar - Is logged in:", isLoggedIn);
+  console.log("MainNavbar - Is public page:", isPublicPage);
   console.log("MainNavbar - shouldShowNavbar:", shouldShowNavbar);
 
   return shouldShowNavbar ? (
@@ -120,4 +122,3 @@ const MainNavbar = () => {
 };
 
 export default MainNavbar;
-
