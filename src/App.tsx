@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -25,7 +25,6 @@ function ProtectedRoute() {
     const checkAuth = async () => {
       console.log("ProtectedRoute - Checking authentication...");
       
-      // Check for Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         console.log("ProtectedRoute - Supabase session found");
@@ -33,7 +32,6 @@ function ProtectedRoute() {
         return;
       }
 
-      // Check for demo role
       const demoRole = localStorage.getItem("role");
       if (demoRole) {
         console.log("ProtectedRoute - Demo role found:", demoRole);
@@ -49,10 +47,11 @@ function ProtectedRoute() {
   }, []);
 
   if (isAuthenticated === null) {
-    // Still checking authentication
-    return <div className="min-h-screen flex items-center justify-center">
-      <div className="text-lg">Loading...</div>
-    </div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
   }
 
   return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace state={{ from: location }} />;
@@ -63,14 +62,14 @@ const queryClient = new QueryClient();
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/nakuru-chiief-nursing-officer">
+      <BrowserRouter> {/* ✅ Correct: No basename needed for custom domain */}
         <TooltipProvider>
           <div className="App">
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              {/* Protected route for dashboard and its children */}
+
               <Route element={<ProtectedRoute />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/admin" element={<Admin />} />
@@ -79,6 +78,7 @@ const App = () => {
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/reports" element={<Reports />} />
               </Route>
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
