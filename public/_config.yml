@@ -1,0 +1,8 @@
+
+# GitHub Pages configuration
+include:
+  - "_*_.html"
+  - "_*_.json"
+  - "_*_.xml"
+  - "_*"
+  - ".nojekyll"
