@@ -1,11 +1,10 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
-  base: "/nakuru-chiief-nursing-officer/", // GitHub Pages repository path
+  base: "/", // ✅ Fix for custom domain
   server: {
     host: "::",
     port: 8080,
