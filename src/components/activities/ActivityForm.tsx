@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Clock, MapPin, PlusCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, MapPin, PlusCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ActivityType {
@@ -21,10 +20,11 @@ interface ActivityType {
 interface ActivityFormProps {
   activityTypes: ActivityType[];
   onSubmit: (formData: any) => void;
+  onCancel: () => void;
   isSubmitting: boolean;
 }
 
-const ActivityForm = ({ activityTypes, onSubmit, isSubmitting }: ActivityFormProps) => {
+const ActivityForm = ({ activityTypes, onSubmit, onCancel, isSubmitting }: ActivityFormProps) => {
   const [formData, setFormData] = useState({
     title: "",
     type: "",
@@ -146,7 +146,7 @@ const ActivityForm = ({ activityTypes, onSubmit, isSubmitting }: ActivityFormPro
         </div>
       </div>
 
-      {/* Location - Full Width */}
+      {/* Location */}
       <div className="space-y-3">
         <Label htmlFor="location" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
           <MapPin className="w-5 h-5 text-red-600" />
@@ -161,7 +161,7 @@ const ActivityForm = ({ activityTypes, onSubmit, isSubmitting }: ActivityFormPro
         />
       </div>
 
-      {/* Description - Full Width */}
+      {/* Description */}
       <div className="space-y-3">
         <Label htmlFor="description" className="text-lg font-semibold text-gray-800">
           Additional Details (Optional)
@@ -175,8 +175,8 @@ const ActivityForm = ({ activityTypes, onSubmit, isSubmitting }: ActivityFormPro
         />
       </div>
 
-      {/* Submit Button */}
-      <div className="pt-6">
+      {/* Buttons */}
+      <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Button
           type="submit"
           disabled={isSubmitting}
@@ -193,6 +193,16 @@ const ActivityForm = ({ activityTypes, onSubmit, isSubmitting }: ActivityFormPro
               <span>Submit Activity</span>
             </div>
           )}
+        </Button>
+
+        <Button
+          type="button"
+          onClick={onCancel}
+          variant="outline"
+          className="w-full h-16 text-xl font-semibold border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all duration-200 rounded-xl"
+        >
+          <XCircle className="w-6 h-6 mr-3 text-gray-500" />
+          Cancel
         </Button>
       </div>
     </form>
