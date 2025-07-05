@@ -1,212 +1,284 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import MainNavbar from "@/components/MainNavbar";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { Calendar as CalendarIcon, Clock, MapPin, PlusCircle, XCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, Calendar, Clock, MapPin, User, FileText } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { useLiveTime } from "@/hooks/useLiveTime";
+import ActivityForm from "@/components/activities/ActivityForm";
+import SuccessPage from "@/components/activities/SuccessPage";
 
-interface ActivityType {
-  id: string;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-}
+const Activities = () => {
+  const [showForm, setShowForm] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [submittedActivity, setSubmittedActivity] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { currentTime, greeting } = useLiveTime();
 
-interface ActivityFormProps {
-  activityTypes: ActivityType[];
-  onSubmit: (formData: any) => void;
-  onCancel: () => void;
-  isSubmitting: boolean;
-}
+  // Fetch activities
+  const { data: activities, isLoading, refetch } = useQuery({
+    queryKey: ["activities"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-const ActivityForm = ({ activityTypes, onSubmit, onCancel, isSubmitting }: ActivityFormProps) => {
-  const [formData, setFormData] = useState({
-    title: "",
-    type: "",
-    date: new Date(),
-    duration: "",
-    location: "",
-    description: ""
+      if (error) throw error;
+      return data;
+    },
   });
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  }, [formData, onSubmit]);
+  // Fetch activity types for the form
+  const { data: activityTypes = [], isLoading: loadingTypes } = useQuery({
+    queryKey: ["activityTypes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activity_types")
+        .select("*")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  const updateFormData = useCallback((field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  const handleActivitySubmitted = async (activity: any) => {
+    setIsSubmitting(true);
+    try {
+      // Insert into activities table
+      const { data, error } = await supabase
+        .from("activities")
+        .insert([activity])
+        .select()
+        .single();
+      if (error) throw error;
+
+      setSubmittedActivity(data);
+      setShowForm(false);
+      setShowSuccess(true);
+      refetch();
+      toast({
+        title: "Success!",
+        description: "Your activity has been logged successfully.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error logging activity",
+        description: err.message || "An error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBackToActivities = () => {
+    setShowSuccess(false);
+    setSubmittedActivity(null);
+  };
+
+  // Show success page after form submission
+  if (showSuccess && submittedActivity) {
+    return (
+      <SuccessPage
+        activity={submittedActivity}
+        onBack={handleBackToActivities}
+      />
+    );
+  }
+
+  // Show activity form
+  if (showForm) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <MainNavbar />
+        <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold mb-8 text-center text-blue-900">Log New Activity</h2>
+          <ActivityForm
+            activityTypes={activityTypes}
+            onSubmit={handleActivitySubmitted}
+            onCancel={() => setShowForm(false)}
+            isSubmitting={isSubmitting}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Activity Title */}
-        <div className="space-y-3">
-          <Label htmlFor="title" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <div className="w-2 h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full"></div>
-            Activity Title *
-          </Label>
-          <Input
-            id="title"
-            value={formData.title}
-            onChange={(e) => updateFormData('title', e.target.value)}
-            placeholder="Enter a descriptive activity title"
-            className="h-14 text-lg border-2 border-gray-200 focus:border-orange-500 transition-all duration-200 rounded-xl shadow-sm hover:shadow-md"
-            required
-          />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <MainNavbar />
+      <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+
+        {/* Enhanced Header */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 rounded-3xl p-8 mb-8 text-white shadow-2xl">
+          <div className="absolute inset-0 bg-black opacity-10"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-32 -mt-32"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-10 rounded-full -ml-24 -mb-24"></div>
+          <div className="relative z-10">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+              <div className="mb-6 lg:mb-0">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+                    <FileText className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                      {greeting}
+                    </h1>
+                    <p className="text-blue-100 text-lg">Track your professional activities with ease</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 text-sm opacity-90">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    <span>{currentTime.toLocaleDateString('en-GB', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    <span className="font-mono">
+                      {currentTime.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-center lg:text-right">
+                <Button
+                  onClick={() => setShowForm(true)}
+                  size="lg"
+                  className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                >
+                  <Plus className="w-6 h-6 mr-3" />
+                  Log New Activity
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Activity Type */}
-        <div className="space-y-3">
-          <Label htmlFor="type" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
-            Activity Type *
-          </Label>
-          <Select value={formData.type} onValueChange={(value) => updateFormData('type', value)}>
-            <SelectTrigger className="h-14 text-lg border-2 border-gray-200 focus:border-orange-500 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-              <SelectValue placeholder="Select activity type" />
-            </SelectTrigger>
-            <SelectContent className="bg-white border-2 border-gray-200 shadow-2xl rounded-xl max-h-80 overflow-y-auto">
-              {activityTypes.length > 0 ? (
-                activityTypes.map((type) => (
-                  <SelectItem 
-                    key={type.id} 
-                    value={type.name} 
-                    className="cursor-pointer hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 py-4 px-4 rounded-lg mx-1 my-1 transition-all duration-200"
-                  >
-                    <div>
-                      <div className="font-semibold text-gray-900">{type.name}</div>
-                      {type.description && (
-                        <div className="text-sm text-gray-600 mt-1">{type.description}</div>
+        {/* Activities Grid */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-xl">
+                <FileText className="w-6 h-6 text-blue-600" />
+              </div>
+              Recent Activities
+              {activities && (
+                <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200">
+                  {activities.length} {activities.length === 1 ? 'activity' : 'activities'}
+                </Badge>
+              )}
+            </h2>
+          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600 text-lg">Loading your activities...</p>
+              </div>
+            </div>
+          ) : activities && activities.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {activities.map((activity) => (
+                <Card key={activity.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:-translate-y-1">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200 line-clamp-2">
+                          {activity.title}
+                        </CardTitle>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                            {activity.type}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {activity.description && (
+                      <CardDescription className="text-gray-600 line-clamp-3">
+                        {activity.description}
+                      </CardDescription>
+                    )}
+                    <div className="space-y-2 text-sm text-gray-500">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-blue-500" />
+                        <span>{new Date(activity.date).toLocaleDateString('en-GB')}</span>
+                      </div>
+                      {activity.duration && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-green-500" />
+                          <span>{activity.duration} minutes</span>
+                        </div>
+                      )}
+                      {activity.facility && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-red-500" />
+                          <span>{activity.facility}</span>
+                        </div>
+                      )}
+                      {activity.submitted_by && (
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-purple-500" />
+                          <span className="truncate">{activity.submitted_by}</span>
+                        </div>
                       )}
                     </div>
-                  </SelectItem>
-                ))
-              ) : (
-                <SelectItem value="no-types" disabled className="text-gray-500 py-4 px-4">
-                  No activity types available
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Date */}
-        <div className="space-y-3">
-          <Label className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5 text-green-600" />
-            Date *
-          </Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "h-14 w-full justify-start text-left text-lg border-2 border-gray-200 hover:border-orange-500 transition-all duration-200 bg-white rounded-xl shadow-sm hover:shadow-md",
-                  !formData.date && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-3 h-5 w-5 text-orange-600" />
-                {formData.date ? format(formData.date, "EEEE, MMMM do, yyyy") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-white border-2 border-gray-200 shadow-2xl rounded-xl">
-              <Calendar
-                mode="single"
-                selected={formData.date}
-                onSelect={(date) => date && updateFormData('date', date)}
-                initialFocus
-                className="rounded-xl"
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        {/* Duration */}
-        <div className="space-y-3">
-          <Label htmlFor="duration" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-purple-600" />
-            Duration (minutes)
-          </Label>
-          <Input
-            id="duration"
-            type="number"
-            value={formData.duration}
-            onChange={(e) => updateFormData('duration', e.target.value)}
-            placeholder="Enter duration in minutes"
-            className="h-14 text-lg border-2 border-gray-200 focus:border-orange-500 transition-all duration-200 rounded-xl shadow-sm hover:shadow-md"
-            min="1"
-          />
-        </div>
-      </div>
-
-      {/* Location */}
-      <div className="space-y-3">
-        <Label htmlFor="location" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-red-600" />
-          Location / Facility
-        </Label>
-        <Input
-          id="location"
-          value={formData.location}
-          onChange={(e) => updateFormData('location', e.target.value)}
-          placeholder="e.g., HQ, Nakuru Level 5 Hospital, Field Office, Community Center"
-          className="h-14 text-lg border-2 border-gray-200 focus:border-orange-500 transition-all duration-200 rounded-xl shadow-sm hover:shadow-md"
-        />
-      </div>
-
-      {/* Description */}
-      <div className="space-y-3">
-        <Label htmlFor="description" className="text-lg font-semibold text-gray-800">
-          Additional Details (Optional)
-        </Label>
-        <Textarea
-          id="description"
-          value={formData.description}
-          onChange={(e) => updateFormData('description', e.target.value)}
-          placeholder="Provide additional details about the activity, objectives, outcomes, or any other relevant information..."
-          className="min-h-[140px] text-lg border-2 border-gray-200 focus:border-orange-500 transition-all duration-200 resize-none rounded-xl shadow-sm hover:shadow-md"
-        />
-      </div>
-
-      {/* Buttons */}
-      <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full h-16 text-xl font-bold bg-gradient-to-r from-orange-600 via-red-500 to-pink-600 hover:from-orange-700 hover:via-red-600 hover:to-pink-700 text-white shadow-xl transform transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none rounded-xl"
-        >
-          {isSubmitting ? (
-            <div className="flex items-center gap-4">
-              <div className="w-7 h-7 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Submitting Activity...</span>
+                    <div className="pt-2 border-t border-gray-100">
+                      <p className="text-xs text-gray-400">
+                        Logged {new Date(activity.created_at).toLocaleString('en-GB')}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : (
-            <div className="flex items-center gap-4">
-              <PlusCircle className="w-7 h-7" />
-              <span>Submit Activity</span>
-            </div>
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardContent className="text-center py-12">
+                <div className="mx-auto w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+                  <FileText className="w-12 h-12 text-blue-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No activities yet</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  Start tracking your professional activities to build a comprehensive record of your nursing practice.
+                </p>
+                <Button
+                  onClick={() => setShowForm(true)}
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Log Your First Activity
+                </Button>
+              </CardContent>
+            </Card>
           )}
-        </Button>
-
-        <Button
-          type="button"
-          onClick={onCancel}
-          variant="outline"
-          className="w-full h-16 text-xl font-semibold border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all duration-200 rounded-xl"
-        >
-          <XCircle className="w-6 h-6 mr-3 text-gray-500" />
-          Cancel
-        </Button>
+        </div>
       </div>
-    </form>
+    </div>
   );
 };
 
-export default ActivityForm;
+export default Activities;
