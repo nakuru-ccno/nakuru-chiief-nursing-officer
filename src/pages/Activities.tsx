@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import MainNavbar from "@/components/MainNavbar";
@@ -49,7 +48,7 @@ const Activities = () => {
     setShowForm(false);
     setShowSuccess(true);
     refetch();
-    
+
     toast({
       title: "Success!",
       description: "Your activity has been logged successfully.",
@@ -63,7 +62,7 @@ const Activities = () => {
 
   if (showSuccess && submittedActivity) {
     return (
-      <SuccessPage 
+      <SuccessPage
         activity={submittedActivity}
         onBack={handleBackToActivities}
       />
@@ -83,13 +82,13 @@ const Activities = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <MainNavbar />
       <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        
+
         {/* Enhanced Header */}
         <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 rounded-3xl p-8 mb-8 text-white shadow-2xl">
           <div className="absolute inset-0 bg-black opacity-10"></div>
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-32 -mt-32"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-10 rounded-full -ml-24 -mb-24"></div>
-          
+
           <div className="relative z-10">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
               <div className="mb-6 lg:mb-0">
@@ -104,35 +103,38 @@ const Activities = () => {
                     <p className="text-blue-100 text-lg">Track your professional activities with ease</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-6 text-sm opacity-90">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    <span>{currentTime.toLocaleDateString('en-GB', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
+                    <span>{currentTime.toLocaleDateString('en-GB', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
                     })}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
                     <span className="font-mono">
-                      {currentTime.toLocaleTimeString([], { 
-                        hour: "2-digit", 
+                      {currentTime.toLocaleTimeString([], {
+                        hour: "2-digit",
                         minute: "2-digit",
-                        hour12: true 
+                        hour12: true
                       })}
                     </span>
                   </div>
                 </div>
               </div>
-              
+
               <div className="text-center lg:text-right">
                 <Button
-                  onClick={() => setShowForm(true)}
+                  onClick={() => {
+                    console.log("Log New Activity button clicked");
+                    setShowForm(true);
+                  }}
                   size="lg"
-                  className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 px-8 py-4 text-lg font-semibold"
+                  className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                 >
                   <Plus className="w-6 h-6 mr-3" />
                   Log New Activity
@@ -189,27 +191,27 @@ const Activities = () => {
                         {activity.description}
                       </CardDescription>
                     )}
-                    
+
                     <div className="space-y-2 text-sm text-gray-500">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-blue-500" />
                         <span>{new Date(activity.date).toLocaleDateString('en-GB')}</span>
                       </div>
-                      
+
                       {activity.duration && (
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-green-500" />
                           <span>{activity.duration} minutes</span>
                         </div>
                       )}
-                      
+
                       {activity.facility && (
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-red-500" />
                           <span>{activity.facility}</span>
                         </div>
                       )}
-                      
+
                       {activity.submitted_by && (
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4 text-purple-500" />
@@ -217,7 +219,7 @@ const Activities = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="pt-2 border-t border-gray-100">
                       <p className="text-xs text-gray-400">
                         Logged {new Date(activity.created_at).toLocaleString('en-GB')}
@@ -237,7 +239,7 @@ const Activities = () => {
                 <p className="text-gray-600 mb-6 max-w-md mx-auto">
                   Start tracking your professional activities to build a comprehensive record of your nursing practice.
                 </p>
-                <Button 
+                <Button
                   onClick={() => setShowForm(true)}
                   size="lg"
                   className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
