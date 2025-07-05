@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import MainNavbar from "@/components/MainNavbar";
 import CountyHeader from "@/components/CountyHeader";
@@ -6,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, FileText, Calendar, Clock, Users } from "lucide-react";
+import { Edit, FileText, Calendar, Clock, Users, Shield } from "lucide-react";
 import EditActivityDialog from "@/components/admin/EditActivityDialog";
 import ReportsExportDialog from "@/components/reports/ReportsExportDialog";
 import { useActivitiesRealtime } from "@/hooks/useActivitiesRealtime";
@@ -29,6 +30,8 @@ export default function Reports() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string>("");
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -50,22 +53,41 @@ export default function Reports() {
                            "User";
         setCurrentUser(displayName);
         setCurrentUserEmail(user.email);
-        console.log('👤 Reports - Current user:', displayName, 'Email:', user.email);
+        
+        // Check user role from profiles table
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('email', user.email)
+          .single();
+        
+        const userRole = profile?.role || "User";
+        setCurrentUserRole(userRole);
+        
+        // Check if user is admin
+        const adminRoles = ['admin', 'System Administrator'];
+        setIsAdmin(adminRoles.includes(userRole));
+        
+        console.log('👤 Reports - Current user:', displayName, 'Email:', user.email, 'Role:', userRole, 'IsAdmin:', adminRoles.includes(userRole));
       } else {
         setCurrentUser("User");
         setCurrentUserEmail("");
+        setCurrentUserRole("");
+        setIsAdmin(false);
       }
     } catch (error) {
       console.error('❌ Reports - Error getting current user:', error);
       setCurrentUser("User");
       setCurrentUserEmail("");
+      setCurrentUserRole("");
+      setIsAdmin(false);
     }
   };
 
   const fetchActivities = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('📊 Reports - Fetching activities with user filtering');
+      console.log('📊 Reports - Fetching activities');
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
@@ -74,14 +96,27 @@ export default function Reports() {
         return;
       }
 
-      console.log('🔐 Reports - Current authenticated user:', user.email);
+      // Check if user is admin
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('email', user.email)
+        .single();
+      
+      const userRole = profile?.role || "User";
+      const adminRoles = ['admin', 'System Administrator'];
+      const userIsAdmin = adminRoles.includes(userRole);
 
-      // Use exactly the same query as Dashboard page for consistency
-      const { data, error } = await supabase
-        .from("activities")
-        .select("*")
-        .eq('submitted_by', user.email)
-        .order("created_at", { ascending: false });
+      console.log('🔐 Reports - Current user role:', userRole, 'IsAdmin:', userIsAdmin);
+
+      let query = supabase.from("activities").select("*");
+      
+      // If not admin, filter by user email
+      if (!userIsAdmin) {
+        query = query.eq('submitted_by', user.email);
+      }
+      
+      const { data, error } = await query.order("created_at", { ascending: false });
       
       if (error) {
         console.error('❌ Reports - Error fetching activities:', error);
@@ -145,7 +180,7 @@ export default function Reports() {
     return colors[type.toLowerCase() as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Calculate statistics using exactly the same logic as Dashboard page
+  // Calculate statistics
   const totalActivities = allActivities.length;
   console.log('📊 Reports - Total activities calculated:', totalActivities);
   
@@ -160,6 +195,9 @@ export default function Reports() {
   
   const totalHours = Math.floor(allActivities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / 60);
   const averageDuration = totalActivities > 0 ? Math.round(allActivities.reduce((sum, activity) => sum + (activity.duration || 0), 0) / totalActivities) : 0;
+
+  // Get unique users count (for admin view)
+  const uniqueUsers = new Set(allActivities.map(activity => activity.submitted_by)).size;
 
   if (isLoading) {
     return (
@@ -183,8 +221,23 @@ export default function Reports() {
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Activity Reports</h1>
-          <p className="text-gray-600">Personal analysis of your daily activities - {currentUserEmail}</p>
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-3xl font-bold text-gray-900">
+              {isAdmin ? 'All Activity Reports' : 'My Activity Reports'}
+            </h1>
+            {isAdmin && (
+              <Badge className="bg-red-100 text-red-800 flex items-center gap-1">
+                <Shield className="w-3 h-3" />
+                Admin View
+              </Badge>
+            )}
+          </div>
+          <p className="text-gray-600">
+            {isAdmin 
+              ? `System-wide analysis of all user activities - Viewing as ${currentUserRole}` 
+              : `Personal analysis of your daily activities - ${currentUserEmail}`
+            }
+          </p>
           <div className="flex justify-end mt-4">
             <Button 
               className="bg-pink-500 hover:bg-pink-600 text-white"
@@ -202,9 +255,13 @@ export default function Reports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">My Total Activities</p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    {isAdmin ? 'Total Activities' : 'My Total Activities'}
+                  </p>
                   <p className="text-3xl font-bold text-red-600">{totalActivities}</p>
-                  <p className="text-xs text-gray-500">Your activities recorded</p>
+                  <p className="text-xs text-gray-500">
+                    {isAdmin ? 'All activities recorded' : 'Your activities recorded'}
+                  </p>
                 </div>
                 <FileText className="h-8 w-8 text-red-500" />
               </div>
@@ -217,7 +274,9 @@ export default function Reports() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">This Month</p>
                   <p className="text-3xl font-bold text-blue-600">{thisMonthActivities}</p>
-                  <p className="text-xs text-gray-500">Your activities this month</p>
+                  <p className="text-xs text-gray-500">
+                    {isAdmin ? 'All activities this month' : 'Your activities this month'}
+                  </p>
                 </div>
                 <Calendar className="h-8 w-8 text-blue-500" />
               </div>
@@ -230,7 +289,9 @@ export default function Reports() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Hours</p>
                   <p className="text-3xl font-bold text-green-600">{totalHours}</p>
-                  <p className="text-xs text-gray-500">Your hours of activities</p>
+                  <p className="text-xs text-gray-500">
+                    {isAdmin ? 'All hours of activities' : 'Your hours of activities'}
+                  </p>
                 </div>
                 <Clock className="h-8 w-8 text-green-500" />
               </div>
@@ -241,9 +302,15 @@ export default function Reports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Average Duration</p>
-                  <p className="text-3xl font-bold text-yellow-600">{averageDuration}</p>
-                  <p className="text-xs text-gray-500">Minutes per activity</p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    {isAdmin ? 'Active Users' : 'Average Duration'}
+                  </p>
+                  <p className="text-3xl font-bold text-yellow-600">
+                    {isAdmin ? uniqueUsers : averageDuration}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {isAdmin ? 'Users with activities' : 'Minutes per activity'}
+                  </p>
                 </div>
                 <Users className="h-8 w-8 text-yellow-500" />
               </div>
@@ -254,8 +321,15 @@ export default function Reports() {
         {/* Recent Activities */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-gray-800">My Recent Activities</CardTitle>
-            <p className="text-sm text-gray-600">Your latest recorded activities with detailed information</p>
+            <CardTitle className="text-xl font-semibold text-gray-800">
+              {isAdmin ? 'All Recent Activities' : 'My Recent Activities'}
+            </CardTitle>
+            <p className="text-sm text-gray-600">
+              {isAdmin 
+                ? 'Latest recorded activities from all users with detailed information'
+                : 'Your latest recorded activities with detailed information'
+              }
+            </p>
           </CardHeader>
           <CardContent>
             {allActivities.length > 0 ? (
@@ -291,15 +365,17 @@ export default function Reports() {
                           )}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditActivity(activity)}
-                        className="ml-4"
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
+                      {(isAdmin || activity.submitted_by === currentUserEmail) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditActivity(activity)}
+                          className="ml-4"
+                        >
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -315,7 +391,9 @@ export default function Reports() {
               <div className="text-center py-12">
                 <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 mb-2">No activities found</p>
-                <p className="text-sm text-gray-400">Start logging activities to see your reports here</p>
+                <p className="text-sm text-gray-400">
+                  {isAdmin ? 'No activities have been logged yet' : 'Start logging activities to see your reports here'}
+                </p>
               </div>
             )}
           </CardContent>

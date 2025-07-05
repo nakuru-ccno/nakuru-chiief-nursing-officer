@@ -86,7 +86,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
     }
 
     const finalRole = showCustomRole ? formData.customRole : formData.role;
-    if (!finalRole.trim()) {
+    if (!finalRole || !finalRole.trim()) {
       newErrors.role = "Role is required";
     }
 
@@ -141,6 +141,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
             placeholder="Enter full name"
             className={errors.full_name ? "border-red-500" : ""}
             disabled={isLoading}
+            required
           />
           {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name}</p>}
         </div>
@@ -156,13 +157,14 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
             placeholder="Enter email address"
             className={errors.email ? "border-red-500" : ""}
             disabled={isLoading}
+            required
           />
           {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
         </div>
 
         <div>
           <Label htmlFor="role">Role</Label>
-          <Select onValueChange={handleRoleChange} disabled={isLoading}>
+          <Select onValueChange={handleRoleChange} disabled={isLoading} required>
             <SelectTrigger className={errors.role ? "border-red-500" : ""}>
               <SelectValue placeholder="Select a role" />
             </SelectTrigger>
@@ -188,6 +190,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
               placeholder="Enter custom role title"
               className={errors.role ? "border-red-500" : ""}
               disabled={isLoading}
+              required
             />
           </div>
         )}
@@ -234,6 +237,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
                 placeholder="Enter initial password"
                 className={errors.password ? "border-red-500" : ""}
                 disabled={isLoading}
+                required
               />
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
             </div>
@@ -249,6 +253,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
                 placeholder="Confirm password"
                 className={errors.confirmPassword ? "border-red-500" : ""}
                 disabled={isLoading}
+                required
               />
               {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
             </div>
