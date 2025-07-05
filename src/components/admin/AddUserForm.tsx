@@ -90,14 +90,16 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
       newErrors.role = "Role is required";
     }
 
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
-    }
+    if (!formData.useGeneratedPassword) {
+      if (!formData.password) {
+        newErrors.password = "Password is required";
+      } else if (formData.password.length < 6) {
+        newErrors.password = "Password must be at least 6 characters";
+      }
 
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = "Passwords do not match";
+      }
     }
 
     setErrors(newErrors);
@@ -112,163 +114,167 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
     }
 
     const finalRole = showCustomRole ? formData.customRole.trim() : formData.role;
+    const finalPassword = formData.useGeneratedPassword ? generatedPassword : formData.password;
     
     const userData = {
       full_name: formData.full_name.trim(),
       email: formData.email.trim(),
       role: finalRole,
-      password: formData.password
+      password: finalPassword
     };
 
+    console.log('🔄 Submitting user data:', { ...userData, password: '[HIDDEN]' });
     onSubmit(userData);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="full_name">Full Name</Label>
-        <Input
-          id="full_name"
-          name="full_name"
-          type="text"
-          value={formData.full_name}
-          onChange={handleInputChange}
-          placeholder="Enter full name"
-          className={errors.full_name ? "border-red-500" : ""}
-          disabled={isLoading}
-        />
-        {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name}</p>}
-      </div>
-
-      <div>
-        <Label htmlFor="email">Email Address</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          value={formData.email}
-          onChange={handleInputChange}
-          placeholder="Enter email address"
-          className={errors.email ? "border-red-500" : ""}
-          disabled={isLoading}
-        />
-        {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-      </div>
-
-      <div>
-        <Label htmlFor="role">Role</Label>
-        <Select onValueChange={handleRoleChange} disabled={isLoading}>
-          <SelectTrigger className={errors.role ? "border-red-500" : ""}>
-            <SelectValue placeholder="Select a role" />
-          </SelectTrigger>
-          <SelectContent>
-            {predefinedRoles.map(role => (
-              <SelectItem key={role} value={role}>{role}</SelectItem>
-            ))}
-            <SelectItem value="custom">Custom Role...</SelectItem>
-          </SelectContent>
-        </Select>
-        {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
-      </div>
-
-      {showCustomRole && (
+    <div className="max-w-md mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <Label htmlFor="customRole">Custom Role</Label>
+          <Label htmlFor="full_name">Full Name</Label>
           <Input
-            id="customRole"
-            name="customRole"
+            id="full_name"
+            name="full_name"
             type="text"
-            value={formData.customRole}
+            value={formData.full_name}
             onChange={handleInputChange}
-            placeholder="Enter custom role title"
-            className={errors.role ? "border-red-500" : ""}
+            placeholder="Enter full name"
+            className={errors.full_name ? "border-red-500" : ""}
             disabled={isLoading}
           />
+          {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name}</p>}
         </div>
-      )}
 
-      <div>
-        <div className="flex items-center space-x-2 mb-2">
-          <input
-            type="checkbox"
-            id="useGeneratedPassword"
-            name="useGeneratedPassword"
-            checked={formData.useGeneratedPassword}
+        <div>
+          <Label htmlFor="email">Email Address</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            value={formData.email}
             onChange={handleInputChange}
+            placeholder="Enter email address"
+            className={errors.email ? "border-red-500" : ""}
             disabled={isLoading}
-            className="rounded border-gray-300"
           />
-          <Label htmlFor="useGeneratedPassword" className="text-sm">
-            Use auto-generated secure password (recommended)
-          </Label>
+          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
         </div>
-        
-        {formData.useGeneratedPassword && generatedPassword && (
-          <div className="bg-gray-50 p-3 rounded border mb-2">
-            <Label className="text-sm font-medium text-gray-700">Generated Password:</Label>
-            <div className="mt-1 font-mono text-sm bg-white p-2 rounded border">
-              {generatedPassword}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Please save this password securely. The user will need to change it on first login.
-            </p>
+
+        <div>
+          <Label htmlFor="role">Role</Label>
+          <Select onValueChange={handleRoleChange} disabled={isLoading}>
+            <SelectTrigger className={errors.role ? "border-red-500" : ""}>
+              <SelectValue placeholder="Select a role" />
+            </SelectTrigger>
+            <SelectContent>
+              {predefinedRoles.map(role => (
+                <SelectItem key={role} value={role}>{role}</SelectItem>
+              ))}
+              <SelectItem value="custom">Custom Role...</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
+        </div>
+
+        {showCustomRole && (
+          <div>
+            <Label htmlFor="customRole">Custom Role</Label>
+            <Input
+              id="customRole"
+              name="customRole"
+              type="text"
+              value={formData.customRole}
+              onChange={handleInputChange}
+              placeholder="Enter custom role title"
+              className={errors.role ? "border-red-500" : ""}
+              disabled={isLoading}
+            />
           </div>
         )}
-      </div>
 
-      {!formData.useGeneratedPassword && (
-        <>
-          <div>
-            <Label htmlFor="password">Initial Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
+        <div>
+          <div className="flex items-center space-x-2 mb-2">
+            <input
+              type="checkbox"
+              id="useGeneratedPassword"
+              name="useGeneratedPassword"
+              checked={formData.useGeneratedPassword}
               onChange={handleInputChange}
-              placeholder="Enter initial password"
-              className={errors.password ? "border-red-500" : ""}
               disabled={isLoading}
+              className="rounded border-gray-300"
             />
-            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+            <Label htmlFor="useGeneratedPassword" className="text-sm">
+              Use auto-generated secure password (recommended)
+            </Label>
           </div>
+          
+          {formData.useGeneratedPassword && generatedPassword && (
+            <div className="bg-gray-50 p-3 rounded border mb-2">
+              <Label className="text-sm font-medium text-gray-700">Generated Password:</Label>
+              <div className="mt-1 font-mono text-sm bg-white p-2 rounded border break-all">
+                {generatedPassword}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Please save this password securely. The user will need to change it on first login.
+              </p>
+            </div>
+          )}
+        </div>
 
-          <div>
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={handleInputChange}
-              placeholder="Confirm password"
-              className={errors.confirmPassword ? "border-red-500" : ""}
-              disabled={isLoading}
-            />
-            {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
-          </div>
-        </>
-      )}
+        {!formData.useGeneratedPassword && (
+          <>
+            <div>
+              <Label htmlFor="password">Initial Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="Enter initial password"
+                className={errors.password ? "border-red-500" : ""}
+                disabled={isLoading}
+              />
+              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+            </div>
 
-      <div className="flex gap-2 pt-4">
-        <Button
-          type="submit"
-          className="flex-1 bg-[#be2251] hover:bg-[#fd3572] text-white"
-          disabled={isLoading}
-        >
-          {isLoading ? "Adding User..." : "Add User"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="flex-1"
-          disabled={isLoading}
-        >
-          Cancel
-        </Button>
-      </div>
-    </form>
+            <div>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                placeholder="Confirm password"
+                className={errors.confirmPassword ? "border-red-500" : ""}
+                disabled={isLoading}
+              />
+              {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-2 pt-4">
+          <Button
+            type="submit"
+            className="flex-1 bg-[#be2251] hover:bg-[#fd3572] text-white"
+            disabled={isLoading}
+          >
+            {isLoading ? "Adding User..." : "Add User"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            className="flex-1"
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 };
 

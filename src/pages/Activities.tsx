@@ -1,20 +1,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { Calendar as CalendarIcon, PlusCircle, Clock, MapPin, FileText, User, CheckCircle, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { PlusCircle, FileText, Sparkles } from "lucide-react";
 import MainNavbar from "@/components/MainNavbar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import ActivityForm from "@/components/activities/ActivityForm";
+import SuccessPage from "@/components/activities/SuccessPage";
 
 interface ActivityType {
   id: string;
@@ -25,14 +19,6 @@ interface ActivityType {
 
 const Activities = () => {
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
-  const [formData, setFormData] = useState({
-    title: "",
-    type: "",
-    date: new Date(),
-    duration: "",
-    location: "",
-    description: ""
-  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
@@ -82,9 +68,7 @@ const Activities = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (formData: any) => {
     if (!formData.title || !formData.type) {
       toast({
         title: "Error",
@@ -141,20 +125,10 @@ const Activities = () => {
         description: "Activity submitted successfully! Redirecting to dashboard...",
       });
 
-      // Reset form
-      setFormData({
-        title: "",
-        type: "",
-        date: new Date(),
-        duration: "",
-        location: "",
-        description: ""
-      });
-
-      // Redirect to dashboard after 2 seconds
+      // Redirect to dashboard after 3 seconds
       setTimeout(() => {
         navigate('/dashboard');
-      }, 2000);
+      }, 3000);
 
     } catch (error) {
       console.error('Error submitting activity:', error);
@@ -173,36 +147,8 @@ const Activities = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
         <MainNavbar />
-        
-        <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm max-w-md w-full">
-              <CardContent className="p-8 text-center">
-                <div className="mb-6">
-                  <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="w-10 h-10 text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    Activity Submitted Successfully!
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    Your activity has been recorded and will appear in your dashboard.
-                  </p>
-                  <div className="flex items-center justify-center gap-2 text-blue-600">
-                    <ArrowRight className="w-4 h-4" />
-                    <span className="text-sm font-medium">Redirecting to dashboard...</span>
-                  </div>
-                </div>
-                
-                <Button
-                  onClick={() => navigate('/dashboard')}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-                >
-                  Go to Dashboard Now
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+        <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <SuccessPage />
         </div>
       </div>
     );
@@ -212,181 +158,77 @@ const Activities = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <MainNavbar />
       
-      <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        {/* Enhanced Header */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 rounded-3xl p-8 mb-8 text-white shadow-2xl">
-          <div className="absolute inset-0 bg-black opacity-10"></div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+      <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Enhanced Hero Header */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 rounded-3xl p-12 mb-12 text-white shadow-2xl">
+          <div className="absolute inset-0">
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-orange-500/10 to-red-500/10"></div>
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -mr-48 -mt-48"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full -ml-32 -mb-32"></div>
+          </div>
           
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl shadow-lg">
-                <PlusCircle className="w-8 h-8" />
+            <div className="flex items-center gap-6 mb-6">
+              <div className="p-4 bg-gradient-to-r from-orange-500 to-red-600 rounded-3xl shadow-xl">
+                <PlusCircle className="w-12 h-12" />
               </div>
               <div>
-                <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-white to-orange-100 bg-clip-text text-transparent">
-                  Log Activity
+                <h1 className="text-5xl lg:text-6xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-100 bg-clip-text text-transparent mb-2">
+                  Log New Activity
                 </h1>
-                <p className="text-slate-300 text-lg">Record your daily nursing activities</p>
+                <p className="text-slate-300 text-xl">Record your daily nursing activities with ease</p>
               </div>
+            </div>
+            
+            <div className="flex items-center gap-3 text-orange-200">
+              <Sparkles className="w-5 h-5" />
+              <span className="text-lg">Enhanced modern interface for better user experience</span>
             </div>
           </div>
         </div>
 
-        {/* Activity Form */}
-        <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-sm">
-          <CardHeader className="bg-gradient-to-r from-orange-600 to-red-600 text-white">
-            <CardTitle className="flex items-center gap-3 text-2xl font-bold">
-              <FileText className="h-7 w-7" />
+        {/* Main Activity Form Card */}
+        <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-orange-600 via-red-500 to-pink-600 text-white p-8">
+            <CardTitle className="flex items-center gap-4 text-3xl font-bold">
+              <FileText className="h-8 w-8" />
               Activity Details
             </CardTitle>
+            <p className="text-orange-100 text-lg mt-2">
+              Please fill out the form below to record your activity
+            </p>
           </CardHeader>
-          <CardContent className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Activity Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="title" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-orange-600" />
-                    Activity Title *
-                  </Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Enter activity title"
-                    className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 transition-colors"
-                    required
-                  />
-                </div>
+          
+          <CardContent className="p-12">
+            <ActivityForm
+              activityTypes={activityTypes}
+              onSubmit={handleSubmit}
+              isSubmitting={isSubmitting}
+            />
+          </CardContent>
+        </Card>
 
-                {/* Activity Type */}
-                <div className="space-y-2">
-                  <Label htmlFor="type" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <User className="w-4 h-4 text-orange-600" />
-                    Activity Type *
-                  </Label>
-                  <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
-                    <SelectTrigger className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 bg-white">
-                      <SelectValue placeholder="Select activity type" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border border-gray-300 shadow-xl z-[100000] max-h-60 overflow-y-auto">
-                      {activityTypes.length > 0 ? (
-                        activityTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.name} className="cursor-pointer hover:bg-gray-50 py-3 px-4">
-                            <div>
-                              <div className="font-medium text-gray-900">{type.name}</div>
-                              {type.description && (
-                                <div className="text-sm text-gray-500 mt-1">{type.description}</div>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-types" disabled className="text-gray-500 py-3 px-4">
-                          No activity types available
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Date */}
-                <div className="space-y-2">
-                  <Label className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-orange-600" />
-                    Date *
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "h-12 w-full justify-start text-left text-lg border-2 border-gray-200 hover:border-orange-500 transition-colors bg-white",
-                          !formData.date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date ? format(formData.date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[99999] bg-white border-2 border-gray-200 shadow-2xl">
-                      <Calendar
-                        mode="single"
-                        selected={formData.date}
-                        onSelect={(date) => date && setFormData(prev => ({ ...prev, date }))}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* Duration */}
-                <div className="space-y-2">
-                  <Label htmlFor="duration" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-orange-600" />
-                    Duration (minutes)
-                  </Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    value={formData.duration}
-                    onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
-                    placeholder="Enter duration in minutes"
-                    className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 transition-colors"
-                    min="1"
-                  />
-                </div>
-
-                {/* Location */}
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="location" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-orange-600" />
-                    Location
-                  </Label>
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                    placeholder="Enter location (e.g., HQ, Nakuru Level 5 Hospital, Field Office)"
-                    className="h-12 text-lg border-2 border-gray-200 focus:border-orange-500 transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <Label htmlFor="description" className="text-lg font-semibold text-gray-800">
-                  Description (Optional)
-                </Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Provide additional details about the activity..."
-                  className="min-h-[120px] text-lg border-2 border-gray-200 focus:border-orange-500 transition-colors resize-none"
-                />
-              </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full h-14 text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white shadow-lg transform transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                {isSubmitting ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Submitting Activity...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <PlusCircle className="w-6 h-6" />
-                    Submit Activity
-                  </div>
-                )}
-              </Button>
-            </form>
+        {/* Quick Tips Card */}
+        <Card className="mt-8 border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500">
+          <CardContent className="p-6">
+            <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              Quick Tips
+            </h3>
+            <ul className="space-y-2 text-blue-700">
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                Be descriptive in your activity title for better tracking
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                Include duration to help with time management analysis
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                Add location details for comprehensive reporting
+              </li>
+            </ul>
           </CardContent>
         </Card>
       </div>
