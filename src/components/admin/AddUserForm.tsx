@@ -20,13 +20,40 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
     customRole: "",
     password: "",
     confirmPassword: "",
+    useGeneratedPassword: true
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showCustomRole, setShowCustomRole] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState("");
+
+  // Generate a secure password
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  React.useEffect(() => {
+    if (formData.useGeneratedPassword) {
+      const newPassword = generatePassword();
+      setGeneratedPassword(newPassword);
+      setFormData(prev => ({ 
+        ...prev, 
+        password: newPassword, 
+        confirmPassword: newPassword 
+      }));
+    }
+  }, [formData.useGeneratedPassword]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
     }
@@ -161,34 +188,67 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
       )}
 
       <div>
-        <Label htmlFor="password">Initial Password</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          value={formData.password}
-          onChange={handleInputChange}
-          placeholder="Enter initial password"
-          className={errors.password ? "border-red-500" : ""}
-          disabled={isLoading}
-        />
-        {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+        <div className="flex items-center space-x-2 mb-2">
+          <input
+            type="checkbox"
+            id="useGeneratedPassword"
+            name="useGeneratedPassword"
+            checked={formData.useGeneratedPassword}
+            onChange={handleInputChange}
+            disabled={isLoading}
+            className="rounded border-gray-300"
+          />
+          <Label htmlFor="useGeneratedPassword" className="text-sm">
+            Use auto-generated secure password (recommended)
+          </Label>
+        </div>
+        
+        {formData.useGeneratedPassword && generatedPassword && (
+          <div className="bg-gray-50 p-3 rounded border mb-2">
+            <Label className="text-sm font-medium text-gray-700">Generated Password:</Label>
+            <div className="mt-1 font-mono text-sm bg-white p-2 rounded border">
+              {generatedPassword}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Please save this password securely. The user will need to change it on first login.
+            </p>
+          </div>
+        )}
       </div>
 
-      <div>
-        <Label htmlFor="confirmPassword">Confirm Password</Label>
-        <Input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          value={formData.confirmPassword}
-          onChange={handleInputChange}
-          placeholder="Confirm password"
-          className={errors.confirmPassword ? "border-red-500" : ""}
-          disabled={isLoading}
-        />
-        {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
-      </div>
+      {!formData.useGeneratedPassword && (
+        <>
+          <div>
+            <Label htmlFor="password">Initial Password</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              placeholder="Enter initial password"
+              className={errors.password ? "border-red-500" : ""}
+              disabled={isLoading}
+            />
+            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+          </div>
+
+          <div>
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              placeholder="Confirm password"
+              className={errors.confirmPassword ? "border-red-500" : ""}
+              disabled={isLoading}
+            />
+            {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
+          </div>
+        </>
+      )}
 
       <div className="flex gap-2 pt-4">
         <Button

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, PlusCircle, Clock, MapPin, FileText, User } from "lucide-react";
+import { Calendar as CalendarIcon, PlusCircle, Clock, MapPin, FileText, User, CheckCircle, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MainNavbar from "@/components/MainNavbar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface ActivityType {
   id: string;
@@ -32,7 +34,9 @@ const Activities = () => {
     description: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchActivityTypes();
@@ -129,9 +133,12 @@ const Activities = () => {
         return;
       }
 
+      // Show success state
+      setShowSuccess(true);
+      
       toast({
-        title: "Success",
-        description: "Activity submitted successfully!",
+        title: "Success!",
+        description: "Activity submitted successfully! Redirecting to dashboard...",
       });
 
       // Reset form
@@ -144,6 +151,11 @@ const Activities = () => {
         description: ""
       });
 
+      // Redirect to dashboard after 2 seconds
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+
     } catch (error) {
       console.error('Error submitting activity:', error);
       toast({
@@ -155,6 +167,46 @@ const Activities = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Success state component
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <MainNavbar />
+        
+        <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm max-w-md w-full">
+              <CardContent className="p-8 text-center">
+                <div className="mb-6">
+                  <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-10 h-10 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Activity Submitted Successfully!
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    Your activity has been recorded and will appear in your dashboard.
+                  </p>
+                  <div className="flex items-center justify-center gap-2 text-blue-600">
+                    <ArrowRight className="w-4 h-4" />
+                    <span className="text-sm font-medium">Redirecting to dashboard...</span>
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                >
+                  Go to Dashboard Now
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
