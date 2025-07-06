@@ -178,7 +178,12 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
 
         <div>
           <Label htmlFor="role">Role *</Label>
-          <Select onValueChange={handleRoleChange} disabled={isLoading} required>
+          <Select
+            value={showCustomRole ? "custom" : formData.role}
+            onValueChange={handleRoleChange}
+            disabled={isLoading}
+            required
+          >
             <SelectTrigger className={errors.role ? "border-red-500" : ""}>
               <SelectValue placeholder="Select a role" />
             </SelectTrigger>
@@ -208,6 +213,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
               disabled={isLoading}
               required
             />
+            {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
           </div>
         )}
 
