@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import MainNavbar from "@/components/MainNavbar";
@@ -69,11 +70,13 @@ const Activities = () => {
   const { data: activities = [], isLoading, refetch } = useQuery<Activity[]>({
     queryKey: ["activities"],
     queryFn: async () => {
+      console.log('🔄 Activities - Fetching activities');
       const { data, error } = await supabase
         .from("activities")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) {
+        console.error('❌ Activities - Error fetching activities:', error);
         toast({
           title: "Failed to load activities",
           description: error.message,
@@ -81,6 +84,7 @@ const Activities = () => {
         });
         throw error;
       }
+      console.log('✅ Activities - Activities loaded:', data?.length || 0);
       return data;
     },
   });
@@ -106,25 +110,53 @@ const Activities = () => {
     },
   });
 
-  const handleActivitySubmitted = async (activity: any) => {
+  const handleActivitySubmitted = async (activityData: any) => {
     setIsSubmitting(true);
     try {
+      console.log('🔄 Activities - Submitting activity:', activityData);
+      
+      // Get current user to ensure proper email
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user?.email) {
+        throw new Error('User not authenticated');
+      }
+
+      const finalActivityData = {
+        ...activityData,
+        submitted_by: user.email,
+        submitted_at: new Date().toISOString(),
+      };
+
+      console.log('📝 Activities - Final activity data:', finalActivityData);
+
       const { data, error } = await supabase
         .from("activities")
-        .insert([activity])
+        .insert([finalActivityData])
         .select()
         .single();
-      if (error) throw error;
+      
+      if (error) {
+        console.error('❌ Activities - Error inserting activity:', error);
+        throw error;
+      }
 
+      console.log('✅ Activities - Activity created successfully:', data);
       setSubmittedActivity(data);
       setShowForm(false);
       setShowSuccess(true);
-      refetch();
-      toast({ title: "Success!", description: "Activity logged." });
+      
+      // Refetch activities to update the list
+      await refetch();
+      
+      toast({ 
+        title: "Success!", 
+        description: "Activity logged successfully." 
+      });
     } catch (err: any) {
+      console.error('❌ Activities - Error in handleActivitySubmitted:', err);
       toast({
         title: "Error logging activity",
-        description: err.message || "An error occurred.",
+        description: err.message || "An error occurred while logging the activity.",
         variant: "destructive",
       });
     } finally {
@@ -146,9 +178,6 @@ const Activities = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
         <MainNavbar />
         <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold mb-8 text-center text-blue-900">
-            Log New Activity
-          </h2>
           <ActivityForm
             activityTypes={activityTypes}
             onSubmit={handleActivitySubmitted}

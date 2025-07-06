@@ -51,13 +51,24 @@ const UserPermissions = () => {
     password: string;
   }) => {
     try {
-      console.log('🔄 Creating user with improved error handling:', { email, full_name, role });
+      console.log('🔄 UserPermissions - Creating user with data:', { email, full_name, role });
       
-      // Validate inputs before making the call
+      // Enhanced validation before making the call
       if (!email?.trim() || !full_name?.trim() || !role?.trim() || !password?.trim()) {
         toast({
           title: "Validation Error",
           description: "All fields are required. Please check your input.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        toast({
+          title: "Invalid Email",
+          description: "Please enter a valid email address.",
           variant: "destructive",
         });
         return;
@@ -73,23 +84,40 @@ const UserPermissions = () => {
         return;
       }
 
+      // Clean up input data before sending
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanFullName = full_name.trim();
+      const cleanRole = role.trim();
+      
+      console.log('📝 UserPermissions - Cleaned data:', { 
+        email: cleanEmail, 
+        full_name: cleanFullName, 
+        role: cleanRole,
+        password_length: password.length 
+      });
+
       const { data, error } = await supabase.rpc("create_admin_user", {
-        user_email: email.trim().toLowerCase(),
+        user_email: cleanEmail,
         user_password: password,
-        user_full_name: full_name.trim(),
-        user_role: role.trim(),
+        user_full_name: cleanFullName,
+        user_role: cleanRole,
       });
 
       if (error) {
-        console.error('❌ RPC Error:', error);
+        console.error('❌ UserPermissions - RPC Error:', error);
         let errorMessage = "Failed to create user. Please try again.";
         
-        if (error.message.includes('duplicate')) {
+        // Handle specific error cases
+        if (error.message?.includes('duplicate') || error.message?.includes('already exists')) {
           errorMessage = "A user with this email already exists.";
-        } else if (error.message.includes('invalid')) {
-          errorMessage = "Invalid email format or password.";
-        } else if (error.message.includes('gen_salt')) {
+        } else if (error.message?.includes('invalid') || error.message?.includes('format')) {
+          errorMessage = "Invalid email format or data provided.";
+        } else if (error.message?.includes('permission') || error.message?.includes('denied')) {
+          errorMessage = "Permission denied. Please check your admin privileges.";
+        } else if (error.message?.includes('gen_salt') || error.message?.includes('crypt')) {
           errorMessage = "Password encryption failed. Please try a different password.";
+        } else if (error.message) {
+          errorMessage = error.message;
         }
         
         toast({
@@ -100,7 +128,7 @@ const UserPermissions = () => {
         return;
       }
 
-      console.log('✅ RPC Response:', data);
+      console.log('✅ UserPermissions - RPC Response:', data);
 
       if (!data) {
         toast({
@@ -112,7 +140,7 @@ const UserPermissions = () => {
       }
 
       if (!isCreateAdminUserResponse(data) || !data.success) {
-        console.error('❌ User creation failed:', data);
+        console.error('❌ UserPermissions - User creation failed:', data);
         const errorMessage = isCreateAdminUserResponse(data) 
           ? data.error || "Unknown error creating user."
           : "Unexpected response format from server.";
@@ -125,20 +153,27 @@ const UserPermissions = () => {
         return;
       }
 
-      console.log('✅ User created successfully:', data);
+      console.log('✅ UserPermissions - User created successfully:', data);
       toast({
         title: "User created successfully!",
-        description: `${email} has been added and activated.`,
+        description: `${cleanEmail} has been added and activated.`,
       });
       setShowAddUser(false);
       
-      // Refresh the user list
-      window.location.reload();
+      // Refresh the user list after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
     } catch (err) {
-      console.error('❌ Unexpected error creating user:', err);
+      console.error('❌ UserPermissions - Unexpected error creating user:', err);
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : "An unexpected error occurred. Please try again.";
+        
       toast({
         title: "Unexpected Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }

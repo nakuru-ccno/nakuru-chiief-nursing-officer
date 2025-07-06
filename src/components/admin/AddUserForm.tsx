@@ -75,31 +75,39 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
+    // Full name validation
     if (!formData.full_name.trim()) {
       newErrors.full_name = "Full name is required";
+    } else if (formData.full_name.trim().length < 2) {
+      newErrors.full_name = "Full name must be at least 2 characters";
     }
 
+    // Email validation
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       newErrors.email = "Please enter a valid email address";
     }
 
+    // Role validation
     const finalRole = showCustomRole ? formData.customRole : formData.role;
     if (!finalRole || !finalRole.trim()) {
       newErrors.role = "Role is required";
     }
 
+    // Password validation
     if (!formData.useGeneratedPassword) {
       if (!formData.password) {
         newErrors.password = "Password is required";
-      } else if (formData.password.length < 6) {
-        newErrors.password = "Password must be at least 6 characters";
+      } else if (formData.password.length < 8) {
+        newErrors.password = "Password must be at least 8 characters";
       }
 
       if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = "Passwords do not match";
       }
+    } else if (!generatedPassword) {
+      newErrors.password = "Generated password is required";
     }
 
     setErrors(newErrors);
@@ -110,20 +118,27 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
     e.preventDefault();
     
     if (!validateForm()) {
+      console.log('❌ AddUserForm - Validation failed:', errors);
       return;
     }
 
     const finalRole = showCustomRole ? formData.customRole.trim() : formData.role;
     const finalPassword = formData.useGeneratedPassword ? generatedPassword : formData.password;
     
+    // Extra validation for final data
+    if (!finalPassword || finalPassword.length < 8) {
+      setErrors({ password: "Password must be at least 8 characters" });
+      return;
+    }
+    
     const userData = {
       full_name: formData.full_name.trim(),
-      email: formData.email.trim(),
+      email: formData.email.trim().toLowerCase(),
       role: finalRole,
       password: finalPassword
     };
 
-    console.log('🔄 Submitting user data:', { ...userData, password: '[HIDDEN]' });
+    console.log('🔄 AddUserForm - Submitting user data:', { ...userData, password: '[HIDDEN]' });
     onSubmit(userData);
   };
 
@@ -131,7 +146,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
     <div className="max-w-md mx-auto">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <Label htmlFor="full_name">Full Name</Label>
+          <Label htmlFor="full_name">Full Name *</Label>
           <Input
             id="full_name"
             name="full_name"
@@ -147,7 +162,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
         </div>
 
         <div>
-          <Label htmlFor="email">Email Address</Label>
+          <Label htmlFor="email">Email Address *</Label>
           <Input
             id="email"
             name="email"
@@ -163,7 +178,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
         </div>
 
         <div>
-          <Label htmlFor="role">Role</Label>
+          <Label htmlFor="role">Role *</Label>
           <Select onValueChange={handleRoleChange} disabled={isLoading} required>
             <SelectTrigger className={errors.role ? "border-red-500" : ""}>
               <SelectValue placeholder="Select a role" />
@@ -180,7 +195,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
 
         {showCustomRole && (
           <div>
-            <Label htmlFor="customRole">Custom Role</Label>
+            <Label htmlFor="customRole">Custom Role *</Label>
             <Input
               id="customRole"
               name="customRole"
@@ -227,23 +242,24 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
         {!formData.useGeneratedPassword && (
           <>
             <div>
-              <Label htmlFor="password">Initial Password</Label>
+              <Label htmlFor="password">Initial Password *</Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                placeholder="Enter initial password"
+                placeholder="Enter password (min 8 characters)"
                 className={errors.password ? "border-red-500" : ""}
                 disabled={isLoading}
                 required
+                minLength={8}
               />
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">Confirm Password *</Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"

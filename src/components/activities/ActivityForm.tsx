@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,26 +26,34 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
 }) => {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("");
-  const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [duration, setDuration] = useState("");
   const [facility, setFacility] = useState("");
+  const [description, setDescription] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !type || !date) {
       alert("Please fill in required fields.");
       return;
     }
-    onSubmit({
+
+    // Get current user email
+    const { data: { user } } = await supabase.auth.getUser();
+    const userEmail = user?.email || "Current User";
+
+    const activityData = {
       title,
       type,
-      description,
       date,
       duration: duration ? parseInt(duration, 10) : undefined,
       facility,
-      submitted_by: "Current User",
-    });
+      description,
+      submitted_by: userEmail,
+    };
+
+    console.log('🔄 ActivityForm - Submitting activity:', activityData);
+    onSubmit(activityData);
   };
 
   return (
@@ -77,15 +86,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
       </div>
 
       <div>
-        <Label>Description</Label>
-        <Textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe (optional)"
-        />
-      </div>
-
-      <div>
         <Label>Date *</Label>
         <Input
           type="date"
@@ -114,6 +114,15 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
         />
       </div>
 
+      <div>
+        <Label>Description</Label>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe the activity (optional)"
+        />
+      </div>
+
       <div className="flex items-center gap-4 pt-4">
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Submitting..." : "Submit Activity"}
@@ -127,4 +136,3 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
 };
 
 export default ActivityForm;
-
