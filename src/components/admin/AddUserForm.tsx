@@ -206,7 +206,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
             </SelectTrigger>
             <SelectContent>
               {uniqueRoles.map((role, idx) => (
-                <SelectItem key={role || `empty-role-${idx}`} value={role}>
+                <SelectItem key={`${role}-${idx}`} value={role}>
                   {role}
                 </SelectItem>
               ))}
