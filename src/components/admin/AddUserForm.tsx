@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,19 +39,19 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
     if (formData.useGeneratedPassword) {
       const newPassword = generatePassword();
       setGeneratedPassword(newPassword);
-      setFormData(prev => ({ 
-        ...prev, 
-        password: newPassword, 
-        confirmPassword: newPassword 
+      setFormData(prev => ({
+        ...prev,
+        password: newPassword,
+        confirmPassword: newPassword
       }));
     }
   }, [formData.useGeneratedPassword]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
     }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
@@ -116,7 +115,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       console.log('❌ AddUserForm - Validation failed:', errors);
       return;
@@ -124,13 +123,13 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
 
     const finalRole = showCustomRole ? formData.customRole.trim() : formData.role;
     const finalPassword = formData.useGeneratedPassword ? generatedPassword : formData.password;
-    
+
     // Extra validation for final data
     if (!finalPassword || finalPassword.length < 8) {
       setErrors({ password: "Password must be at least 8 characters" });
       return;
     }
-    
+
     const userData = {
       full_name: formData.full_name.trim(),
       email: formData.email.trim().toLowerCase(),
@@ -184,10 +183,12 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
               <SelectValue placeholder="Select a role" />
             </SelectTrigger>
             <SelectContent>
-              {predefinedRoles.map(role => (
-                <SelectItem key={role} value={role}>{role}</SelectItem>
-              ))}
-              <SelectItem value="custom">Custom Role...</SelectItem>
+              {predefinedRoles
+                .filter(role => role !== "custom")
+                .map(role => (
+                  <SelectItem key={role} value={role}>{role}</SelectItem>
+                ))}
+              <SelectItem key="custom" value="custom">Custom Role...</SelectItem>
             </SelectContent>
           </Select>
           {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
@@ -225,7 +226,7 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
               Use auto-generated secure password (recommended)
             </Label>
           </div>
-          
+
           {formData.useGeneratedPassword && generatedPassword && (
             <div className="bg-gray-50 p-3 rounded border mb-2">
               <Label className="text-sm font-medium text-gray-700">Generated Password:</Label>
