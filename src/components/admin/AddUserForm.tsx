@@ -11,7 +11,12 @@ interface AddUserFormProps {
   isLoading?: boolean;
 }
 
-const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }: AddUserFormProps) => {
+const AddUserForm = ({
+  onSubmit,
+  onCancel,
+  predefinedRoles,
+  isLoading = false,
+}: AddUserFormProps) => {
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -19,16 +24,22 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
     customRole: "",
     password: "",
     confirmPassword: "",
-    useGeneratedPassword: true
+    useGeneratedPassword: true,
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showCustomRole, setShowCustomRole] = useState(false);
   const [generatedPassword, setGeneratedPassword] = useState("");
 
+  // Deduplicate roles and exclude "custom"
+  const uniqueRoles = Array.from(
+    new Set(predefinedRoles.filter((role) => role !== "custom"))
+  );
+
   // Generate a secure password
   const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let password = '';
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let password = "";
     for (let i = 0; i < 12; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
@@ -39,35 +50,36 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
     if (formData.useGeneratedPassword) {
       const newPassword = generatePassword();
       setGeneratedPassword(newPassword);
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         password: newPassword,
-        confirmPassword: newPassword
+        confirmPassword: newPassword,
       }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.useGeneratedPassword]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     }));
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }));
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
   const handleRoleChange = (value: string) => {
     if (value === "custom") {
       setShowCustomRole(true);
-      setFormData(prev => ({ ...prev, role: "", customRole: "" }));
+      setFormData((prev) => ({ ...prev, role: "", customRole: "" }));
     } else {
       setShowCustomRole(false);
-      setFormData(prev => ({ ...prev, role: value, customRole: "" }));
+      setFormData((prev) => ({ ...prev, role: value, customRole: "" }));
     }
     if (errors.role) {
-      setErrors(prev => ({ ...prev, role: "" }));
+      setErrors((prev) => ({ ...prev, role: "" }));
     }
   };
 
@@ -117,12 +129,15 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
     e.preventDefault();
 
     if (!validateForm()) {
-      console.log('❌ AddUserForm - Validation failed:', errors);
       return;
     }
 
-    const finalRole = showCustomRole ? formData.customRole.trim() : formData.role;
-    const finalPassword = formData.useGeneratedPassword ? generatedPassword : formData.password;
+    const finalRole = showCustomRole
+      ? formData.customRole.trim()
+      : formData.role;
+    const finalPassword = formData.useGeneratedPassword
+      ? generatedPassword
+      : formData.password;
 
     // Extra validation for final data
     if (!finalPassword || finalPassword.length < 8) {
@@ -134,10 +149,9 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
       full_name: formData.full_name.trim(),
       email: formData.email.trim().toLowerCase(),
       role: finalRole,
-      password: finalPassword
+      password: finalPassword,
     };
 
-    console.log('🔄 AddUserForm - Submitting user data:', { ...userData, password: '[HIDDEN]' });
     onSubmit(userData);
   };
 
@@ -157,7 +171,9 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
             disabled={isLoading}
             required
           />
-          {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name}</p>}
+          {errors.full_name && (
+            <p className="text-red-500 text-xs mt-1">{errors.full_name}</p>
+          )}
         </div>
 
         <div>
@@ -173,7 +189,9 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
             disabled={isLoading}
             required
           />
-          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+          {errors.email && (
+            <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+          )}
         </div>
 
         <div>
@@ -188,15 +206,19 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
               <SelectValue placeholder="Select a role" />
             </SelectTrigger>
             <SelectContent>
-              {predefinedRoles
-                .filter(role => role !== "custom")
-                .map(role => (
-                  <SelectItem key={role} value={role}>{role}</SelectItem>
-                ))}
-              <SelectItem key="custom" value="custom">Custom Role...</SelectItem>
+              {uniqueRoles.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {role}
+                </SelectItem>
+              ))}
+              <SelectItem key="custom" value="custom">
+                Custom Role...
+              </SelectItem>
             </SelectContent>
           </Select>
-          {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
+          {errors.role && (
+            <p className="text-red-500 text-xs mt-1">{errors.role}</p>
+          )}
         </div>
 
         {showCustomRole && (
@@ -213,7 +235,9 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
               disabled={isLoading}
               required
             />
-            {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
+            {errors.role && (
+              <p className="text-red-500 text-xs mt-1">{errors.role}</p>
+            )}
           </div>
         )}
 
@@ -235,12 +259,15 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
 
           {formData.useGeneratedPassword && generatedPassword && (
             <div className="bg-gray-50 p-3 rounded border mb-2">
-              <Label className="text-sm font-medium text-gray-700">Generated Password:</Label>
+              <Label className="text-sm font-medium text-gray-700">
+                Generated Password:
+              </Label>
               <div className="mt-1 font-mono text-sm bg-white p-2 rounded border break-all">
                 {generatedPassword}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Please save this password securely. The user will need to change it on first login.
+                Please save this password securely. The user will need to change
+                it on first login.
               </p>
             </div>
           )}
@@ -262,7 +289,11 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
                 required
                 minLength={8}
               />
-              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.password}
+                </p>
+              )}
             </div>
 
             <div>
@@ -278,7 +309,11 @@ const AddUserForm = ({ onSubmit, onCancel, predefinedRoles, isLoading = false }:
                 disabled={isLoading}
                 required
               />
-              {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.confirmPassword}
+                </p>
+              )}
             </div>
           </>
         )}
