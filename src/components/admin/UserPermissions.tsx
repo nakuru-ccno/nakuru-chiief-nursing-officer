@@ -23,6 +23,7 @@ interface CreateAdminUserResponse {
 
 const UserPermissions = () => {
   const [showAddUser, setShowAddUser] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const { toast } = useToast();
 
   const predefinedRoles = [
@@ -50,7 +51,13 @@ const UserPermissions = () => {
     role: string;
     password: string;
   }) => {
+    if (isCreatingUser) {
+      console.log('🚫 UserPermissions - User creation already in progress');
+      return;
+    }
+
     try {
+      setIsCreatingUser(true);
       console.log('🔄 UserPermissions - Creating user with data:', { email, full_name, role });
       
       // Enhanced validation before making the call
@@ -96,6 +103,12 @@ const UserPermissions = () => {
         password_length: password.length 
       });
 
+      // Show loading toast
+      toast({
+        title: "Creating User",
+        description: "Please wait while we create the user account...",
+      });
+
       const { data, error } = await supabase.rpc("create_admin_user", {
         user_email: cleanEmail,
         user_password: password,
@@ -114,8 +127,8 @@ const UserPermissions = () => {
           errorMessage = "Invalid email format or data provided.";
         } else if (error.message?.includes('permission') || error.message?.includes('denied')) {
           errorMessage = "Permission denied. Please check your admin privileges.";
-        } else if (error.message?.includes('gen_salt') || error.message?.includes('crypt')) {
-          errorMessage = "Password encryption failed. Please try a different password.";
+        } else if (error.message?.includes('violates unique constraint')) {
+          errorMessage = "A user with this email already exists in the system.";
         } else if (error.message) {
           errorMessage = error.message;
         }
@@ -156,14 +169,14 @@ const UserPermissions = () => {
       console.log('✅ UserPermissions - User created successfully:', data);
       toast({
         title: "User created successfully!",
-        description: `${cleanEmail} has been added and activated.`,
+        description: `${cleanEmail} has been added and activated. The user can now login with their credentials.`,
       });
       setShowAddUser(false);
       
       // Refresh the user list after a short delay
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 1500);
       
     } catch (err) {
       console.error('❌ UserPermissions - Unexpected error creating user:', err);
@@ -176,6 +189,8 @@ const UserPermissions = () => {
         description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -187,9 +202,10 @@ const UserPermissions = () => {
 
       <Button
         onClick={() => setShowAddUser(true)}
-        className="bg-[#fd3572] hover:bg-[#be2251] text-white px-6 py-3 rounded-lg font-semibold"
+        disabled={isCreatingUser}
+        className="bg-[#fd3572] hover:bg-[#be2251] text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Add New User
+        {isCreatingUser ? "Creating User..." : "Add New User"}
       </Button>
 
       {showAddUser && (
@@ -197,6 +213,7 @@ const UserPermissions = () => {
           onAddUser={handleAddUser}
           onCancel={() => setShowAddUser(false)}
           predefinedRoles={predefinedRoles}
+          isLoading={isCreatingUser}
         />
       )}
     </div>
