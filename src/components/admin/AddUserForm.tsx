@@ -30,15 +30,14 @@ const AddUserForm = ({
   const [showCustomRole, setShowCustomRole] = useState(false);
   const [generatedPassword, setGeneratedPassword] = useState("");
 
-  // Deduplicate roles and exclude "custom"
+  // Ensure unique roles and filter out empty strings and 'custom'
   const uniqueRoles = Array.from(
-    new Set(predefinedRoles.filter((role) => role !== "custom"))
+    new Set(predefinedRoles.filter((role) => role && role !== "custom"))
   );
 
   // Generate a secure password
   const generatePassword = () => {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     let password = "";
     for (let i = 0; i < 12; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -206,8 +205,8 @@ const AddUserForm = ({
               <SelectValue placeholder="Select a role" />
             </SelectTrigger>
             <SelectContent>
-              {uniqueRoles.map((role) => (
-                <SelectItem key={role} value={role}>
+              {uniqueRoles.map((role, idx) => (
+                <SelectItem key={role || `role-${idx}`} value={role}>
                   {role}
                 </SelectItem>
               ))}
