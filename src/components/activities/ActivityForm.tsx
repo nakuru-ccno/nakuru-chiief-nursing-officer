@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,9 +38,16 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
       return;
     }
 
-    // Get current user email
-    const { data: { user } } = await supabase.auth.getUser();
-    const userEmail = user?.email || "Current User";
+    // Get current user
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      alert("User not authenticated.");
+      return;
+    }
 
     const activityData = {
       title,
@@ -50,10 +56,11 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
       duration: duration ? parseInt(duration, 10) : undefined,
       facility,
       description,
-      submitted_by: userEmail,
+      submitted_by: user.email,
+      user_id: user.id, // Secure user tracking
     };
 
-    console.log('🔄 ActivityForm - Submitting activity:', activityData);
+    console.log("🔄 ActivityForm - Submitting activity:", activityData);
     onSubmit(activityData);
   };
 
