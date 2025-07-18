@@ -9,19 +9,27 @@ const predefinedRoles = [
   "Staff Nurse",
   "Senior Nurse",
   "Nurse Officer",
+  "County Reproductive Health cordinator",
+  "Nakuru County Health Records Officer",
+  "Nakuru County Mental Health Cordinator",
   "Chief Nurse Officer",
   "Nakuru County Deputy Chief Nursing Officer",
   "Nakuru County Chief Nursing Officer"
 ];
 
 const Register = () => {
-  const [userData, setUserData] = useState({ email: "", full_name: "", password: "", role: "Staff Nurse" });
+  const [userData, setUserData] = useState({
+    email: "",
+    full_name: "",
+    password: "",
+    role: "Staff Nurse"
+  });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Waits for profiles row to exist, then sets to "pending"
+  // ✅ Waits for profiles row to exist, then sets to "pending"
   const updateProfilePendingWithRetry = async (
     email: string,
     role: string,
@@ -36,12 +44,10 @@ const Register = () => {
         .update({ status: "pending", email_verified: false, role, full_name })
         .eq("email", email);
 
-      // Fix: ensure data is an array for .length
       const rows = (data ?? []) as any[];
 
       if (!error && rows.length > 0) return true;
 
-      // Check if profile exists, else wait and try again
       const { data: checkProfile } = await supabase
         .from("profiles")
         .select("*")
@@ -86,7 +92,7 @@ const Register = () => {
     let pendingSuccess = false;
     let showAccountCreatedMessage = false;
     if (!regError) {
-      showAccountCreatedMessage = true; // Registration succeeded, regardless of profile update
+      showAccountCreatedMessage = true;
       pendingSuccess = await updateProfilePendingWithRetry(
         userData.email,
         userData.role,
@@ -97,13 +103,16 @@ const Register = () => {
     if (regError) {
       setError(regError.message || "Registration failed.");
     } else {
-      // Always show account created/wait approval, even if pending update fails
       setSuccess(
         "Registration submitted! Your account must be approved by an admin before you can log in."
       );
-      setUserData({ email: "", full_name: "", password: "", role: "Staff Nurse" });
+      setUserData({
+        email: "",
+        full_name: "",
+        password: "",
+        role: "Staff Nurse"
+      });
 
-      // If pendingSuccess failed, optionally log (not shown to user)
       if (!pendingSuccess) {
         console.warn(
           "[Register] Account created but could not update status to pending/verified. Please notify admin if not visible."
@@ -113,6 +122,20 @@ const Register = () => {
     setLoading(false);
   };
 
+  // ✅ Google Sign-Up
+  const handleGoogleRegister = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: "https://www.nakurucountychiefnursingofficer.site/dashboard",
+      },
+    });
+
+    if (error) {
+      setError("Google sign-up failed. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <CountyHeader />
@@ -120,9 +143,8 @@ const Register = () => {
         onSubmit={handleSubmit}
         className="bg-white rounded shadow-md p-8 w-full max-w-md mx-auto mt-10"
       >
-        <h2 className="text-xl font-bold mb-4 text-[#fd3572]">
-          Create Account
-        </h2>
+        <h2 className="text-xl font-bold mb-4 text-[#fd3572]">Create Account</h2>
+
         {error && <div className="mb-2 text-red-600 font-semibold">{error}</div>}
         {success && (
           <div className="mb-4 text-green-600 font-semibold">
@@ -137,6 +159,7 @@ const Register = () => {
             </div>
           </div>
         )}
+
         <div className="mb-4">
           <label className="block font-semibold mb-1">Full Name</label>
           <Input
@@ -150,6 +173,7 @@ const Register = () => {
             autoComplete="name"
           />
         </div>
+
         <div className="mb-4">
           <label className="block font-semibold mb-1">Email</label>
           <Input
@@ -162,6 +186,7 @@ const Register = () => {
             autoFocus
           />
         </div>
+
         <div className="mb-4">
           <label className="block font-semibold mb-1">Role</label>
           <select
@@ -179,6 +204,7 @@ const Register = () => {
             ))}
           </select>
         </div>
+
         <div className="mb-6">
           <label className="block font-semibold mb-1">Password</label>
           <Input
@@ -191,6 +217,7 @@ const Register = () => {
             disabled={loading || !!success}
           />
         </div>
+
         <Button
           type="submit"
           className="w-full"
@@ -198,6 +225,19 @@ const Register = () => {
         >
           {loading ? "Registering..." : "Register"}
         </Button>
+
+        {/* ✅ Google Sign-Up Button */}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={handleGoogleRegister}
+            className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            <img src="/google-icon.svg" alt="Google" className="w-5 h-5 mr-2" />
+            Sign up with Google
+          </button>
+        </div>
+
         <div className="mt-4 text-sm text-center">
           <span>Already have an account? </span>
           <a
@@ -208,6 +248,7 @@ const Register = () => {
           </a>
         </div>
       </form>
+
       <div className="mt-2 text-xs text-center text-gray-500 opacity-70">
         You must be approved by an admin after registering before you can log in.
       </div>
