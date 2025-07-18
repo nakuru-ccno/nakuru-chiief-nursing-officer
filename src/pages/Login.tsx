@@ -43,30 +43,26 @@ const Login = () => {
             .maybeSingle();
 
           if (profileError || !profile) {
-            setError("Your account could not be validated. Please contact admin if issues persist.");
+            setError("Your account could not be validated. Please contact admin.");
             setLoading(false);
             return;
           }
 
           if (profile.status !== "active") {
-            setError("Your account is pending admin approval. Please wait for an admin to activate your account.");
-            setLoading(false);
+            setError("Your account is pending admin approval.");
             await supabase.auth.signOut();
+            setLoading(false);
             return;
           }
 
           const userRole = profile.role || "Staff Nurse";
           localStorage.setItem("role", userRole);
-          console.log("User role set in localStorage:", userRole);
 
           const isAdmin =
-            userRole === "System Administrator" || userRole.toLowerCase().includes("admin");
+            userRole === "System Administrator" ||
+            userRole.toLowerCase().includes("admin");
 
-          if (isAdmin) {
-            navigate("/admin", { replace: true });
-          } else {
-            navigate("/dashboard", { replace: true });
-          }
+          navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
         } else {
           setError("Invalid credentials or account not confirmed.");
         }
@@ -79,12 +75,12 @@ const Login = () => {
     setLoading(false);
   };
 
-  // ✅ NEW: Handle Google Login
+  // ✅ Handle Google Login
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "https://www.nakurucountychiefnursingofficer.site/dashboard", // Optional
+        redirectTo: "https://www.nakurucountychiefnursingofficer.site/login/callback",
       },
     });
 
@@ -93,8 +89,59 @@ const Login = () => {
     }
   };
 
+  // ✅ Call this after OAuth redirect (e.g. on /login/callback route)
+  const checkOrCreateProfileAndRedirect = async (userEmail: string, fullName?: string) => {
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("status, role")
+      .eq("email", userEmail)
+      .maybeSingle();
+
+    if (error) {
+      setError("Failed to fetch your profile. Please try again.");
+      return;
+    }
+
+    if (!profile) {
+      const { error: insertError } = await supabase.from("profiles").insert([
+        {
+          email: userEmail,
+          full_name: fullName ?? "",
+          role: "Staff Nurse",
+          status: "pending",
+          email_verified: true,
+        },
+      ]);
+
+      if (insertError) {
+        setError("Could not create your profile. Contact admin.");
+        return;
+      }
+
+      await supabase.auth.signOut();
+      setError("Your account has been created and is pending admin approval.");
+      return;
+    }
+
+    if (profile.status !== "active") {
+      await supabase.auth.signOut();
+      setError("Your account is pending admin approval.");
+      return;
+    }
+
+    const userRole = profile.role || "Staff Nurse";
+    localStorage.setItem("role", userRole);
+
+    const isAdmin =
+      userRole === "System Administrator" ||
+      userRole.toLowerCase().includes("admin");
+
+    navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      {/* Header */}
       <div className="w-full bg-white border-b border-gray-200 py-6">
         <div className="max-w-md mx-auto flex flex-col items-center">
           <img
@@ -106,10 +153,13 @@ const Login = () => {
           <h2 className="text-lg font-semibold text-gray-800 mb-1">
             Chief Nurse Officer Daily Activity Register
           </h2>
-          <p className="text-sm text-gray-600 italic">County of Unlimited Opportunities</p>
+          <p className="text-sm text-gray-600 italic">
+            County of Unlimited Opportunities
+          </p>
         </div>
       </div>
 
+      {/* Login Form */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -130,7 +180,7 @@ const Login = () => {
                 onChange={handleChange}
                 value={userData.username}
                 placeholder="Enter your email address"
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#be2251]"
                 autoFocus
                 required
                 autoComplete="email"
@@ -149,7 +199,7 @@ const Login = () => {
                 onChange={handleChange}
                 value={userData.password}
                 placeholder="Enter your password"
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#be2251]"
                 required
                 autoComplete="current-password"
                 disabled={loading}
@@ -158,14 +208,14 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full bg-[#be2251] text-white font-semibold py-3 px-4 rounded-md hover:bg-[#fd3572] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#be2251] focus:ring-offset-2"
-              disabled={loading || !userData.username.trim() || !userData.password.trim()}
+              className="w-full bg-[#be2251] text-white font-semibold py-3 px-4 rounded-md hover:bg-[#fd3572] transition-colors disabled:opacity-50"
+              disabled={loading || !userData.username || !userData.password}
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
-          {/* ✅ Google Sign-In Button */}
+          {/* Google Login Button */}
           <div className="mt-4">
             <button
               type="button"
@@ -182,7 +232,7 @@ const Login = () => {
               Don't have an account?{" "}
               <Link
                 to="/register"
-                className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors focus:outline-none focus:underline"
+                className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors"
               >
                 Create Account
               </Link>
