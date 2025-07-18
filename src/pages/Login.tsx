@@ -1,10 +1,8 @@
-
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 function isEmail(text: string) {
-  // Simple email validation
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
 }
 
@@ -38,40 +36,32 @@ const Login = () => {
         }
 
         if (data?.user && data.user.email) {
-          // Fetch user profile to get role and check status
           const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('status, role')
-            .eq('email', data.user.email)
+            .from("profiles")
+            .select("status, role")
+            .eq("email", data.user.email)
             .maybeSingle();
 
           if (profileError || !profile) {
-            setError(
-              "Your account could not be validated. Please contact admin if issues persist."
-            );
+            setError("Your account could not be validated. Please contact admin if issues persist.");
             setLoading(false);
             return;
           }
 
           if (profile.status !== "active") {
-            setError(
-              "Your account is pending admin approval. Please wait for an admin to activate your account."
-            );
+            setError("Your account is pending admin approval. Please wait for an admin to activate your account.");
             setLoading(false);
-            // Log out the user if they are not active
             await supabase.auth.signOut();
             return;
           }
 
-          // Set the user's role in localStorage
           const userRole = profile.role || "Staff Nurse";
           localStorage.setItem("role", userRole);
           console.log("User role set in localStorage:", userRole);
 
-          // Navigate based on role
-          const isAdmin = userRole === 'System Administrator' || 
-                          userRole.toLowerCase().includes('admin');
-          
+          const isAdmin =
+            userRole === "System Administrator" || userRole.toLowerCase().includes("admin");
+
           if (isAdmin) {
             navigate("/admin", { replace: true });
           } else {
@@ -89,15 +79,22 @@ const Login = () => {
     setLoading(false);
   };
 
-  const handleCreateAccountClick = (e: React.MouseEvent) => {
-    // Let React Router handle navigation
-  };
+  // ✅ NEW: Handle Google Login
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: "https://www.nakurucountychiefnursingofficer.site/dashboard", // Optional
+      },
+    });
 
-  const handleSignInClick = () => {};
+    if (error) {
+      setError("Google sign-in failed. Please try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Header with County Info */}
       <div className="w-full bg-white border-b border-gray-200 py-6">
         <div className="max-w-md mx-auto flex flex-col items-center">
           <img
@@ -109,13 +106,10 @@ const Login = () => {
           <h2 className="text-lg font-semibold text-gray-800 mb-1">
             Chief Nurse Officer Daily Activity Register
           </h2>
-          <p className="text-sm text-gray-600 italic">
-            County of Unlimited Opportunities
-          </p>
+          <p className="text-sm text-gray-600 italic">County of Unlimited Opportunities</p>
         </div>
       </div>
 
-      {/* Login Form */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -170,6 +164,18 @@ const Login = () => {
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
+
+          {/* ✅ Google Sign-In Button */}
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <img src="/google-icon.svg" alt="Google" className="w-5 h-5 mr-2" />
+              Sign in with Google
+            </button>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
