@@ -69,7 +69,7 @@ const Login = () => {
       } else {
         setError("Please enter a valid email address.");
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred. Please try again.");
     }
 
@@ -85,14 +85,14 @@ const Login = () => {
     });
 
     if (error) {
-      setError("Google sign-in failed. Please try again.");
+      navigate("/login-error");
     }
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col text-gray-800 dark:text-gray-100">
       {/* Header */}
-      <div className="w-full bg-white border-b border-gray-200 py-6">
+      <div className="w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-6">
         <div className="max-w-md mx-auto flex flex-col items-center">
           <img
             src="/lovable-uploads/00cc8120-039e-4419-8b2b-e07e69d6fdd8.png"
@@ -100,10 +100,8 @@ const Login = () => {
             className="h-20 w-20 mb-4"
           />
           <h1 className="text-2xl font-bold text-[#be2251] mb-1">Nakuru County</h1>
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">
-            Chief Nurse Officer Daily Activity Register
-          </h2>
-          <p className="text-sm text-gray-600 italic">
+          <h2 className="text-lg font-semibold">Chief Nurse Officer Daily Activity Register</h2>
+          <p className="text-sm italic text-gray-500 dark:text-gray-400">
             County of Unlimited Opportunities
           </p>
         </div>
@@ -114,13 +112,13 @@ const Login = () => {
         <div className="w-full max-w-md">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm dark:bg-red-900 dark:border-red-700 dark:text-red-100">
                 {error}
               </div>
             )}
 
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="username" className="block text-sm font-medium mb-2">
                 Email Address
               </label>
               <input
@@ -130,7 +128,7 @@ const Login = () => {
                 onChange={handleChange}
                 value={userData.username}
                 placeholder="Enter your email address"
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#be2251]"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#be2251]"
                 autoFocus
                 required
                 autoComplete="email"
@@ -139,7 +137,7 @@ const Login = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium mb-2">
                 Password
               </label>
               <input
@@ -149,7 +147,7 @@ const Login = () => {
                 onChange={handleChange}
                 value={userData.password}
                 placeholder="Enter your password"
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#be2251]"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#be2251]"
                 required
                 autoComplete="current-password"
                 disabled={loading}
@@ -171,14 +169,13 @@ const Login = () => {
           {/* Google Login Button */}
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-md hover:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-white font-semibold py-3 px-4 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
-            <img src="/google-icon.svg" alt="Google" className="w-5 h-5 mr-2" />
             Sign in with Google
           </button>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Don't have an account?{" "}
               <Link
                 to="/register"
