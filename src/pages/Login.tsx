@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { FcGoogle } from "react-icons/fc";
 
 function isEmail(text: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
@@ -35,7 +36,7 @@ const Login = () => {
           return;
         }
 
-        if (data?.user && data.user.email) {
+        if (data?.user?.email) {
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("status, role")
@@ -72,10 +73,10 @@ const Login = () => {
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
     }
+
     setLoading(false);
   };
 
-  // ✅ Handle Google Login
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -87,56 +88,6 @@ const Login = () => {
     if (error) {
       setError("Google sign-in failed. Please try again.");
     }
-  };
-
-  // ✅ Call this after OAuth redirect (e.g. on /login/callback route)
-  const checkOrCreateProfileAndRedirect = async (userEmail: string, fullName?: string) => {
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("status, role")
-      .eq("email", userEmail)
-      .maybeSingle();
-
-    if (error) {
-      setError("Failed to fetch your profile. Please try again.");
-      return;
-    }
-
-    if (!profile) {
-      const { error: insertError } = await supabase.from("profiles").insert([
-        {
-          email: userEmail,
-          full_name: fullName ?? "",
-          role: "Staff Nurse",
-          status: "pending",
-          email_verified: true,
-        },
-      ]);
-
-      if (insertError) {
-        setError("Could not create your profile. Contact admin.");
-        return;
-      }
-
-      await supabase.auth.signOut();
-      setError("Your account has been created and is pending admin approval.");
-      return;
-    }
-
-    if (profile.status !== "active") {
-      await supabase.auth.signOut();
-      setError("Your account is pending admin approval.");
-      return;
-    }
-
-    const userRole = profile.role || "Staff Nurse";
-    localStorage.setItem("role", userRole);
-
-    const isAdmin =
-      userRole === "System Administrator" ||
-      userRole.toLowerCase().includes("admin");
-
-    navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
   };
 
   return (
@@ -215,21 +166,21 @@ const Login = () => {
             </button>
           </form>
 
+          {/* Divider */}
+          <div className="my-6 text-center text-gray-400 text-sm font-medium">or</div>
+
           {/* Google Login Button */}
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              <img src="/google-icon.svg" alt="Google" className="w-5 h-5 mr-2" />
-              Sign in with Google
-            </button>
-          </div>
+          <button
+            onClick={handleGoogleLogin}
+            className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            <FcGoogle className="w-5 h-5 mr-2" />
+            Sign in with Google
+          </button>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link
                 to="/register"
                 className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors"
