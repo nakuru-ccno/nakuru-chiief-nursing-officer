@@ -180,7 +180,7 @@ const Login = () => {
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link
                 to="/register"
                 className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors"
