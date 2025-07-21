@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { FcGoogle } from "react-icons/fc";
 
 function isEmail(text: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
@@ -174,13 +173,13 @@ const Login = () => {
             onClick={handleGoogleLogin}
             className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-md hover:bg-gray-50 transition-colors"
           >
-            <FcGoogle className="w-5 h-5 mr-2" />
+            <img src="/google-icon.svg" alt="Google" className="w-5 h-5 mr-2" />
             Sign in with Google
           </button>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{" "}
+              Don't have an account?{" "}
               <Link
                 to="/register"
                 className="font-medium text-[#be2251] hover:text-[#fd3572] transition-colors"
