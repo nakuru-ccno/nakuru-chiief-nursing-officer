@@ -23,29 +23,48 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto py-16 px-4">
-      <h2 className="text-2xl font-bold mb-4">Forgot your password?</h2>
-      <p className="text-sm text-gray-600 mb-6">
-        Enter your email and we’ll send you a password reset link.
-      </p>
-      <form onSubmit={handleReset} className="space-y-4">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email address"
-          required
-          className="w-full px-4 py-3 border border-gray-300 rounded-md"
-        />
-        <button
-          type="submit"
-          className="w-full bg-[#be2251] text-white py-3 px-4 rounded-md hover:bg-[#fd3572]"
-        >
-          Send reset link
-        </button>
-      </form>
-      {message && <p className="mt-4 text-green-600">{message}</p>}
-      {error && <p className="mt-4 text-red-600">{error}</p>}
+    <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-lg shadow-md p-6">
+        <h2 className="text-2xl font-bold text-[#be2251] mb-4 text-center">
+          Forgot Your Password?
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
+          Enter your email and we’ll send you a reset link.
+        </p>
+
+        <form onSubmit={handleReset} className="space-y-4">
+          <label htmlFor="email" className="block text-sm font-medium">
+            Email Address
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#be2251]"
+          />
+
+          <button
+            type="submit"
+            className="w-full bg-[#be2251] text-white py-3 px-4 rounded-md font-semibold hover:bg-[#fd3572] transition-colors"
+          >
+            Send Reset Link
+          </button>
+        </form>
+
+        {message && (
+          <p className="mt-4 text-sm text-green-600 dark:text-green-400 text-center">
+            {message}
+          </p>
+        )}
+        {error && (
+          <p className="mt-4 text-sm text-red-600 dark:text-red-400 text-center">
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 };
