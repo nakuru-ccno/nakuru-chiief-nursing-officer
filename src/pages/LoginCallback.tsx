@@ -7,8 +7,7 @@ const LoginCallback = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const checkOrCreateProfileAndRedirect = async (userEmail: string, fullName?: string) => {
-      // 1. Check if profile exists
+    const checkOrCreateProfileAndRedirect = async (userId: string, userEmail: string, fullName?: string) => {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("status, role")
@@ -20,10 +19,10 @@ const LoginCallback = () => {
         return;
       }
 
-      // 2. If not, create profile with pending status
       if (!profile) {
         const { error: insertError } = await supabase.from("profiles").insert([
           {
+            id: userId, // use auth user's UUID as primary key
             email: userEmail,
             full_name: fullName ?? "",
             role: "Staff Nurse",
@@ -42,14 +41,12 @@ const LoginCallback = () => {
         return;
       }
 
-      // 3. If profile exists but not active
       if (profile.status !== "active") {
         await supabase.auth.signOut();
         setError("Your account is pending admin approval.");
         return;
       }
 
-      // 4. If active, redirect based on role
       const userRole = profile.role || "Staff Nurse";
       localStorage.setItem("role", userRole);
 
@@ -68,12 +65,13 @@ const LoginCallback = () => {
         return;
       }
 
-      const email = data.user.email;
+      const user = data.user;
+      const email = user.email;
       const fullName =
-        data.user.user_metadata?.full_name || data.user.user_metadata?.name || "";
+        user.user_metadata?.full_name || user.user_metadata?.name || "";
 
       if (email) {
-        await checkOrCreateProfileAndRedirect(email, fullName);
+        await checkOrCreateProfileAndRedirect(user.id, email, fullName);
       } else {
         setError("Email not found in user metadata.");
       }
