@@ -222,26 +222,28 @@ const UserManagement = () => {
                 )}
               </div>
             </TabsContent>
+<TabsContent value="pending" className="mt-6">
+  {console.log("🟡 Pending tab rendering. Users:", pendingUsers)}
 
-            <TabsContent value="pending" className="mt-6">
-              <div className="space-y-4">
-                {pendingUsers.length > 0 ? (
-                  pendingUsers.map(user => (
-                    <UserCard
-                      key={user.id}
-                      user={user}
-                      onEdit={handleEditUser}
-                      onDelete={handleDeleteUser}
-                    />
-                  ))
-                ) : (
-                  renderEmptyState(
-                    "pending",
-                    <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  )
-                )}
-              </div>
-            </TabsContent>
+  <div className="space-y-4">
+    {pendingUsers.length > 0 ? (
+      pendingUsers.map(user => (
+        <UserCard
+          key={user.id}
+          user={user}
+          onEdit={handleEditUser}
+          onDelete={handleDeleteUser}
+        />
+      ))
+    ) : (
+      renderEmptyState(
+        "pending",
+        <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+      )
+    )}
+  </div>
+</TabsContent>
+
 
             <TabsContent value="inactive" className="mt-6">
               <div className="space-y-4">
