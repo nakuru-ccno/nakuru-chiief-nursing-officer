@@ -12,11 +12,11 @@ const ForgotPassword = () => {
     setError("");
 
     try {
-      // 1. Check if user exists in the profiles table and is active
+      // ✅ Check if user exists and is active in your public "profiles" table
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("status")
-        .eq("email", email)
+        .eq("email", email.trim().toLowerCase())
         .maybeSingle();
 
       if (profileError || !profile) {
@@ -29,15 +29,7 @@ const ForgotPassword = () => {
         return;
       }
 
-      // 2. Try fetching the auth user (to make sure they registered)
-      const { data: authUser, error: userError } = await supabase.auth.admin.getUserByEmail(email);
-
-      if (userError || !authUser || !authUser.user) {
-        setError("User is not registered. Please sign up first.");
-        return;
-      }
-
-      // 3. Send reset link
+      // ✅ Proceed to send reset email
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: "https://www.nakurucountychiefnursingofficer.site/reset-password",
       });
