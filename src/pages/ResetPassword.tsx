@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Supabase handles token parsing from URL hash automatically
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        setError("Reset link is invalid or has expired.");
+    // Check for valid session before allowing reset
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        setError("Invalid or expired link. Please request a new reset.");
       }
     });
   }, []);
@@ -24,8 +24,8 @@ const ResetPassword = () => {
     setError("");
     setMessage("");
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (!password || !confirm) {
+      setError("Both fields are required.");
       return;
     }
 
@@ -34,19 +34,18 @@ const ResetPassword = () => {
       return;
     }
 
-    setSubmitting(true);
-    const { error } = await supabase.auth.updateUser({
-      password,
-    });
+    setLoading(true);
+
+    const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
       setError(error.message);
     } else {
-      setMessage("Password updated. Redirecting to login...");
-      setTimeout(() => navigate("/login", { replace: true }), 3000);
+      setMessage("Password updated. You can now log in.");
+      setTimeout(() => navigate("/login"), 2000);
     }
 
-    setSubmitting(false);
+    setLoading(false);
   };
 
   return (
@@ -55,26 +54,26 @@ const ResetPassword = () => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="password"
+          placeholder="New password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="New password"
           required
           className="w-full px-4 py-3 border border-gray-300 rounded-md"
         />
         <input
           type="password"
+          placeholder="Confirm new password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          placeholder="Confirm new password"
           required
           className="w-full px-4 py-3 border border-gray-300 rounded-md"
         />
         <button
           type="submit"
-          disabled={submitting}
+          disabled={loading}
           className="w-full bg-[#be2251] text-white py-3 px-4 rounded-md hover:bg-[#fd3572]"
         >
-          {submitting ? "Updating..." : "Update Password"}
+          {loading ? "Updating..." : "Update Password"}
         </button>
       </form>
       {message && <p className="mt-4 text-green-600">{message}</p>}
