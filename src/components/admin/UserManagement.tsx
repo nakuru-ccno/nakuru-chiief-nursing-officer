@@ -9,11 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
-  CheckCircle, Clock, XCircle, Pencil, Trash2, ShieldCheck, UserCheck, FileDown, History,
+  CheckCircle, Clock, XCircle, Pencil, Trash2,
+  ShieldCheck, UserCheck, FileDown, History,
 } from "lucide-react";
 import EditUserDialog from "./EditUserDialog";
 import DeleteUserDialog from "./DeleteUserDialog";
@@ -64,7 +67,8 @@ const UserManagement = () => {
   const filtered = users
     .filter((u) => cleanStatus(u.status) === tab)
     .filter((u) => {
-      const match = u.email?.toLowerCase().includes(search.toLowerCase()) || u.full_name?.toLowerCase().includes(search.toLowerCase());
+      const match = u.email?.toLowerCase().includes(search.toLowerCase()) ||
+                    u.full_name?.toLowerCase().includes(search.toLowerCase());
       const matchRole = roleFilter === "all" || u.role === roleFilter;
       return match && matchRole;
     });
@@ -115,7 +119,7 @@ const UserManagement = () => {
   };
 
   const exportToExcel = () => {
-    const rows = filtered.map(u => ({
+    const rows = filtered.map((u) => ({
       ID: u.id,
       Email: u.email,
       Name: u.full_name,
@@ -139,7 +143,10 @@ const UserManagement = () => {
         <div className="text-sm text-muted-foreground">Role: {user.role}</div>
       </div>
       <div className="flex items-center gap-2">
-        <Checkbox checked={selectedIds.has(user.id)} onCheckedChange={() => toggleSelect(user.id)} />
+        <Checkbox
+          checked={selectedIds.has(user.id)}
+          onCheckedChange={() => toggleSelect(user.id)}
+        />
         <Button size="icon" variant="ghost" onClick={() => toast({ title: "Login history coming soon." })}>
           <History className="w-4 h-4" />
         </Button>
@@ -148,13 +155,25 @@ const UserManagement = () => {
             <UserCheck className="w-4 h-4" />
           </Button>
         )}
-        <Button size="icon" variant="outline" onClick={() => handleBulk({ role: "System Administrator" })}>
+        <Button
+          size="icon"
+          variant="outline"
+          onClick={() => handleBulk({ role: "System Administrator" })}
+        >
           <ShieldCheck className="w-4 h-4" />
         </Button>
-        <Button size="icon" variant="secondary" onClick={() => setEditingUser(user)}>
+        <Button
+          size="icon"
+          variant="secondary"
+          onClick={() => setEditingUser(user)}
+        >
           <Pencil className="w-4 h-4" />
         </Button>
-        <Button size="icon" variant="destructive" onClick={() => setDeletingUser(user)}>
+        <Button
+          size="icon"
+          variant="destructive"
+          onClick={() => setDeletingUser(user)}
+        >
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>
@@ -169,7 +188,10 @@ const UserManagement = () => {
             <span>User Management</span>
             <div className="flex items-center gap-2">
               <Badge>{users.length} users</Badge>
-              <Button size="sm" onClick={exportToExcel}><FileDown className="w-4 h-4 mr-2" /> Export</Button>
+              <Button size="sm" onClick={exportToExcel}>
+                <FileDown className="w-4 h-4 mr-2" />
+                Export
+              </Button>
             </div>
           </CardTitle>
         </CardHeader>
@@ -193,11 +215,26 @@ const UserManagement = () => {
             </Select>
           </div>
 
-          <Tabs value={tab} onValueChange={(v) => setTab(v)} className="w-full">
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
             <TabsList className="grid grid-cols-3 mt-4">
-              <TabsTrigger value="active">Active ({users.filter((u) => cleanStatus(u.status) === "active").length})</TabsTrigger>
-              <TabsTrigger value="pending">Pending ({users.filter((u) => cleanStatus(u.status) === "pending").length})</TabsTrigger>
-              <TabsTrigger value="inactive">Inactive ({users.filter((u) => cleanStatus(u.status) === "inactive").length})</TabsTrigger>
+              <TabsTrigger value="active">
+                Active{" "}
+                <Badge className="ml-2 bg-green-100 text-green-800 dark:bg-green-800 dark:text-white">
+                  {users.filter((u) => cleanStatus(u.status) === "active").length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="pending">
+                Pending{" "}
+                <Badge className="ml-2 bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-white">
+                  {users.filter((u) => cleanStatus(u.status) === "pending").length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="inactive">
+                Inactive{" "}
+                <Badge className="ml-2 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-white">
+                  {users.filter((u) => cleanStatus(u.status) === "inactive").length}
+                </Badge>
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex justify-between items-center py-2">
@@ -227,7 +264,7 @@ const UserManagement = () => {
           user={editingUser}
           open={!!editingUser}
           onClose={() => setEditingUser(null)}
-          onUserUpdated={() => fetchUsers()}
+          onUserUpdated={fetchUsers}
         />
       )}
       {deletingUser && (
@@ -235,7 +272,7 @@ const UserManagement = () => {
           user={deletingUser}
           open={!!deletingUser}
           onClose={() => setDeletingUser(null)}
-          onUserDeleted={() => fetchUsers()}
+          onUserDeleted={fetchUsers}
         />
       )}
     </>
