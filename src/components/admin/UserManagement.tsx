@@ -18,6 +18,7 @@ interface UserProfile {
   created_at: string;
   last_sign_in_at: string;
   email_verified: boolean;
+  is_admin: boolean;
 }
 
 const UserManagement = () => {
@@ -30,33 +31,33 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      console.log("🔄 UserManagement - Fetching users");
-
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("❌ Error fetching users:", error);
         toast({
           title: "Error",
           description: "Failed to load users",
           variant: "destructive",
         });
+        console.error("❌ Error fetching users:", error);
         return;
       }
 
-      console.log("✅ UserManagement - Users loaded:", data?.length || 0);
-
       if (data && data.length > 0) {
-        console.table(data.map(u => ({
-          email: u.email,
-          status: u.status,
-          full_name: u.full_name,
-        })));
+        console.log("✅ Loaded users from Supabase:", data.length);
+        console.table(
+          data.map((u) => ({
+            email: u.email,
+            role: u.role,
+            status: u.status,
+            is_admin: u.is_admin,
+          }))
+        );
       } else {
-        console.log("⚠️ No users returned from Supabase.");
+        console.warn("⚠️ Supabase returned no users");
       }
 
       setUsers(data || []);
@@ -76,53 +77,36 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
-  // 🔐 ✅ LOG AUTH USER ID AND EMAIL
-  useEffect(() => {
-    const getAuthUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data?.user) {
-        console.error("❌ Error getting auth user:", error);
-        return;
-      }
-
-      console.log("✅ Logged in Supabase user ID:", data.user.id);
-      console.log("📧 Logged in email:", data.user.email);
-    };
-    getAuthUser();
-  }, []);
-
-  const activeUsers = users.filter(user => user.status === "active");
-  const pendingUsers = users.filter(user => {
-    const cleanedStatus = user.status?.trim().toLowerCase();
-    const isPending = cleanedStatus === "pending";
-    if (isPending) {
-      console.log("✅ Pending user found:", user.email);
-    }
-    return isPending;
-  });
-  const inactiveUsers = users.filter(user => user.status === "inactive");
-
   const handleEditUser = (user: UserProfile) => setEditingUser(user);
   const handleDeleteUser = (user: UserProfile) => setDeletingUser(user);
+
   const handleUserUpdated = (updatedUser: UserProfile) => {
-    setUsers(prev =>
-      prev.map(user => (user.id === updatedUser.id ? updatedUser : user))
-    );
+    setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
     setEditingUser(null);
     toast({ title: "Success", description: "User updated successfully" });
   };
+
   const handleUserDeleted = (deletedId: string) => {
-    setUsers(prev => prev.filter(user => user.id !== deletedId));
+    setUsers((prev) => prev.filter((u) => u.id !== deletedId));
     setDeletingUser(null);
     toast({ title: "Success", description: "User deleted successfully" });
   };
 
-  const renderEmptyState = (status: string, icon: React.ReactNode) => (
+  const filterByStatus = (status: string) =>
+    users.filter(
+      (u) => (u.status ?? "").toLowerCase().trim() === status.toLowerCase()
+    );
+
+  const activeUsers = filterByStatus("active");
+  const pendingUsers = filterByStatus("pending");
+  const inactiveUsers = filterByStatus("inactive");
+
+  const renderEmptyState = (label: string, icon: React.ReactNode) => (
     <div className="text-center py-8 text-gray-500">
       {icon}
-      <p className="text-lg font-medium">No {status} users</p>
+      <p className="text-lg font-medium">No {label} users</p>
       <p className="text-sm">
-        {status.charAt(0).toUpperCase() + status.slice(1)} users will appear here
+        {label.charAt(0).toUpperCase() + label.slice(1)} users will appear here
       </p>
     </div>
   );
@@ -158,18 +142,19 @@ const UserManagement = () => {
             </Badge>
           </CardTitle>
         </CardHeader>
+
         <CardContent>
           <Tabs defaultValue="active" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="active" className="flex items-center gap-2">
+              <TabsTrigger value="active">
                 <CheckCircle className="w-4 h-4 text-green-600" />
                 Active ({activeUsers.length})
               </TabsTrigger>
-              <TabsTrigger value="pending" className="flex items-center gap-2">
+              <TabsTrigger value="pending">
                 <Clock className="w-4 h-4 text-yellow-600" />
                 Pending ({pendingUsers.length})
               </TabsTrigger>
-              <TabsTrigger value="inactive" className="flex items-center gap-2">
+              <TabsTrigger value="inactive">
                 <XCircle className="w-4 h-4 text-red-600" />
                 Inactive ({inactiveUsers.length})
               </TabsTrigger>
@@ -178,7 +163,7 @@ const UserManagement = () => {
             <TabsContent value="active" className="mt-6">
               <div className="space-y-4">
                 {activeUsers.length > 0 ? (
-                  activeUsers.map(user => (
+                  activeUsers.map((user) => (
                     <UserCard
                       key={user.id}
                       user={user}
@@ -187,22 +172,18 @@ const UserManagement = () => {
                     />
                   ))
                 ) : (
-                  renderEmptyState("active", <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />)
+                  renderEmptyState(
+                    "active",
+                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  )
                 )}
               </div>
             </TabsContent>
 
             <TabsContent value="pending" className="mt-6">
-              <div className="bg-yellow-50 border border-yellow-300 p-4 rounded mb-4">
-                <p>🟡 <strong>Debug:</strong> Pending users count: {pendingUsers.length}</p>
-                <pre className="text-xs text-gray-700 overflow-auto max-h-60 mt-2">
-                  {JSON.stringify(pendingUsers, null, 2)}
-                </pre>
-              </div>
-
               <div className="space-y-4">
                 {pendingUsers.length > 0 ? (
-                  pendingUsers.map(user => (
+                  pendingUsers.map((user) => (
                     <UserCard
                       key={user.id}
                       user={user}
@@ -211,7 +192,10 @@ const UserManagement = () => {
                     />
                   ))
                 ) : (
-                  renderEmptyState("pending", <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />)
+                  renderEmptyState(
+                    "pending",
+                    <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  )
                 )}
               </div>
             </TabsContent>
@@ -219,7 +203,7 @@ const UserManagement = () => {
             <TabsContent value="inactive" className="mt-6">
               <div className="space-y-4">
                 {inactiveUsers.length > 0 ? (
-                  inactiveUsers.map(user => (
+                  inactiveUsers.map((user) => (
                     <UserCard
                       key={user.id}
                       user={user}
@@ -228,7 +212,10 @@ const UserManagement = () => {
                     />
                   ))
                 ) : (
-                  renderEmptyState("inactive", <XCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />)
+                  renderEmptyState(
+                    "inactive",
+                    <XCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  )
                 )}
               </div>
             </TabsContent>
