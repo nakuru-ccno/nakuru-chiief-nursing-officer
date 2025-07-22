@@ -8,6 +8,8 @@ import { User, CheckCircle, Clock, XCircle } from "lucide-react";
 import EditUserDialog from "./EditUserDialog";
 import DeleteUserDialog from "./DeleteUserDialog";
 import UserCard from "./UserCard";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserProfile {
   id: string;
@@ -18,8 +20,17 @@ interface UserProfile {
   created_at: string;
   last_sign_in_at: string;
   email_verified: boolean;
-  is_admin: boolean;
 }
+
+const roles = [
+  "System Administrator",
+  "Nakuru County Chief Nursing Officer",
+  "Nakuru County Deputy Chief Nursing Officer",
+  "Chief Nurse Officer",
+  "Nurse Officer",
+  "Senior Nurse",
+  "Staff Nurse",
+];
 
 const UserManagement = () => {
   const { toast } = useToast();
@@ -37,37 +48,13 @@ const UserManagement = () => {
         .order("created_at", { ascending: false });
 
       if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load users",
-          variant: "destructive",
-        });
-        console.error("❌ Error fetching users:", error);
+        toast({ title: "Error", description: "Failed to load users", variant: "destructive" });
         return;
-      }
-
-      if (data && data.length > 0) {
-        console.log("✅ Loaded users from Supabase:", data.length);
-        console.table(
-          data.map((u) => ({
-            email: u.email,
-            role: u.role,
-            status: u.status,
-            is_admin: u.is_admin,
-          }))
-        );
-      } else {
-        console.warn("⚠️ Supabase returned no users");
       }
 
       setUsers(data || []);
     } catch (error) {
-      console.error("❌ Error in fetchUsers:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load users",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to load users", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -77,37 +64,71 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
-  const handleEditUser = (user: UserProfile) => setEditingUser(user);
-  const handleDeleteUser = (user: UserProfile) => setDeletingUser(user);
+  const approveUser = async (userId: string) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ status: "active" })
+      .eq("id", userId);
 
-  const handleUserUpdated = (updatedUser: UserProfile) => {
-    setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
-    setEditingUser(null);
-    toast({ title: "Success", description: "User updated successfully" });
+    if (error) {
+      toast({ title: "Error", description: "Failed to approve user", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "User approved" });
+      fetchUsers();
+    }
   };
 
-  const handleUserDeleted = (deletedId: string) => {
-    setUsers((prev) => prev.filter((u) => u.id !== deletedId));
-    setDeletingUser(null);
-    toast({ title: "Success", description: "User deleted successfully" });
+  const updateUserRole = async (userId: string, newRole: string) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ role: newRole })
+      .eq("id", userId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update role", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Role updated" });
+      fetchUsers();
+    }
   };
 
-  const filterByStatus = (status: string) =>
-    users.filter(
-      (u) => (u.status ?? "").toLowerCase().trim() === status.toLowerCase()
-    );
+  const activeUsers = users.filter(user => user.status === "active");
+  const pendingUsers = users.filter(user => user.status?.trim().toLowerCase() === "pending");
+  const inactiveUsers = users.filter(user => user.status === "inactive");
 
-  const activeUsers = filterByStatus("active");
-  const pendingUsers = filterByStatus("pending");
-  const inactiveUsers = filterByStatus("inactive");
+  const renderUserRow = (user: UserProfile) => (
+    <div key={user.id} className="border p-4 rounded-md shadow-sm bg-white space-y-2">
+      <div className="flex justify-between items-center">
+        <div>
+          <p className="font-semibold">{user.full_name}</p>
+          <p className="text-sm text-gray-600">{user.email}</p>
+        </div>
+        <div className="text-sm capitalize">{user.status}</div>
+      </div>
 
-  const renderEmptyState = (label: string, icon: React.ReactNode) => (
-    <div className="text-center py-8 text-gray-500">
-      {icon}
-      <p className="text-lg font-medium">No {label} users</p>
-      <p className="text-sm">
-        {label.charAt(0).toUpperCase() + label.slice(1)} users will appear here
-      </p>
+      <div className="flex items-center gap-4">
+        <Select value={user.role} onValueChange={(val) => updateUserRole(user.id, val)}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Select Role" />
+          </SelectTrigger>
+          <SelectContent>
+            {roles.map((role) => (
+              <SelectItem key={role} value={role}>
+                {role}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {user.status === "pending" && (
+          <Button onClick={() => approveUser(user.id)} className="bg-green-600 text-white hover:bg-green-700">
+            Approve
+          </Button>
+        )}
+
+        <Button variant="outline" onClick={() => setEditingUser(user)}>Edit</Button>
+        <Button variant="destructive" onClick={() => setDeletingUser(user)}>Delete</Button>
+      </div>
     </div>
   );
 
@@ -116,8 +137,7 @@ const UserManagement = () => {
       <Card>
         <CardHeader>
           <CardTitle className="text-[#be2251] flex items-center gap-2">
-            <User className="w-5 h-5" />
-            User Management
+            <User className="w-5 h-5" /> User Management
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -137,88 +157,20 @@ const UserManagement = () => {
           <CardTitle className="text-[#be2251] flex items-center gap-2">
             <User className="w-5 h-5" />
             User Management
-            <Badge variant="outline" className="ml-auto">
-              {users.length} total users
-            </Badge>
+            <Badge variant="outline" className="ml-auto">{users.length} total users</Badge>
           </CardTitle>
         </CardHeader>
-
         <CardContent>
-          <Tabs defaultValue="active" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="active">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                Active ({activeUsers.length})
-              </TabsTrigger>
-              <TabsTrigger value="pending">
-                <Clock className="w-4 h-4 text-yellow-600" />
-                Pending ({pendingUsers.length})
-              </TabsTrigger>
-              <TabsTrigger value="inactive">
-                <XCircle className="w-4 h-4 text-red-600" />
-                Inactive ({inactiveUsers.length})
-              </TabsTrigger>
+          <Tabs defaultValue="active">
+            <TabsList className="grid grid-cols-3 mb-4">
+              <TabsTrigger value="active"><CheckCircle className="w-4 h-4 text-green-600" /> Active ({activeUsers.length})</TabsTrigger>
+              <TabsTrigger value="pending"><Clock className="w-4 h-4 text-yellow-600" /> Pending ({pendingUsers.length})</TabsTrigger>
+              <TabsTrigger value="inactive"><XCircle className="w-4 h-4 text-red-600" /> Inactive ({inactiveUsers.length})</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="active" className="mt-6">
-              <div className="space-y-4">
-                {activeUsers.length > 0 ? (
-                  activeUsers.map((user) => (
-                    <UserCard
-                      key={user.id}
-                      user={user}
-                      onEdit={handleEditUser}
-                      onDelete={handleDeleteUser}
-                    />
-                  ))
-                ) : (
-                  renderEmptyState(
-                    "active",
-                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  )
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="pending" className="mt-6">
-              <div className="space-y-4">
-                {pendingUsers.length > 0 ? (
-                  pendingUsers.map((user) => (
-                    <UserCard
-                      key={user.id}
-                      user={user}
-                      onEdit={handleEditUser}
-                      onDelete={handleDeleteUser}
-                    />
-                  ))
-                ) : (
-                  renderEmptyState(
-                    "pending",
-                    <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  )
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="inactive" className="mt-6">
-              <div className="space-y-4">
-                {inactiveUsers.length > 0 ? (
-                  inactiveUsers.map((user) => (
-                    <UserCard
-                      key={user.id}
-                      user={user}
-                      onEdit={handleEditUser}
-                      onDelete={handleDeleteUser}
-                    />
-                  ))
-                ) : (
-                  renderEmptyState(
-                    "inactive",
-                    <XCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  )
-                )}
-              </div>
-            </TabsContent>
+            <TabsContent value="active" className="space-y-4">{activeUsers.map(renderUserRow)}</TabsContent>
+            <TabsContent value="pending" className="space-y-4">{pendingUsers.map(renderUserRow)}</TabsContent>
+            <TabsContent value="inactive" className="space-y-4">{inactiveUsers.map(renderUserRow)}</TabsContent>
           </Tabs>
         </CardContent>
       </Card>
@@ -228,7 +180,7 @@ const UserManagement = () => {
           user={editingUser}
           open={!!editingUser}
           onClose={() => setEditingUser(null)}
-          onUserUpdated={handleUserUpdated}
+          onUserUpdated={fetchUsers}
         />
       )}
 
@@ -237,7 +189,7 @@ const UserManagement = () => {
           user={deletingUser}
           open={!!deletingUser}
           onClose={() => setDeletingUser(null)}
-          onUserDeleted={handleUserDeleted}
+          onUserDeleted={fetchUsers}
         />
       )}
     </>
