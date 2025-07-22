@@ -95,17 +95,14 @@ const UserManagement = () => {
   }, []);
 
   const handleEditUser = (user: UserProfile) => {
-    console.log("📝 Opening edit dialog for user:", user.email);
     setEditingUser(user);
   };
 
   const handleDeleteUser = (user: UserProfile) => {
-    console.log("🗑️ Opening delete dialog for user:", user.email);
     setDeletingUser(user);
   };
 
   const handleUserUpdated = (updatedUser: UserProfile) => {
-    console.log("✅ User updated:", updatedUser.email);
     setUsers(prev =>
       prev.map(user =>
         user.id === updatedUser.id ? updatedUser : user
@@ -119,7 +116,6 @@ const UserManagement = () => {
   };
 
   const handleUserDeleted = (deletedId: string) => {
-    console.log("✅ User deleted:", deletedId);
     setUsers(prev => prev.filter(user => user.id !== deletedId));
     setDeletingUser(null);
     toast({
@@ -222,28 +218,26 @@ const UserManagement = () => {
                 )}
               </div>
             </TabsContent>
-<TabsContent value="pending" className="mt-6">
-  {console.log("🟡 Pending tab rendering. Users:", pendingUsers)}
 
-  <div className="space-y-4">
-    {pendingUsers.length > 0 ? (
-      pendingUsers.map(user => (
-        <UserCard
-          key={user.id}
-          user={user}
-          onEdit={handleEditUser}
-          onDelete={handleDeleteUser}
-        />
-      ))
-    ) : (
-      renderEmptyState(
-        "pending",
-        <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-      )
-    )}
-  </div>
-</TabsContent>
-
+            <TabsContent value="pending" className="mt-6">
+              <div className="space-y-4">
+                {pendingUsers.length > 0 ? (
+                  pendingUsers.map(user => (
+                    <UserCard
+                      key={user.id}
+                      user={user}
+                      onEdit={handleEditUser}
+                      onDelete={handleDeleteUser}
+                    />
+                  ))
+                ) : (
+                  renderEmptyState(
+                    "pending",
+                    <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  )
+                )}
+              </div>
+            </TabsContent>
 
             <TabsContent value="inactive" className="mt-6">
               <div className="space-y-4">
