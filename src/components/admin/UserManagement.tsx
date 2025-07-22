@@ -46,9 +46,11 @@ const UserManagement = () => {
     }
     setIsLoading(false);
   };
+useEffect(() => {
+  // 🔍 Expose supabase client to window for console debugging
+  window.supabase = supabase;
+}, []);
 
-  useEffect(() => {
-    fetchUsers();
   }, []);
 
   const cleanStatus = (status: string | null) => (status || "").trim().toLowerCase();
