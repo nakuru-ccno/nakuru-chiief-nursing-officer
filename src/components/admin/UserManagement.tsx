@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card, CardContent, CardHeader, CardTitle,
+} from "@/components/ui/card";
+import {
+  Tabs, TabsContent, TabsList, TabsTrigger,
+} from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { User, CheckCircle, Clock, XCircle } from "lucide-react";
+import {
+  CheckCircle, Clock, XCircle, Pencil, Trash2, ShieldCheck, UserCheck,
+} from "lucide-react";
 import EditUserDialog from "./EditUserDialog";
 import DeleteUserDialog from "./DeleteUserDialog";
-import UserCard from "./UserCard";
-
-import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-
 
 interface UserProfile {
   id: string;
@@ -25,15 +28,20 @@ interface UserProfile {
   email_verified: boolean;
 }
 
+const cleanStatus = (status: string | null) => (status || "").trim().toLowerCase();
+
 const UserManagement = () => {
   const { toast } = useToast();
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
+  const [tab, setTab] = useState("active");
+  const [loading, setLoading] = useState(true);
 
   const fetchUsers = async () => {
-    setIsLoading(true);
+    setLoading(true);
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -44,93 +52,96 @@ const UserManagement = () => {
     } else {
       setUsers(data || []);
     }
-    setIsLoading(false);
+    setLoading(false);
   };
-useEffect(() => {
-  // 🔍 Expose supabase client to window for console debugging
-  window.supabase = supabase;
-}, []);
 
+  useEffect(() => {
+    fetchUsers();
   }, []);
 
-  const cleanStatus = (status: string | null) => (status || "").trim().toLowerCase();
+  const filtered = users
+    .filter((u) =>
+      (u.email?.toLowerCase().includes(search.toLowerCase()) ||
+       u.full_name?.toLowerCase().includes(search.toLowerCase()))
+    )
+    .filter((u) => cleanStatus(u.status) === tab);
 
-  const activeUsers = users.filter((u) => cleanStatus(u.status) === "active");
-  const pendingUsers = users.filter((u) => cleanStatus(u.status) === "pending");
-  const inactiveUsers = users.filter((u) => cleanStatus(u.status) === "inactive");
+  const toggleSelect = (id: string) => {
+    const copy = new Set(selectedIds);
+    copy.has(id) ? copy.delete(id) : copy.add(id);
+    setSelectedIds(copy);
+  };
 
-  const handleApprove = async (user: UserProfile) => {
+  const clearSelected = () => setSelectedIds(new Set());
+
+  const handleBulk = async (updates: Partial<UserProfile>) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
     const { error } = await supabase
       .from("profiles")
-      .update({ status: "active" })
-      .eq("id", user.id);
+      .update(updates)
+      .in("id", ids);
 
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error.message });
     } else {
-      toast({ title: "Approved", description: `${user.email} is now active.` });
+      toast({ title: "Updated", description: "Users updated." });
       fetchUsers();
+      clearSelected();
     }
   };
 
-  const handleMakeAdmin = async (user: UserProfile) => {
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
     const { error } = await supabase
       .from("profiles")
-      .update({ role: "System Administrator" })
-      .eq("id", user.id);
+      .delete()
+      .in("id", ids);
 
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error.message });
     } else {
-      toast({ title: "Role Updated", description: `${user.email} is now an admin.` });
+      toast({ title: "Deleted", description: "Users deleted." });
       fetchUsers();
+      clearSelected();
     }
   };
 
-  const renderUserList = (list: UserProfile[], emptyMsg: string, icon: React.ReactNode) => {
-    if (list.length === 0) {
-      return (
-        <div className="text-center py-8 text-gray-500">
-          {icon}
-          <p className="text-lg font-medium">{emptyMsg}</p>
-        </div>
-      );
-    }
-
-    return list.map((user) => (
-      <div key={user.id} className="border rounded p-4 shadow-sm space-y-2">
+  const renderUser = (user: UserProfile) => (
+    <div key={user.id} className="border rounded p-4 flex justify-between items-center">
+      <div>
         <div className="font-medium">{user.full_name || user.email}</div>
-        <div className="text-sm text-gray-500">Status: {user.status}</div>
-        <div className="text-sm text-gray-500">Role: {user.role}</div>
-        <div className="flex gap-2">
-          {cleanStatus(user.status) === "pending" && (
-            <Button size="sm" onClick={() => handleApprove(user)}>
-              Approve
-            </Button>
-          )}
-          <Button size="sm" onClick={() => handleMakeAdmin(user)} variant="outline">
-            Make Admin
-          </Button>
-          <Button size="sm" onClick={() => setEditingUser(user)} variant="secondary">
-            Edit
-          </Button>
-          <Button size="sm" onClick={() => setDeletingUser(user)} variant="destructive">
-            Delete
-          </Button>
-        </div>
+        <div className="text-sm text-muted-foreground">Status: {user.status}</div>
+        <div className="text-sm text-muted-foreground">Role: {user.role}</div>
       </div>
-    ));
-  };
+      <div className="flex items-center gap-2">
+        <Checkbox checked={selectedIds.has(user.id)} onCheckedChange={() => toggleSelect(user.id)} />
+        {cleanStatus(user.status) === "pending" && (
+          <Button size="icon" onClick={() => handleBulk({ status: "active" })}>
+            <UserCheck className="w-4 h-4" />
+          </Button>
+        )}
+        <Button size="icon" variant="outline" onClick={() => handleBulk({ role: "System Administrator" })}>
+          <ShieldCheck className="w-4 h-4" />
+        </Button>
+        <Button size="icon" variant="secondary" onClick={() => setEditingUser(user)}>
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button size="icon" variant="destructive" onClick={() => setDeletingUser(user)}>
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>User Management</CardTitle></CardHeader>
         <CardContent>
           <div className="py-8 flex justify-center">
-            <div className="w-6 h-6 border-4 border-[#fd3572] border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         </CardContent>
       </Card>
@@ -146,17 +157,37 @@ useEffect(() => {
             <Badge>{users.length} users</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="active">
+        <CardContent className="space-y-4">
+          <Input
+            placeholder="Search by email or name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Tabs value={tab} onValueChange={(v) => setTab(v)} className="w-full">
             <TabsList className="grid grid-cols-3">
-              <TabsTrigger value="active">Active ({activeUsers.length})</TabsTrigger>
-              <TabsTrigger value="pending">Pending ({pendingUsers.length})</TabsTrigger>
-              <TabsTrigger value="inactive">Inactive ({inactiveUsers.length})</TabsTrigger>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="inactive">Inactive</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="active">{renderUserList(activeUsers, "No active users", <CheckCircle className="mx-auto text-gray-300 w-10 h-10" />)}</TabsContent>
-            <TabsContent value="pending">{renderUserList(pendingUsers, "No pending users", <Clock className="mx-auto text-gray-300 w-10 h-10" />)}</TabsContent>
-            <TabsContent value="inactive">{renderUserList(inactiveUsers, "No inactive users", <XCircle className="mx-auto text-gray-300 w-10 h-10" />)}</TabsContent>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm">{selectedIds.size} selected</span>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => handleBulk({ status: "active" })}>Approve</Button>
+                <Button size="sm" variant="outline" onClick={() => handleBulk({ role: "System Administrator" })}>Make Admin</Button>
+                <Button size="sm" variant="destructive" onClick={handleBulkDelete}>Delete</Button>
+              </div>
+            </div>
+
+            <TabsContent value="active" className="space-y-2">
+              {filtered.map(renderUser)}
+            </TabsContent>
+            <TabsContent value="pending" className="space-y-2">
+              {filtered.map(renderUser)}
+            </TabsContent>
+            <TabsContent value="inactive" className="space-y-2">
+              {filtered.map(renderUser)}
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
@@ -169,7 +200,6 @@ useEffect(() => {
           onUserUpdated={() => fetchUsers()}
         />
       )}
-
       {deletingUser && (
         <DeleteUserDialog
           user={deletingUser}
@@ -183,4 +213,3 @@ useEffect(() => {
 };
 
 export default UserManagement;
-
