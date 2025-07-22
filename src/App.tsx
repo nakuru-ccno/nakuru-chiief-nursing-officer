@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  useLocation,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,13 +18,15 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import LiveAdmin from "./pages/LiveAdmin";
 import AdminSettings from "./pages/AdminSettings";
 import Activities from "./pages/Activities";
 import Reports from "./pages/Reports";
-import LoginCallback from "./pages/LoginCallback"; // ✅ Google OAuth redirect handler
+import LoginCallback from "./pages/LoginCallback";
 
 // 🔐 Protect routes with auth + status check
 function ProtectedRoute() {
@@ -28,13 +37,14 @@ function ProtectedRoute() {
     const checkAuth = async () => {
       console.log("🔐 ProtectedRoute - Checking authentication...");
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const user = session?.user;
 
       if (user) {
         console.log("✅ Supabase session found:", user.email);
 
-        // ⛔ Check if the profile is active
         const { data: profile, error } = await supabase
           .from("profiles")
           .select("status")
@@ -54,12 +64,10 @@ function ProtectedRoute() {
           return;
         }
 
-        // ✅ All checks passed
         setIsAuthenticated(true);
         return;
       }
 
-      // 🔓 Demo/dev mode support
       const demoRole = localStorage.getItem("role");
       if (demoRole) {
         console.log("🧪 Demo role found:", demoRole);
@@ -98,13 +106,15 @@ const App = () => {
         <TooltipProvider>
           <div className="App">
             <Routes>
-              {/* Public Routes */}
+              {/* 🌐 Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/login/callback" element={<LoginCallback />} /> {/* ✅ Google callback */}
               <Route path="/register" element={<Register />} />
+              <Route path="/login/callback" element={<LoginCallback />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Protected Routes */}
+              {/* 🔒 Protected Routes */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/admin" element={<Admin />} />
@@ -114,7 +124,7 @@ const App = () => {
                 <Route path="/reports" element={<Reports />} />
               </Route>
 
-              {/* Fallback */}
+              {/* 404 Fallback */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
