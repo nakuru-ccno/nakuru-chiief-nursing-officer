@@ -7,13 +7,17 @@ function isEmail(text: string) {
 }
 
 const Login = () => {
-  const [userData, setUserData] = useState({ username: "", password: "" });
+  const [userData, setUserData] = useState({ username: "", password: "", rememberMe: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUserData((u) => ({ ...u, [e.target.name]: e.target.value }));
+    const { name, value, type, checked } = e.target;
+    setUserData((u) => ({
+      ...u,
+      [name]: type === "checkbox" ? checked : value,
+    }));
     if (error) setError("");
   };
 
@@ -30,7 +34,7 @@ const Login = () => {
         });
 
         if (loginError) {
-          setError(loginError.message || "Invalid credentials. Please try again.");
+          setError(loginError.message || "Invalid credentials.");
           setLoading(false);
           return;
         }
@@ -43,7 +47,7 @@ const Login = () => {
             .maybeSingle();
 
           if (profileError || !profile) {
-            setError("Your account could not be validated. Please contact admin.");
+            setError("Account could not be validated.");
             setLoading(false);
             return;
           }
@@ -58,19 +62,16 @@ const Login = () => {
           const userRole = profile.role || "Staff Nurse";
           localStorage.setItem("role", userRole);
 
-          const isAdmin =
-            userRole === "System Administrator" ||
-            userRole.toLowerCase().includes("admin");
-
+          const isAdmin = userRole === "System Administrator" || userRole.toLowerCase().includes("admin");
           navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
         } else {
           setError("Invalid credentials or account not confirmed.");
         }
       } else {
-        setError("Please enter a valid email address.");
+        setError("Please enter a valid email.");
       }
     } catch {
-      setError("An unexpected error occurred. Please try again.");
+      setError("An unexpected error occurred.");
     }
 
     setLoading(false);
@@ -91,7 +92,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col text-gray-800 dark:text-gray-100">
-      {/* Header */}
       <div className="w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-6">
         <div className="max-w-md mx-auto flex flex-col items-center">
           <img
@@ -107,7 +107,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Login Form */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -154,6 +153,25 @@ const Login = () => {
               />
             </div>
 
+            <div className="flex items-center justify-between">
+              <label className="flex items-center text-sm">
+                <input
+                  type="checkbox"
+                  name="rememberMe"
+                  checked={userData.rememberMe}
+                  onChange={handleChange}
+                  className="mr-2"
+                />
+                Remember me
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-sm text-[#be2251] hover:text-[#fd3572]"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
             <button
               type="submit"
               className="w-full bg-[#be2251] text-white font-semibold py-3 px-4 rounded-md hover:bg-[#fd3572] transition-colors disabled:opacity-50"
@@ -163,10 +181,8 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="my-6 text-center text-gray-400 text-sm font-medium">or</div>
 
-          {/* Google Login Button */}
           <button
             onClick={handleGoogleLogin}
             className="w-full flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-white font-semibold py-3 px-4 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
