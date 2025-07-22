@@ -48,6 +48,19 @@ const UserManagement = () => {
       }
 
       console.log("✅ UserManagement - Users loaded:", data?.length || 0);
+
+      // 👇 Raw dump of all users before filtering
+      if (data && data.length > 0) {
+        console.log("🧪 Raw users before filtering:");
+        console.table(data.map(u => ({
+          email: u.email,
+          status: u.status,
+          full_name: u.full_name,
+        })));
+      } else {
+        console.log("⚠️ No users returned from Supabase.");
+      }
+
       setUsers(data || []);
     } catch (error) {
       console.error("❌ Error in fetchUsers:", error);
@@ -220,31 +233,31 @@ const UserManagement = () => {
             </TabsContent>
 
             <TabsContent value="pending" className="mt-6">
-  <div className="bg-yellow-50 border border-yellow-300 p-4 rounded mb-4">
-    <p>🟡 <strong>Debug:</strong> Pending users count: {pendingUsers.length}</p>
-    <pre className="text-xs text-gray-700 overflow-auto max-h-60 mt-2">
-      {JSON.stringify(pendingUsers, null, 2)}
-    </pre>
-  </div>
+              <div className="bg-yellow-50 border border-yellow-300 p-4 rounded mb-4">
+                <p>🟡 <strong>Debug:</strong> Pending users count: {pendingUsers.length}</p>
+                <pre className="text-xs text-gray-700 overflow-auto max-h-60 mt-2">
+                  {JSON.stringify(pendingUsers, null, 2)}
+                </pre>
+              </div>
 
-  <div className="space-y-4">
-    {pendingUsers.length > 0 ? (
-      pendingUsers.map(user => (
-        <UserCard
-          key={user.id}
-          user={user}
-          onEdit={handleEditUser}
-          onDelete={handleDeleteUser}
-        />
-      ))
-    ) : (
-      renderEmptyState(
-        "pending",
-        <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-      )
-    )}
-  </div>
-</TabsContent>
+              <div className="space-y-4">
+                {pendingUsers.length > 0 ? (
+                  pendingUsers.map(user => (
+                    <UserCard
+                      key={user.id}
+                      user={user}
+                      onEdit={handleEditUser}
+                      onDelete={handleDeleteUser}
+                    />
+                  ))
+                ) : (
+                  renderEmptyState(
+                    "pending",
+                    <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  )
+                )}
+              </div>
+            </TabsContent>
 
             <TabsContent value="inactive" className="mt-6">
               <div className="space-y-4">
