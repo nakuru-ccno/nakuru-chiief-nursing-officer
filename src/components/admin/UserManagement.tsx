@@ -49,9 +49,7 @@ const UserManagement = () => {
 
       console.log("✅ UserManagement - Users loaded:", data?.length || 0);
 
-      // 👇 Raw dump of all users before filtering
       if (data && data.length > 0) {
-        console.log("🧪 Raw users before filtering:");
         console.table(data.map(u => ({
           email: u.email,
           status: u.status,
@@ -78,81 +76,46 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
+  // 🔐 ✅ LOG AUTH USER ID AND EMAIL
   useEffect(() => {
-    const checkMyProfile = async () => {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !authData?.user) {
-        console.error("❌ Auth error or no user:", authError);
+    const getAuthUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data?.user) {
+        console.error("❌ Error getting auth user:", error);
         return;
       }
 
-      const email = authData.user.email;
-      console.log("✅ Logged in as:", email);
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("email", email)
-        .single();
-
-      if (profileError) {
-        console.error("❌ Error loading profile:", profileError);
-        return;
-      }
-
-      console.log("👤 Profile from DB:", profile);
+      console.log("✅ Logged in Supabase user ID:", data.user.id);
+      console.log("📧 Logged in email:", data.user.email);
     };
-
-    checkMyProfile();
+    getAuthUser();
   }, []);
 
-  const handleEditUser = (user: UserProfile) => {
-    setEditingUser(user);
-  };
-
-  const handleDeleteUser = (user: UserProfile) => {
-    setDeletingUser(user);
-  };
-
-  const handleUserUpdated = (updatedUser: UserProfile) => {
-    setUsers(prev =>
-      prev.map(user =>
-        user.id === updatedUser.id ? updatedUser : user
-      )
-    );
-    setEditingUser(null);
-    toast({
-      title: "Success",
-      description: "User updated successfully",
-    });
-  };
-
-  const handleUserDeleted = (deletedId: string) => {
-    setUsers(prev => prev.filter(user => user.id !== deletedId));
-    setDeletingUser(null);
-    toast({
-      title: "Success",
-      description: "User deleted successfully",
-    });
-  };
-
   const activeUsers = users.filter(user => user.status === "active");
-
   const pendingUsers = users.filter(user => {
     const cleanedStatus = user.status?.trim().toLowerCase();
     const isPending = cleanedStatus === "pending";
-
     if (isPending) {
       console.log("✅ Pending user found:", user.email);
-    } else {
-      console.log("❌ Not pending:", user.email, "| Status:", user.status);
     }
-
     return isPending;
   });
-
   const inactiveUsers = users.filter(user => user.status === "inactive");
+
+  const handleEditUser = (user: UserProfile) => setEditingUser(user);
+  const handleDeleteUser = (user: UserProfile) => setDeletingUser(user);
+  const handleUserUpdated = (updatedUser: UserProfile) => {
+    setUsers(prev =>
+      prev.map(user => (user.id === updatedUser.id ? updatedUser : user))
+    );
+    setEditingUser(null);
+    toast({ title: "Success", description: "User updated successfully" });
+  };
+  const handleUserDeleted = (deletedId: string) => {
+    setUsers(prev => prev.filter(user => user.id !== deletedId));
+    setDeletingUser(null);
+    toast({ title: "Success", description: "User deleted successfully" });
+  };
 
   const renderEmptyState = (status: string, icon: React.ReactNode) => (
     <div className="text-center py-8 text-gray-500">
@@ -224,10 +187,7 @@ const UserManagement = () => {
                     />
                   ))
                 ) : (
-                  renderEmptyState(
-                    "active",
-                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  )
+                  renderEmptyState("active", <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />)
                 )}
               </div>
             </TabsContent>
@@ -251,10 +211,7 @@ const UserManagement = () => {
                     />
                   ))
                 ) : (
-                  renderEmptyState(
-                    "pending",
-                    <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  )
+                  renderEmptyState("pending", <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />)
                 )}
               </div>
             </TabsContent>
@@ -271,10 +228,7 @@ const UserManagement = () => {
                     />
                   ))
                 ) : (
-                  renderEmptyState(
-                    "inactive",
-                    <XCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  )
+                  renderEmptyState("inactive", <XCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />)
                 )}
               </div>
             </TabsContent>
