@@ -10,6 +10,10 @@ import EditUserDialog from "./EditUserDialog";
 import DeleteUserDialog from "./DeleteUserDialog";
 import UserCard from "./UserCard";
 
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+
 interface UserProfile {
   id: string;
   email: string;
