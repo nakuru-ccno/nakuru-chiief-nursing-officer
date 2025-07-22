@@ -65,7 +65,6 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
-  // ✅ Diagnostic check: who is logged in and what is their role?
   useEffect(() => {
     const checkMyProfile = async () => {
       const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -130,7 +129,20 @@ const UserManagement = () => {
   };
 
   const activeUsers = users.filter(user => user.status === "active");
-  const pendingUsers = users.filter(user => user.status === "pending");
+
+  const pendingUsers = users.filter(user => {
+    const cleanedStatus = user.status?.trim().toLowerCase();
+    const isPending = cleanedStatus === "pending";
+
+    if (isPending) {
+      console.log("✅ Pending user found:", user.email);
+    } else {
+      console.log("❌ Not pending:", user.email, "| Status:", user.status);
+    }
+
+    return isPending;
+  });
+
   const inactiveUsers = users.filter(user => user.status === "inactive");
 
   const renderEmptyState = (status: string, icon: React.ReactNode) => (
