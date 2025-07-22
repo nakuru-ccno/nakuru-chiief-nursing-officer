@@ -11,16 +11,18 @@ const ForgotPassword = () => {
     setMessage("");
     setError("");
 
+    const trimmedEmail = email.trim().toLowerCase();
+
     try {
-      // ✅ Check if user exists and is active in your public "profiles" table
+      // Check if the user exists and is active in your "profiles" table
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("status")
-        .eq("email", email.trim().toLowerCase())
+        .eq("email", trimmedEmail)
         .maybeSingle();
 
       if (profileError || !profile) {
-        setError("No account found with that email.");
+        setError("Account not found. Please register or contact the admin.");
         return;
       }
 
@@ -29,8 +31,8 @@ const ForgotPassword = () => {
         return;
       }
 
-      // ✅ Proceed to send reset email
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      // Send password reset email
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
         redirectTo: "https://www.nakurucountychiefnursingofficer.site/reset-password",
       });
 
@@ -39,7 +41,8 @@ const ForgotPassword = () => {
       } else {
         setMessage("A password reset link has been sent to your email.");
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("Unexpected error occurred.");
     }
   };
