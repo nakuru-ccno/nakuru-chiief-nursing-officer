@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,15 +30,15 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 UserManagement - Fetching users');
-      
+      console.log("🔄 UserManagement - Fetching users");
+
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('❌ Error fetching users:', error);
+        console.error("❌ Error fetching users:", error);
         toast({
           title: "Error",
           description: "Failed to load users",
@@ -48,10 +47,10 @@ const UserManagement = () => {
         return;
       }
 
-      console.log('✅ UserManagement - Users loaded:', data?.length || 0);
+      console.log("✅ UserManagement - Users loaded:", data?.length || 0);
       setUsers(data || []);
     } catch (error) {
-      console.error('❌ Error in fetchUsers:', error);
+      console.error("❌ Error in fetchUsers:", error);
       toast({
         title: "Error",
         description: "Failed to load users",
@@ -66,20 +65,50 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
+  // ✅ Diagnostic check: who is logged in and what is their role?
+  useEffect(() => {
+    const checkMyProfile = async () => {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !authData?.user) {
+        console.error("❌ Auth error or no user:", authError);
+        return;
+      }
+
+      const email = authData.user.email;
+      console.log("✅ Logged in as:", email);
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", email)
+        .single();
+
+      if (profileError) {
+        console.error("❌ Error loading profile:", profileError);
+        return;
+      }
+
+      console.log("👤 Profile from DB:", profile);
+    };
+
+    checkMyProfile();
+  }, []);
+
   const handleEditUser = (user: UserProfile) => {
-    console.log('📝 Opening edit dialog for user:', user.email);
+    console.log("📝 Opening edit dialog for user:", user.email);
     setEditingUser(user);
   };
 
   const handleDeleteUser = (user: UserProfile) => {
-    console.log('🗑️ Opening delete dialog for user:', user.email);
+    console.log("🗑️ Opening delete dialog for user:", user.email);
     setDeletingUser(user);
   };
 
   const handleUserUpdated = (updatedUser: UserProfile) => {
-    console.log('✅ User updated:', updatedUser.email);
-    setUsers(prev => 
-      prev.map(user => 
+    console.log("✅ User updated:", updatedUser.email);
+    setUsers(prev =>
+      prev.map(user =>
         user.id === updatedUser.id ? updatedUser : user
       )
     );
@@ -91,7 +120,7 @@ const UserManagement = () => {
   };
 
   const handleUserDeleted = (deletedId: string) => {
-    console.log('✅ User deleted:', deletedId);
+    console.log("✅ User deleted:", deletedId);
     setUsers(prev => prev.filter(user => user.id !== deletedId));
     setDeletingUser(null);
     toast({
@@ -100,16 +129,17 @@ const UserManagement = () => {
     });
   };
 
-  // Separate users by status
-  const activeUsers = users.filter(user => user.status === 'active');
-  const pendingUsers = users.filter(user => user.status === 'pending');
-  const inactiveUsers = users.filter(user => user.status === 'inactive');
+  const activeUsers = users.filter(user => user.status === "active");
+  const pendingUsers = users.filter(user => user.status === "pending");
+  const inactiveUsers = users.filter(user => user.status === "inactive");
 
   const renderEmptyState = (status: string, icon: React.ReactNode) => (
     <div className="text-center py-8 text-gray-500">
       {icon}
       <p className="text-lg font-medium">No {status} users</p>
-      <p className="text-sm">{status.charAt(0).toUpperCase() + status.slice(1)} users will appear here</p>
+      <p className="text-sm">
+        {status.charAt(0).toUpperCase() + status.slice(1)} users will appear here
+      </p>
     </div>
   );
 
@@ -173,7 +203,10 @@ const UserManagement = () => {
                     />
                   ))
                 ) : (
-                  renderEmptyState("active", <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />)
+                  renderEmptyState(
+                    "active",
+                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  )
                 )}
               </div>
             </TabsContent>
@@ -190,7 +223,10 @@ const UserManagement = () => {
                     />
                   ))
                 ) : (
-                  renderEmptyState("pending", <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />)
+                  renderEmptyState(
+                    "pending",
+                    <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  )
                 )}
               </div>
             </TabsContent>
@@ -207,7 +243,10 @@ const UserManagement = () => {
                     />
                   ))
                 ) : (
-                  renderEmptyState("inactive", <XCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />)
+                  renderEmptyState(
+                    "inactive",
+                    <XCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  )
                 )}
               </div>
             </TabsContent>
