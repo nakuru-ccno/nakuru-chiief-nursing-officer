@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { logLoginEvent } from "@/lib/logLoginEvent";
 
 function isEmail(text: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
@@ -66,7 +67,11 @@ const Login = () => {
           const userRole = profile.role || "Staff Nurse";
           localStorage.setItem("role", userRole);
 
-          const isAdmin = userRole === "System Administrator" || userRole.toLowerCase().includes("admin");
+          // ✅ Log login history
+          await logLoginEvent(data.user.id);
+
+          const isAdmin =
+            userRole === "System Administrator" || userRole.toLowerCase().includes("admin");
           navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
         } else {
           setError("Invalid credentials or account not confirmed.");
@@ -187,24 +192,21 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="my-6 text-center text-gray-400 text-sm font-medium">or</div>
 
-          {/* Google Sign-In */}
           <button
             onClick={handleGoogleLogin}
             className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-white font-semibold py-3 px-4 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             <svg className="w-5 h-5" viewBox="0 0 533.5 544.3" xmlns="http://www.w3.org/2000/svg">
-              <path d="M533.5 278.4c0-17.4-1.5-34.1-4.3-50.3H272v95.2h146.9c-6.3 34.3-25.1 63.4-53.7 83v68h86.8c50.8-46.8 81.5-115.9 81.5-196z" fill="#4285f4"/>
-              <path d="M272 544.3c72.6 0 133.5-24.1 178-65.2l-86.8-68c-24.1 16.2-54.8 25.8-91.2 25.8-70.2 0-129.6-47.4-150.8-111.1H34.6v69.9C78.4 486.1 169.3 544.3 272 544.3z" fill="#34a853"/>
-              <path d="M121.2 325.8c-9.7-28.8-9.7-59.5 0-88.3V167.6H34.6c-33.6 66.7-33.6 143.5 0 210.2l86.6-68z" fill="#fbbc04"/>
-              <path d="M272 107.7c39.5-.6 77.4 14 106.3 41.2l79.1-79.1C404.7 24.8 340.6-.1 272 0 169.3 0 78.4 58.1 34.6 167.6l86.6 69.9C142.4 155.2 201.8 107.7 272 107.7z" fill="#ea4335"/>
+              <path d="M533.5 278.4c0-17.4-1.5-34.1-4.3-50.3H272v95.2h146.9c-6.3 34.3-25.1 63.4-53.7 83v68h86.8c50.8-46.8 81.5-115.9 81.5-196z" fill="#4285f4" />
+              <path d="M272 544.3c72.6 0 133.5-24.1 178-65.2l-86.8-68c-24.1 16.2-54.8 25.8-91.2 25.8-70.2 0-129.6-47.4-150.8-111.1H34.6v69.9C78.4 486.1 169.3 544.3 272 544.3z" fill="#34a853" />
+              <path d="M121.2 325.8c-9.7-28.8-9.7-59.5 0-88.3V167.6H34.6c-33.6 66.7-33.6 143.5 0 210.2l86.6-68z" fill="#fbbc04" />
+              <path d="M272 107.7c39.5-.6 77.4 14 106.3 41.2l79.1-79.1C404.7 24.8 340.6-.1 272 0 169.3 0 78.4 58.1 34.6 167.6l86.6 69.9C142.4 155.2 201.8 107.7 272 107.7z" fill="#ea4335" />
             </svg>
             Sign in with Google
           </button>
 
-          {/* Register Link */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Don't have an account?{" "}
