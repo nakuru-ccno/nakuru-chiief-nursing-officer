@@ -2,12 +2,21 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
+// 🔄 Record login event
+async function logLoginEvent(userId: string) {
+  await supabase.from("login_history").insert({ user_id: userId });
+}
+
 const LoginCallback = () => {
   const navigate = useNavigate();
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const checkOrCreateProfileAndRedirect = async (userId: string, userEmail: string, fullName?: string) => {
+    const checkOrCreateProfileAndRedirect = async (
+      userId: string,
+      userEmail: string,
+      fullName?: string
+    ) => {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("status, role")
@@ -22,7 +31,7 @@ const LoginCallback = () => {
       if (!profile) {
         const { error: insertError } = await supabase.from("profiles").insert([
           {
-            id: userId, // use auth user's UUID as primary key
+            id: userId,
             email: userEmail,
             full_name: fullName ?? "",
             role: "Staff Nurse",
@@ -46,6 +55,9 @@ const LoginCallback = () => {
         setError("Your account is pending admin approval.");
         return;
       }
+
+      // ✅ Log login event
+      await logLoginEvent(userId);
 
       const userRole = profile.role || "Staff Nurse";
       localStorage.setItem("role", userRole);
@@ -81,12 +93,14 @@ const LoginCallback = () => {
   }, [navigate]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-white">
+    <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
       <div className="text-center max-w-sm p-6">
         {error ? (
           <div className="text-red-600 font-semibold">{error}</div>
         ) : (
-          <div className="text-gray-700">Verifying your account, please wait...</div>
+          <div className="text-gray-700 dark:text-gray-300">
+            Verifying your account, please wait...
+          </div>
         )}
       </div>
     </div>
