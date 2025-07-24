@@ -1,8 +1,35 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Activity, FileText, LogOut, Settings } from "lucide-react";
+import {
+  Home,
+  Activity,
+  FileText,
+  LogOut,
+  Settings,
+  CalendarDays,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+
+const CalendarBadge = () => {
+  const { data, isLoading } = useQuery(["today-events"], async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const { data, error } = await supabase
+      .from("calendar_events")
+      .select("id")
+      .gte("start_time", `${today}T00:00:00`)
+      .lt("start_time", `${today}T23:59:59`);
+    if (error) return [];
+    return data ?? [];
+  });
+
+  if (isLoading) return null;
+  if (data && data.length > 0) {
+    return <span className="ml-1 text-xs text-green-400">🟢</span>;
+  }
+
+  return null;
+};
 
 const MainNavbar = () => {
   const location = useLocation();
@@ -10,13 +37,12 @@ const MainNavbar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check Supabase session for user and profile role
     async function checkUserRole() {
-      // Try to get Supabase session user
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       let nextRole = null;
       if (session?.user?.email) {
-        // Look up user profile for role
         const { data: profile } = await supabase
           .from("profiles")
           .select("role")
@@ -27,7 +53,6 @@ const MainNavbar = () => {
           setIsLoggedIn(true);
         }
       }
-      // If not found, fallback to localStorage
       if (!nextRole) {
         nextRole = localStorage.getItem("role");
         if (nextRole) setIsLoggedIn(true);
@@ -35,51 +60,59 @@ const MainNavbar = () => {
       setRole(nextRole);
     }
     checkUserRole();
-  }, [location.pathname]); // Check role on navigation
+  }, [location.pathname]);
 
-  // Check if user is admin - enhanced detection
   const userRole = role || "";
   const isAdmin =
     userRole === "admin" ||
     userRole === "System Administrator" ||
     userRole.toLowerCase().includes("admin");
 
-  // Only show navbar on authenticated pages, not on public pages
   const isPublicPage =
     location.pathname === "/" ||
     location.pathname === "/login" ||
     location.pathname === "/register";
 
-  // Navigation items for regular users
   const userNavItems = [
     { to: "/dashboard", label: "Dashboard", icon: Home },
     { to: "/activities", label: "Daily Activities", icon: Activity },
     { to: "/reports", label: "Reports", icon: FileText },
+    {
+      to: "/calendar",
+      label: (
+        <>
+          Calendar
+          <CalendarBadge />
+        </>
+      ),
+      icon: CalendarDays,
+    },
   ];
 
-  // Navigation items for admins
   const adminNavItems = [
     { to: "/admin", label: "Admin Dashboard", icon: Home },
     { to: "/activities", label: "Activities", icon: Activity },
     { to: "/reports", label: "Reports", icon: FileText },
     { to: "/admin", label: "User Management", icon: Settings },
+    {
+      to: "/calendar",
+      label: (
+        <>
+          Calendar
+          <CalendarBadge />
+        </>
+      ),
+      icon: CalendarDays,
+    },
   ];
 
   const navItems = isAdmin ? adminNavItems : userNavItems;
   const shouldShowNavbar = !isPublicPage && isLoggedIn && !!role;
 
-  // Debug logs
-  console.log("MainNavbar - Current path:", location.pathname);
-  console.log("MainNavbar - Current role:", role);
-  console.log("MainNavbar - Is logged in:", isLoggedIn);
-  console.log("MainNavbar - Is public page:", isPublicPage);
-  console.log("MainNavbar - shouldShowNavbar:", shouldShowNavbar);
-
   return shouldShowNavbar ? (
     <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg border-b border-gray-700">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Navigation Links - show for all logged in users */}
           <div className="flex space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -87,7 +120,7 @@ const MainNavbar = () => {
 
               return (
                 <Link
-                  key={item.to}
+                  key={item.to.toString()}
                   to={item.to}
                   className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                     isActive
@@ -102,7 +135,6 @@ const MainNavbar = () => {
             })}
           </div>
 
-          {/* Auth Button */}
           <div className="flex items-center">
             <button
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
