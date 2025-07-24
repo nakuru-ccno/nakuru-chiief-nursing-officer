@@ -27,6 +27,7 @@ import AdminSettings from "./pages/AdminSettings";
 import Activities from "./pages/Activities";
 import Reports from "./pages/Reports";
 import LoginCallback from "./pages/LoginCallback";
+import CalendarPage from "./pages/CalendarPage"; // ✅ NEW
 
 // 🔐 Protect routes with auth + status check
 function ProtectedRoute() {
@@ -122,6 +123,7 @@ const App = () => {
                 <Route path="/live-admin" element={<LiveAdmin />} />
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/calendar" element={<CalendarPage />} /> {/* ✅ NEW */}
               </Route>
 
               {/* 404 Fallback */}
