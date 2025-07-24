@@ -27,6 +27,7 @@ import AdminSettings from "./pages/AdminSettings";
 import Activities from "./pages/Activities";
 import Reports from "./pages/Reports";
 import LoginCallback from "./pages/LoginCallback";
+import CalendarPage from "./pages/CalendarPage"; // ✅ Add this import
 
 // 🔐 Protect routes with auth + status check
 function ProtectedRoute() {
@@ -35,30 +36,19 @@ function ProtectedRoute() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      console.log("🔐 ProtectedRoute - Checking authentication...");
-
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const user = session?.user;
 
       if (user) {
-        console.log("✅ Supabase session found:", user.email);
-
         const { data: profile, error } = await supabase
           .from("profiles")
           .select("status")
           .eq("email", user.email)
           .maybeSingle();
 
-        if (error) {
-          console.error("⚠️ Error fetching profile:", error.message);
-          setIsAuthenticated(false);
-          return;
-        }
-
-        if (!profile || profile.status !== "active") {
-          console.warn("❌ User not approved. Status:", profile?.status);
+        if (error || !profile || profile.status !== "active") {
           await supabase.auth.signOut();
           setIsAuthenticated(false);
           return;
@@ -70,12 +60,10 @@ function ProtectedRoute() {
 
       const demoRole = localStorage.getItem("role");
       if (demoRole) {
-        console.log("🧪 Demo role found:", demoRole);
         setIsAuthenticated(true);
         return;
       }
 
-      console.log("🚫 No session or role found");
       setIsAuthenticated(false);
     };
 
@@ -122,6 +110,7 @@ const App = () => {
                 <Route path="/live-admin" element={<LiveAdmin />} />
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/calendar" element={<CalendarPage />} /> {/* ✅ Add this */}
               </Route>
 
               {/* 404 Fallback */}
