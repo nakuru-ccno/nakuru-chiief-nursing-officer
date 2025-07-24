@@ -1,35 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import {
-  Home,
-  Activity,
-  FileText,
-  LogOut,
-  Settings,
-  CalendarDays,
-} from "lucide-react";
+import { Home, Activity, FileText, LogOut, Settings, Calendar as CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-
-const CalendarBadge = () => {
-  const { data, isLoading } = useQuery(["today-events"], async () => {
-    const today = new Date().toISOString().split("T")[0];
-    const { data, error } = await supabase
-      .from("calendar_events")
-      .select("id")
-      .gte("start_time", `${today}T00:00:00`)
-      .lt("start_time", `${today}T23:59:59`);
-    if (error) return [];
-    return data ?? [];
-  });
-
-  if (isLoading) return null;
-  if (data && data.length > 0) {
-    return <span className="ml-1 text-xs text-green-400">🟢</span>;
-  }
-
-  return null;
-};
+import CalendarBadge from "@/components/CalendarBadge"; // Ensure this exists
 
 const MainNavbar = () => {
   const location = useLocation();
@@ -38,9 +11,7 @@ const MainNavbar = () => {
 
   useEffect(() => {
     async function checkUserRole() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       let nextRole = null;
       if (session?.user?.email) {
         const { data: profile } = await supabase
@@ -81,11 +52,10 @@ const MainNavbar = () => {
       to: "/calendar",
       label: (
         <>
-          Calendar
-          <CalendarBadge />
+          Calendar <CalendarBadge />
         </>
       ),
-      icon: CalendarDays,
+      icon: CalendarIcon,
     },
   ];
 
@@ -93,17 +63,16 @@ const MainNavbar = () => {
     { to: "/admin", label: "Admin Dashboard", icon: Home },
     { to: "/activities", label: "Activities", icon: Activity },
     { to: "/reports", label: "Reports", icon: FileText },
-    { to: "/admin", label: "User Management", icon: Settings },
     {
       to: "/calendar",
       label: (
         <>
-          Calendar
-          <CalendarBadge />
+          Calendar <CalendarBadge />
         </>
       ),
-      icon: CalendarDays,
+      icon: CalendarIcon,
     },
+    { to: "/admin", label: "User Management", icon: Settings },
   ];
 
   const navItems = isAdmin ? adminNavItems : userNavItems;
@@ -120,7 +89,7 @@ const MainNavbar = () => {
 
               return (
                 <Link
-                  key={item.to.toString()}
+                  key={item.to}
                   to={item.to}
                   className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                     isActive
@@ -129,7 +98,9 @@ const MainNavbar = () => {
                   }`}
                 >
                   <Icon size={16} />
-                  <span>{item.label}</span>
+                  <span className="flex items-center gap-1">
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}
