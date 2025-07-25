@@ -1,0 +1,6 @@
+[functions.ignore]
+node_modules = true
+.git = true
+.vercel = true
+.next = true
+
