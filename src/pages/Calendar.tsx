@@ -1,5 +1,13 @@
+// src/pages/Calendar.tsx or src/pages/calendar.jsx
+
 import { useEffect, useState } from "react"
+import { createClient } from "@supabase/supabase-js"
 import { format } from "date-fns"
+
+const supabase = createClient(
+  "https://fjcwwvjvqtgjwrnobqwf.supabase.co",
+  "YOUR_PUBLIC_ANON_KEY" // replace with your actual anon key
+)
 
 type Event = {
   id: string
@@ -15,16 +23,18 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("/api/events") // Adjust this to your actual API route or Supabase call
-      .then(res => res.json())
-      .then(data => {
-        setEvents(data)
-        setLoading(false)
-      })
-      .catch(err => {
-        console.error("Error loading events:", err)
-        setLoading(false)
-      })
+    const fetchEvents = async () => {
+      const { data, error } = await supabase
+        .from("calendar")
+        .select("*")
+        .order("date", { ascending: true })
+
+      if (error) console.error(error)
+      else setEvents(data as Event[])
+      setLoading(false)
+    }
+
+    fetchEvents()
   }, [])
 
   return (
