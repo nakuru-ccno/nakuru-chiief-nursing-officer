@@ -1,39 +1,28 @@
-// supabase/functions/event-notification/index.ts
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// supabase/functions/calendar-notifier/index.ts
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 serve(async (req) => {
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const { event, user_email } = await req.json()
 
-  const { record } = await req.json();
-  const { title, date, email } = record;
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")
 
-  if (!email) {
-    return new Response("Missing user email", { status: 400 });
-  }
-
-  const { error } = await supabase.functions.invoke("welcome-email", {
-    body: {
-      to: email,
-      subject: `📅 Upcoming Event: ${title}`,
-      html: `
-        <p>Hello,</p>
-        <p>You have an upcoming event scheduled for <strong>${new Date(date).toLocaleDateString()}</strong>:</p>
-        <h3>${title}</h3>
-        <p>Please mark your calendar.</p>
-        <br />
-        <p>Best regards,<br/>Nakuru CNO Team</p>
-      `,
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json"
     },
-  });
+    body: JSON.stringify({
+      from: "CCNO Calendar <ccno@nakurucountychiefnursingofficer.site>",
+      to: user_email,
+      subject: "New Calendar Event Added",
+      html: `<p>A new event has been added:</p><pre>${JSON.stringify(event, null, 2)}</pre>`
+    })
+  })
 
-  if (error) {
-    console.error("Email error", error);
-    return new Response("Failed to send email", { status: 500 });
-  }
+  const result = await response.json()
 
-  return new Response("Email sent successfully", { status: 200 });
-});
+  return new Response(JSON.stringify({ status: "sent", result }), {
+    headers: { "Content-Type": "application/json" }
+  })
+})
