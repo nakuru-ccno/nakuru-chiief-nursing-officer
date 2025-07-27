@@ -22,9 +22,13 @@ const CalendarPage = () => {
     start: new Date(),
     end: new Date(),
   });
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchUserAndEvents = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) setUserEmail(userData.user.email || "");
+
       const { data, error } = await supabase.from("events").select("*");
       if (error) return console.error(error);
       const formatted = data.map((e) => ({
@@ -34,7 +38,8 @@ const CalendarPage = () => {
       }));
       setEvents(formatted);
     };
-    fetchEvents();
+
+    fetchUserAndEvents();
   }, []);
 
   const handleAddEvent = async () => {
@@ -43,6 +48,7 @@ const CalendarPage = () => {
       description: newEvent.description,
       start_time: formatISO(newEvent.start),
       end_time: formatISO(newEvent.end),
+      user_email: userEmail,
     });
 
     if (error) {
@@ -50,8 +56,22 @@ const CalendarPage = () => {
       return;
     }
 
+    // 🔔 Trigger email notification and reminder
+    const { error: fnError } = await supabase.functions.invoke("send-calendar-email", {
+      body: {
+        title: newEvent.title,
+        description: newEvent.description,
+        start: newEvent.start.toISOString(),
+        email: userEmail,
+      },
+    });
+
+    if (fnError) {
+      console.error("Failed to send email:", fnError.message);
+    }
+
     setShowModal(false);
-    window.location.reload(); // or re-fetch
+    window.location.reload();
   };
 
   return (
@@ -82,6 +102,12 @@ const CalendarPage = () => {
               placeholder="Title"
               value={newEvent.title}
               onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+            />
+            <textarea
+              className="w-full border p-2 mb-2"
+              placeholder="Description"
+              value={newEvent.description}
+              onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
             />
             <input
               className="w-full border p-2 mb-2"
