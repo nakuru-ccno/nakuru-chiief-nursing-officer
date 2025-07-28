@@ -1,4 +1,6 @@
-/* calendar.css - custom styles for react-day-picker */
+/* calendar.css - custom styles for react-day-picker with dark mode support */
+
+/* Base (light mode) styles */
 .rdp {
   --rdp-cell-size: 38px;
   font-family: Inter, sans-serif;
@@ -21,4 +23,29 @@
 .rdp-nav_button {
   border-radius: 6px;
   padding: 0.25rem;
+}
+
+/* 🌙 Dark mode overrides */
+.dark .rdp {
+  background-color: #0f172a; /* slate-900 */
+  color: #f1f5f9; /* slate-100 */
+}
+
+.dark .rdp-day_today {
+  border-color: #3b82f6; /* blue-500 */
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.dark .rdp-day_selected {
+  background-color: #3b82f6; /* blue-500 */
+  color: white;
+}
+
+.dark .rdp-caption_label {
+  color: #f8fafc; /* slate-50 */
+}
+
+.dark .rdp-nav_button {
+  background-color: #1e293b; /* slate-800 */
+  color: #f8fafc;
 }
