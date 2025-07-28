@@ -16,25 +16,23 @@ import { supabase } from "@/integrations/supabase/client";
 // Layout
 import MainLayout from "@/components/MainLayout";
 
-// Public Pages
-import Index from "@/pages/Index";
-import NotFound from "@/pages/NotFound";
-import Login from "@/pages/Login";
-import Register from "@/pages/Register";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
-import LoginCallback from "@/pages/LoginCallback";
+// Pages
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Dashboard from "./pages/Dashboard";
+import Admin from "./pages/Admin";
+import LiveAdmin from "./pages/LiveAdmin";
+import AdminSettings from "./pages/AdminSettings";
+import Activities from "./pages/Activities";
+import Reports from "./pages/Reports";
+import LoginCallback from "./pages/LoginCallback";
+import CalendarPage from "./pages/CalendarPage";
 
-// Protected Pages
-import Dashboard from "@/pages/Dashboard";
-import Admin from "@/pages/Admin";
-import LiveAdmin from "@/pages/LiveAdmin";
-import AdminSettings from "@/pages/AdminSettings";
-import Activities from "@/pages/Activities";
-import Reports from "@/pages/Reports";
-import CalendarPage from "@/pages/CalendarPage";
-
-// 🔐 Protect routes
+// 🔐 Protected Route Logic
 function ProtectedRoute() {
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -97,31 +95,33 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <TooltipProvider>
-          <Routes>
-            {/* 🌐 Public Routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/login/callback" element={<LoginCallback />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+          <div className="App">
+            <Routes>
+              {/* 🌐 Public Routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/login/callback" element={<LoginCallback />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* 🔒 Protected Routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<MainLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/admin/settings" element={<AdminSettings />} />
-                <Route path="/live-admin" element={<LiveAdmin />} />
-                <Route path="/activities" element={<Activities />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/calendar" element={<CalendarPage />} />
+              {/* 🔒 Protected Routes with Main Layout */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<MainLayout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/admin/settings" element={<AdminSettings />} />
+                  <Route path="/live-admin" element={<LiveAdmin />} />
+                  <Route path="/activities" element={<Activities />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/calendar" element={<CalendarPage />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              {/* 404 Fallback */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </div>
           <Toaster />
           <Sonner />
         </TooltipProvider>
