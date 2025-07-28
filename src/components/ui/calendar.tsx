@@ -1,115 +1,63 @@
-import { useEffect, useState } from "react";
-import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
-import moment from "moment";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { toast } from "sonner";
+import * as React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { DayPicker } from "react-day-picker";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 
-const localizer = momentLocalizer(moment);
+export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-export default function CalendarPage() {
-  const [events, setEvents] = useState([]);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-
-  useEffect(() => {
-    const fetchEvents = async () => {
-      const { data, error } = await supabase.from("calendar_events").select("*");
-      if (!error && data) {
-        const formatted = data.map((event) => ({
-          title: event.title,
-          start: new Date(event.start_time),
-          end: new Date(event.end_time),
-        }));
-        setEvents(formatted);
-      }
-    };
-    fetchEvents();
-  }, []);
-
-  const handleAddEvent = async () => {
-    if (!title || !selectedDate) {
-      toast.error("Please fill in the title and date.");
-      return;
-    }
-
-    const endDate = new Date(selectedDate);
-    endDate.setHours(selectedDate.getHours() + 1); // 1 hour duration
-
-    const { error } = await supabase.from("calendar_events").insert({
-      title,
-      description,
-      start_time: selectedDate.toISOString(),
-      end_time: endDate.toISOString(),
-    });
-
-    if (error) {
-      toast.error("Failed to add event.");
-    } else {
-      toast.success("Event added!");
-      setEvents((prev) => [
-        ...prev,
-        { title, start: selectedDate, end: endDate },
-      ]);
-      setTitle("");
-      setDescription("");
-      setSelectedDate(undefined);
-    }
-  };
-
+function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  ...props
+}: CalendarProps) {
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Event Calendar</h1>
-
-      {/* 🔧 Add Event Form */}
-      <div className="bg-white p-4 rounded-xl shadow space-y-4 max-w-xl">
-        <Input
-          placeholder="Event Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <Textarea
-          placeholder="Description (optional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-full justify-start text-left">
-              {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-
-        <Button onClick={handleAddEvent}>Create Event</Button>
-      </div>
-
-      {/* 📅 Calendar Display */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <BigCalendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: "70vh" }}
-        />
-      </div>
-    </div>
+    <DayPicker
+      showOutsideDays={showOutsideDays}
+      className={cn("p-3", className)}
+      classNames={{
+        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+        month: "space-y-4",
+        caption: "flex justify-center pt-1 relative items-center",
+        caption_label: "text-sm font-medium",
+        nav: "space-x-1 flex items-center",
+        nav_button: cn(
+          buttonVariants({ variant: "outline" }),
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+        ),
+        nav_button_previous: "absolute left-1",
+        nav_button_next: "absolute right-1",
+        table: "w-full border-collapse space-y-1",
+        head_row: "flex",
+        head_cell:
+          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+        row: "flex w-full mt-2",
+        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+        day: cn(
+          buttonVariants({ variant: "ghost" }),
+          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+        ),
+        day_range_end: "day-range-end",
+        day_selected:
+          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+        day_today: "bg-accent text-accent-foreground",
+        day_outside:
+          "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+        day_disabled: "text-muted-foreground opacity-50",
+        day_range_middle:
+          "aria-selected:bg-accent aria-selected:text-accent-foreground",
+        day_hidden: "invisible",
+        ...classNames,
+      }}
+      components={{
+        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
+        IconRight: () => <ChevronRight className="h-4 w-4" />,
+      }}
+      {...props}
+    />
   );
 }
+
+Calendar.displayName = "Calendar";
+export { Calendar };
