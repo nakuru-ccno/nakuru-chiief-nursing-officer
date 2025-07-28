@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import MainNavbar from "@/components/MainNavbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -221,7 +220,6 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <MainNavbar />
         <div className="max-w-7xl mx-auto p-8">
           <div className="text-center py-8 text-gray-500">
             <p>Loading dashboard...</p>
@@ -233,7 +231,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <MainNavbar />
       
       <div className="max-w-7xl mx-auto p-8">
         {/* Enhanced Header with Role and Live Time */}
