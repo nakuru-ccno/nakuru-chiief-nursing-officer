@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import CountyHeader from "@/components/CountyHeader";
 import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfile {
@@ -45,7 +44,6 @@ const Dashboard = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <CountyHeader />
         <div className="max-w-7xl mx-auto p-8">
           <div className="text-center py-8 text-gray-500">
             <p>Loading dashboard...</p>
@@ -57,7 +55,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <CountyHeader />
       <div className="max-w-7xl mx-auto p-8">
         <h1 className="text-2xl font-bold text-gray-800">
           Welcome, {userProfile?.name || "User"}!
