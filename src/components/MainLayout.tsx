@@ -5,12 +5,9 @@ import MainNavbar from "@/components/MainNavbar";
 const MainLayout = () => {
   return (
     <ThemeProvider defaultTheme="system" storageKey="nakuru-theme">
-      <div className="flex min-h-screen bg-background text-foreground">
-        {/* Sidebar on the left */}
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
         <MainNavbar />
-
-        {/* Page content */}
-        <main className="flex-1 p-4 overflow-y-auto">
+        <main className="flex-1 p-4">
           <Outlet />
         </main>
       </div>
@@ -19,4 +16,3 @@ const MainLayout = () => {
 };
 
 export default MainLayout;
-
