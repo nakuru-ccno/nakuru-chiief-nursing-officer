@@ -3,11 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import MainLayout from "@/components/MainLayout";
 
 // Pages
-import LoginPage from "@/pages/LoginPage";
-import RegisterPage from "@/pages/RegisterPage";
-import DashboardPage from "@/pages/DashboardPage";
-import ReportsPage from "@/pages/ReportsPage";
-import ActivitiesPage from "@/pages/ActivitiesPage";
+import LoginPage from "@/pages/Login";
+import RegisterPage from "@/pages/Register";
+import DashboardPage from "@/pages/Dashboard";
+import ReportsPage from "@/pages/Reports";
+import ActivitiesPage from "@/pages/ActivitiesP";
 import CalendarPage from "@/pages/CalendarPage";
 import AdminPage from "@/pages/AdminPage"; // Optional, if used
 
