@@ -4,6 +4,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import { localizer } from "@/lib/calendarUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatISO } from "date-fns";
+import { NavigationMenu } from "@/components/NavigationMenu";
 
 type Event = {
   id?: string;
@@ -43,20 +44,27 @@ const CalendarPage = () => {
   }, []);
 
   const handleAddEvent = async () => {
-    const { error } = await supabase.from("events").insert({
+    if (!newEvent.title || !newEvent.start || !newEvent.end) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    const { data, error } = await supabase.from("events").insert({
       title: newEvent.title,
       description: newEvent.description,
       start_time: formatISO(newEvent.start),
       end_time: formatISO(newEvent.end),
       user_email: userEmail,
-    });
+    }).select("*");
 
     if (error) {
       console.error("Insert error:", error);
       return;
     }
 
-    // 🔔 Trigger email notification and reminder
+    const inserted = data?.[0];
+
+    // 🔔 Trigger email notification
     const { error: fnError } = await supabase.functions.invoke("send-calendar-email", {
       body: {
         title: newEvent.title,
@@ -70,62 +78,94 @@ const CalendarPage = () => {
       console.error("Failed to send email:", fnError.message);
     }
 
+    setEvents([
+      ...events,
+      {
+        ...inserted,
+        start: new Date(inserted.start_time),
+        end: new Date(inserted.end_time),
+      },
+    ]);
+
     setShowModal(false);
-    window.location.reload();
+    setNewEvent({
+      title: "",
+      description: "",
+      start: new Date(),
+      end: new Date(),
+    });
   };
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">🗓 Event Calendar</h2>
+    <div className="flex flex-col min-h-screen">
+      <NavigationMenu />
 
-      <Calendar
-        localizer={localizer}
-        events={events}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: 500 }}
-      />
+      <main className="flex-1 p-6 max-w-5xl mx-auto w-full">
+        <h2 className="text-2xl font-bold mb-4">🗓 Event Calendar</h2>
 
-      <button
-        className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
-        onClick={() => setShowModal(true)}
-      >
-        ➕ Add Event
-      </button>
+        <Calendar
+          localizer={localizer}
+          events={events}
+          startAccessor="start"
+          endAccessor="end"
+          style={{ height: 500 }}
+        />
+
+        <button
+          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          onClick={() => setShowModal(true)}
+        >
+          ➕ Add Event
+        </button>
+      </main>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded shadow max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-2">Create New Event</h3>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4 text-black dark:text-white">Create New Event</h3>
+
             <input
-              className="w-full border p-2 mb-2"
+              className="w-full border p-2 mb-3 rounded"
               placeholder="Title"
               value={newEvent.title}
               onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
             />
             <textarea
-              className="w-full border p-2 mb-2"
+              className="w-full border p-2 mb-3 rounded"
               placeholder="Description"
               value={newEvent.description}
               onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
             />
+            <label className="text-sm font-medium text-black dark:text-white">Start Time</label>
             <input
-              className="w-full border p-2 mb-2"
+              className="w-full border p-2 mb-3 rounded"
               type="datetime-local"
               onChange={(e) =>
                 setNewEvent({ ...newEvent, start: new Date(e.target.value) })
               }
             />
+            <label className="text-sm font-medium text-black dark:text-white">End Time</label>
             <input
-              className="w-full border p-2 mb-2"
+              className="w-full border p-2 mb-3 rounded"
               type="datetime-local"
               onChange={(e) =>
                 setNewEvent({ ...newEvent, end: new Date(e.target.value) })
               }
             />
-            <button className="bg-green-600 text-white px-4 py-2" onClick={handleAddEvent}>
-              Save
-            </button>
+            <div className="flex justify-end gap-2">
+              <button
+                className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
+                onClick={() => setShowModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                onClick={handleAddEvent}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}
