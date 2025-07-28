@@ -1,1 +1,8 @@
+.rdp {
+  --rdp-cell-size: 36px;
+}
+
+.rdp-day_today {
+  background-color: rgba(0, 128, 0, 0.1);
+}
 
