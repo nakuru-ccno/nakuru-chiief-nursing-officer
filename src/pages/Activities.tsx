@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import MainNavbar from "@/components/MainNavbar";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -176,7 +175,6 @@ const Activities = () => {
   if (showForm) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <MainNavbar />
         <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <ActivityForm
             activityTypes={activityTypes}
@@ -191,7 +189,6 @@ const Activities = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <MainNavbar />
       <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 rounded-3xl p-8 mb-8 text-white shadow-2xl">
