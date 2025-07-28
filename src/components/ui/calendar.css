@@ -1,8 +1,24 @@
+/* calendar.css - custom styles for react-day-picker */
 .rdp {
-  --rdp-cell-size: 36px;
+  --rdp-cell-size: 38px;
+  font-family: Inter, sans-serif;
 }
 
 .rdp-day_today {
-  background-color: rgba(0, 128, 0, 0.1);
+  border: 1px solid #2563eb;
+  background-color: rgba(37, 99, 235, 0.1);
 }
 
+.rdp-day_selected {
+  background-color: #2563eb;
+  color: white;
+}
+
+.rdp-caption_label {
+  font-weight: 500;
+}
+
+.rdp-nav_button {
+  border-radius: 6px;
+  padding: 0.25rem;
+}
