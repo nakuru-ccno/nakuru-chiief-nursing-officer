@@ -27,9 +27,11 @@ import AdminSettings from "./pages/AdminSettings";
 import Activities from "./pages/Activities";
 import Reports from "./pages/Reports";
 import LoginCallback from "./pages/LoginCallback";
-import CalendarPage from "./pages/CalendarPage"; // ✅ Add this import
+import CalendarPage from "./pages/CalendarPage";
 
-// 🔐 Protect routes with auth + status check
+// Layout
+import MainLayout from "@/components/MainLayout";
+
 function ProtectedRoute() {
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -94,7 +96,7 @@ const App = () => {
         <TooltipProvider>
           <div className="App">
             <Routes>
-              {/* 🌐 Public Routes */}
+              {/* Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -102,15 +104,17 @@ const App = () => {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* 🔒 Protected Routes */}
+              {/* Protected Routes with Shared Layout */}
               <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/admin/settings" element={<AdminSettings />} />
-                <Route path="/live-admin" element={<LiveAdmin />} />
-                <Route path="/activities" element={<Activities />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/calendar" element={<CalendarPage />} /> {/* ✅ Add this */}
+                <Route element={<MainLayout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/admin/settings" element={<AdminSettings />} />
+                  <Route path="/live-admin" element={<LiveAdmin />} />
+                  <Route path="/activities" element={<Activities />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/calendar" element={<CalendarPage />} />
+                </Route>
               </Route>
 
               {/* 404 Fallback */}
