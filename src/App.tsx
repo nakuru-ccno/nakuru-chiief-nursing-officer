@@ -20,18 +20,19 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import LoginCallback from "./pages/LoginCallback";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import LiveAdmin from "./pages/LiveAdmin";
 import AdminSettings from "./pages/AdminSettings";
 import Activities from "./pages/Activities";
 import Reports from "./pages/Reports";
-import LoginCallback from "./pages/LoginCallback";
 import CalendarPage from "./pages/CalendarPage";
 
 // Layout
 import MainLayout from "@/components/MainLayout";
 
+// 🔐 Protect routes with auth + status check
 function ProtectedRoute() {
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -96,7 +97,7 @@ const App = () => {
         <TooltipProvider>
           <div className="App">
             <Routes>
-              {/* Public Routes */}
+              {/* 🌐 Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -104,7 +105,7 @@ const App = () => {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Protected Routes with Shared Layout */}
+              {/* 🔒 Protected Routes with Layout */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
