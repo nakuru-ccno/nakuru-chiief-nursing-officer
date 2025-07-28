@@ -1,16 +1,27 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Home, Activity, FileText, LogOut, Settings, Calendar } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Home,
+  Activity,
+  FileText,
+  LogOut,
+  Settings,
+  Calendar,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 const MainNavbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [role, setRole] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
     async function checkUserRole() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       let nextRole: string | null = null;
 
       if (session?.user?.email) {
@@ -26,7 +37,6 @@ const MainNavbar = () => {
         }
       }
 
-      // Fallback to localStorage if needed
       if (!nextRole) {
         nextRole = localStorage.getItem("role");
         if (nextRole) setIsLoggedIn(true);
@@ -38,7 +48,6 @@ const MainNavbar = () => {
     checkUserRole();
   }, [location.pathname]);
 
-  // Normalize role
   const userRole = role?.toLowerCase() || "";
   const isAdmin =
     userRole === "admin" ||
@@ -50,7 +59,6 @@ const MainNavbar = () => {
     location.pathname === "/login" ||
     location.pathname === "/register";
 
-  // Navigation for users
   const userNavItems = [
     { to: "/dashboard", label: "Dashboard", icon: Home },
     { to: "/activities", label: "Daily Activities", icon: Activity },
@@ -58,7 +66,6 @@ const MainNavbar = () => {
     { to: "/calendar", label: "Calendar", icon: Calendar },
   ];
 
-  // Navigation for admins
   const adminNavItems = [
     { to: "/admin", label: "Admin Dashboard", icon: Home },
     { to: "/activities", label: "Activities", icon: Activity },
@@ -75,50 +82,60 @@ const MainNavbar = () => {
 
   const shouldShowNavbar = !isPublicPage && isLoggedIn && navItems.length > 0;
 
-  return shouldShowNavbar ? (
-    <nav className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg border-b border-gray-700">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Navigation Links */}
-          <div className="flex space-x-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.to;
+  if (!shouldShowNavbar) return null;
 
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? "bg-gradient-to-r from-[#fd3572] to-[#be2251] text-white shadow-lg transform scale-105"
-                      : "text-gray-300 hover:text-white hover:bg-gray-700/50"
-                  }`}
-                >
-                  <Icon size={16} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* Logout Button */}
-          <div className="flex items-center">
-            <button
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-              onClick={() => {
-                localStorage.removeItem("role");
-                window.location.href = "/";
-              }}
-            >
-              <LogOut size={16} />
-              <span>Logout</span>
-            </button>
-          </div>
+  return (
+    <nav className="w-full md:w-64 bg-primary text-white h-screen flex flex-col items-center md:items-start px-4 py-6 shadow-lg">
+      {/* Logo & Title */}
+      <div className="mb-8 flex flex-col items-center md:items-start text-center md:text-left">
+        <img
+          src="/nakuru-county-logo.png"
+          alt="Nakuru County Logo"
+          className="w-16 h-16 mb-2"
+        />
+        <div className="text-lg font-bold uppercase leading-tight">
+          Nakuru County
         </div>
+        <div className="text-xs">County of Unlimited Opportunities</div>
       </div>
+
+      {/* Nav Items */}
+      <ul className="space-y-2 w-full">
+        {navItems.map(({ to, label, icon: Icon }) => {
+          const isActive = location.pathname.startsWith(to);
+          return (
+            <li key={to}>
+              <Link
+                to={to}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-md w-full",
+                  isActive
+                    ? "bg-white/20 font-semibold"
+                    : "hover:bg-white/10 transition-all"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Logout Button */}
+      <button
+        onClick={async () => {
+          await supabase.auth.signOut();
+          localStorage.removeItem("role");
+          navigate("/login");
+        }}
+        className="mt-auto flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10 w-full"
+      >
+        <LogOut className="w-4 h-4" />
+        Logout
+      </button>
     </nav>
-  ) : null;
+  );
 };
 
 export default MainNavbar;
