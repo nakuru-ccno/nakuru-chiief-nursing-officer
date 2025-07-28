@@ -7,9 +7,9 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import ReportsPage from "@/pages/Reports";
-import ActivitiesPage from "@/pages/Activities";
+import Activities from "@/pages/Activities";
 import CalendarPage from "@/pages/CalendarPage";
-import AdminDashboard from "@/pages/AdminDashboard"; // or AdminPage if that’s what you have
+import Admin from "@/pages/Admin"; // or AdminPage if that’s what you have
 
 function App() {
   return (
@@ -25,7 +25,7 @@ function App() {
           <Route path="/activities" element={<Activities />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin" element={<Admin />} />
         </Route>
 
         {/* Redirect unknown paths */}
