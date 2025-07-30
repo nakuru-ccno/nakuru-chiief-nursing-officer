@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useSession } from "@supabase/auth-helpers-react";
 
 const localizer = momentLocalizer(moment);
 
@@ -26,11 +27,13 @@ export default function CalendarPage() {
     recurrence: "", // daily, weekly, monthly
   });
 
+  const session = useSession();
+
   const fetchEvents = async () => {
     const { data, error } = await supabase
       .from("calendar_events")
       .select("*")
-      .order("date", { ascending: true });
+      .order("start", { ascending: true });
 
     if (error) {
       console.error("Fetch error:", error);
@@ -38,8 +41,8 @@ export default function CalendarPage() {
     } else {
       const formatted = data.map((event) => ({
         ...event,
-        start: new Date(event.date),
-        end: new Date(event.date),
+        start: new Date(event.start),
+        end: new Date(event.end),
         allDay: true,
       }));
       setEvents(formatted);
@@ -58,12 +61,23 @@ export default function CalendarPage() {
       return;
     }
 
+    const user = session?.user;
+    if (!user) {
+      toast.error("User not authenticated");
+      return;
+    }
+
+    const startDate = new Date(date);
+    const endDate = new Date(date);
+
     const { error } = await supabase.from("calendar_events").insert([
       {
         title,
         description,
-        date,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
         recurrence: recurrence || null,
+        user_id: user.id,
       },
     ]);
 
