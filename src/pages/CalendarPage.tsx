@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
-import { Calendar as BigCalendar, momentLocalizer, Event as RBCEvent } from "react-big-calendar";
+import {
+  Calendar as BigCalendar,
+  momentLocalizer,
+  Event as RBCEvent,
+} from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/hooks/useSession";
 import { toast } from "sonner";
@@ -30,6 +39,7 @@ export default function CalendarPage() {
     recurrence: "",
     description: "",
   });
+
   const { user } = useSession();
   const userEmail = user?.email || "";
 
@@ -53,14 +63,18 @@ export default function CalendarPage() {
 
   const handleSelectSlot = (slotInfo: any) => {
     setForm({
-      ...form,
+      title: "",
       start: moment(slotInfo.start).format("YYYY-MM-DDTHH:mm"),
       end: moment(slotInfo.end).format("YYYY-MM-DDTHH:mm"),
+      recurrence: "",
+      description: "",
     });
     setShowModal(true);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
@@ -85,7 +99,13 @@ export default function CalendarPage() {
     } else {
       toast.success("Event saved successfully");
       setShowModal(false);
-      setForm({ title: "", start: "", end: "", recurrence: "", description: "" });
+      setForm({
+        title: "",
+        start: "",
+        end: "",
+        recurrence: "",
+        description: "",
+      });
       fetchEvents();
     }
   };
@@ -93,6 +113,7 @@ export default function CalendarPage() {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Calendar</h1>
+
       <BigCalendar
         localizer={localizer}
         events={events}
@@ -112,37 +133,59 @@ export default function CalendarPage() {
           <div className="space-y-4">
             <div>
               <Label>Event Title</Label>
-              <Input name="title" value={form.title} onChange={handleInputChange} required />
+              <Input
+                name="title"
+                value={form.title}
+                onChange={handleInputChange}
+                required
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Start</Label>
-                <Input type="datetime-local" name="start" value={form.start} onChange={handleInputChange} required />
+                <Input
+                  type="datetime-local"
+                  name="start"
+                  value={form.start}
+                  onChange={handleInputChange}
+                  required
+                />
               </div>
               <div>
                 <Label>End</Label>
-                <Input type="datetime-local" name="end" value={form.end} onChange={handleInputChange} required />
+                <Input
+                  type="datetime-local"
+                  name="end"
+                  value={form.end}
+                  onChange={handleInputChange}
+                  required
+                />
               </div>
-            </div>
-
-            <div>
-              <Label>Email</Label>
-              <Input value={userEmail} disabled />
             </div>
 
             <div>
               <Label>Recurrence (e.g., daily, weekly)</Label>
-              <Input name="recurrence" value={form.recurrence} onChange={handleInputChange} />
+              <Input
+                name="recurrence"
+                value={form.recurrence}
+                onChange={handleInputChange}
+              />
             </div>
 
             <div>
               <Label>Description</Label>
-              <Textarea name="description" value={form.description} onChange={handleInputChange} />
+              <Textarea
+                name="description"
+                value={form.description}
+                onChange={handleInputChange}
+              />
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
               <Button onClick={handleSubmit}>Save Event</Button>
             </div>
           </div>
