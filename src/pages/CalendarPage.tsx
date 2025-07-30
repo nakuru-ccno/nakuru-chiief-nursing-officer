@@ -85,30 +85,24 @@ export default function CalendarPage() {
       return;
     }
 
-    const { error } = await supabase.from("calendar_events").insert({
-      title: form.title,
-      start: new Date(form.start),
-      end: new Date(form.end),
-      recurrence: form.recurrence,
-      description: form.description,
-      email: userEmail,
-    });
+ const { error } = await supabase.from("calendar_events").insert({
+  title: form.title,
+  start: new Date(form.start),
+  end: new Date(form.end),
+  recurrence: form.recurrence,
+  description: form.description,
+  email: userEmail,
+});
 
-    if (error) {
-      toast.error("Failed to save event");
-    } else {
-      toast.success("Event saved successfully");
-      setShowModal(false);
-      setForm({
-        title: "",
-        start: "",
-        end: "",
-        recurrence: "",
-        description: "",
-      });
-      fetchEvents();
-    }
-  };
+if (error) {
+  console.error("Insert Error:", error); // ⬅️ Add this
+  toast.error("Failed to save event");
+} else {
+  toast.success("Event saved successfully");
+  setShowModal(false);
+  setForm({ title: "", start: "", end: "", recurrence: "", description: "" });
+  fetchEvents();
+}
 
   return (
     <div className="p-4">
