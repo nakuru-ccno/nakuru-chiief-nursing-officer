@@ -1,9 +1,6 @@
+// src/pages/CalendarPage.tsx
 import { useEffect, useState } from "react";
-import {
-  Calendar as BigCalendar,
-  momentLocalizer,
-  Views,
-} from "react-big-calendar";
+import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,152 +9,179 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { formatISO } from "date-fns";
 
 const localizer = momentLocalizer(moment);
 
 export default function CalendarPage() {
-  const [events, setEvents] = useState([]);
-  const [form, setForm] = useState({
-    id: null,
+  const [events, setEvents] = useState<any[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [formData, setFormData] = useState({
     title: "",
     description: "",
     start: "",
     end: "",
+    recurrence: "",
   });
-  const [isEdit, setIsEdit] = useState(false);
-  const [open, setOpen] = useState(false);
 
-  // ✅ Fetch events from Supabase
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+
   useEffect(() => {
     fetchEvents();
+    fetchEmail();
   }, []);
 
-  async function fetchEvents() {
-    const { data, error } = await supabase.from("calendar_events").select("*");
-    if (error) {
-      toast.error("Failed to load events");
-      return;
+  const fetchEmail = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setUserEmail(user.email);
     }
+  };
 
-    const mapped = data.map((event) => ({
-      id: event.id,
-      title: event.title,
-      start: new Date(event.date),
-      end: new Date(event.date),
-    }));
+  const fetchEvents = async () => {
+    const { data, error } = await supabase.from("calendar_events").select("*");
+    if (!error && data) {
+      setEvents(data.map((e) => ({
+        ...e,
+        start: new Date(e.start),
+        end: new Date(e.end),
+      })));
+    }
+  };
 
-    setEvents(mapped);
-  }
-
-  function handleSelectSlot({ start }) {
-    setForm({
-      id: null,
+  const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
+    setSelectedEvent(null);
+    setFormData({
       title: "",
       description: "",
-      start: formatISO(start),
-      end: formatISO(start),
+      start: moment(start).format("YYYY-MM-DDTHH:mm"),
+      end: moment(end).format("YYYY-MM-DDTHH:mm"),
+      recurrence: "",
     });
-    setIsEdit(false);
-    setOpen(true);
-  }
+    setDialogOpen(true);
+  };
 
-  function handleSelectEvent(event) {
-    setForm({
-      id: event.id,
+  const handleSelectEvent = (event: any) => {
+    setSelectedEvent(event);
+    setFormData({
       title: event.title,
       description: event.description || "",
-      start: formatISO(event.start),
-      end: formatISO(event.end),
+      start: moment(event.start).format("YYYY-MM-DDTHH:mm"),
+      end: moment(event.end).format("YYYY-MM-DDTHH:mm"),
+      recurrence: event.recurrence || "",
     });
-    setIsEdit(true);
-    setOpen(true);
-  }
+    setDialogOpen(true);
+  };
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-
-    if (!form.title || !form.start) {
-      toast.error("Title and Date are required");
+  const handleSave = async () => {
+    if (!formData.title || !formData.start || !formData.end) {
+      toast.error("Please fill in all required fields.");
       return;
     }
 
     const payload = {
-      title: form.title,
-      description: form.description,
-      date: form.start,
+      title: formData.title,
+      description: formData.description,
+      start: new Date(formData.start).toISOString(),
+      end: new Date(formData.end).toISOString(),
+      recurrence: formData.recurrence,
+      email: userEmail,
     };
 
     let result;
 
-    if (isEdit && form.id) {
+    if (selectedEvent) {
       result = await supabase
         .from("calendar_events")
         .update(payload)
-        .eq("id", form.id);
+        .eq("id", selectedEvent.id);
     } else {
-      result = await supabase.from("calendar_events").insert(payload);
+      result = await supabase.from("calendar_events").insert([payload]);
     }
 
-    const { error } = result;
-
-    if (error) {
-      toast.error("Failed to save event");
+    if (result.error) {
+      toast.error("Failed to save event: " + result.error.message);
     } else {
-      toast.success("Event saved");
-      setOpen(false);
+      toast.success("Event saved successfully");
+      setDialogOpen(false);
       fetchEvents();
     }
-  }
+  };
 
   return (
     <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">📅 Calendar</h1>
       <BigCalendar
         localizer={localizer}
         events={events}
         startAccessor="start"
         endAccessor="end"
         selectable
-        style={{ height: 600 }}
         onSelectSlot={handleSelectSlot}
         onSelectEvent={handleSelectEvent}
-        views={["month", "week", "day"] as Views[]}
+        style={{ height: 600 }}
       />
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogTrigger asChild>
-          <Button className="hidden">Open</Button>
+          <Button className="hidden">Trigger</Button>
         </DialogTrigger>
-        <DialogContent className="max-w-md">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <DialogContent className="w-full max-w-lg">
+          <h2 className="text-xl font-semibold mb-4">
+            {selectedEvent ? "Edit Event" : "Add Event"}
+          </h2>
+          <div className="space-y-4">
             <Input
-              type="text"
               placeholder="Title"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              value={formData.title}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               required
             />
             <Textarea
               placeholder="Description"
-              value={form.description}
+              value={formData.description}
               onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
+                setFormData({ ...formData, description: e.target.value })
               }
             />
+            <div className="flex gap-2">
+              <Input
+                type="datetime-local"
+                value={formData.start}
+                onChange={(e) =>
+                  setFormData({ ...formData, start: e.target.value })
+                }
+                required
+              />
+              <Input
+                type="datetime-local"
+                value={formData.end}
+                onChange={(e) =>
+                  setFormData({ ...formData, end: e.target.value })
+                }
+                required
+              />
+            </div>
             <Input
-              type="datetime-local"
-              value={form.start?.slice(0, 16)}
-              onChange={(e) => setForm({ ...form, start: e.target.value })}
-              required
+              placeholder="Recurrence (e.g. daily, weekly)"
+              value={formData.recurrence}
+              onChange={(e) =>
+                setFormData({ ...formData, recurrence: e.target.value })
+              }
             />
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="secondary"
+                onClick={() => setDialogOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit">Save Event</Button>
+              <Button onClick={handleSave}>
+                Save Event
+              </Button>
             </div>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
