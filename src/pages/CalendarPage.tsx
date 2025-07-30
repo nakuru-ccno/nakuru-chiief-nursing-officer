@@ -23,6 +23,7 @@ export default function CalendarPage() {
   const { session } = useSession();
   const [events, setEvents] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     start: "",
@@ -48,22 +49,56 @@ export default function CalendarPage() {
     }
   }
 
+  function handleSelectEvent(event) {
+    setEditingEvent(event);
+    setFormData({
+      title: event.title,
+      start: moment(event.start).format("YYYY-MM-DDTHH:mm"),
+      end: moment(event.end).format("YYYY-MM-DDTHH:mm"),
+      description: event.description || "",
+      recurrence: event.recurrence || "",
+    });
+    setModalOpen(true);
+  }
+
   async function handleSubmit() {
     if (!formData.title || !formData.start || !formData.end) return;
-    const { error } = await supabase.from("calendar_events").insert({
+    const payload = {
       title: formData.title,
       start: formData.start,
       end: formData.end,
       description: formData.description,
       recurrence: formData.recurrence,
       email: session?.user?.email,
-    });
-    if (!error) {
-      fetchEvents();
-      setModalOpen(false);
-      setFormData({ title: "", start: "", end: "", description: "", recurrence: "" });
+    };
+
+    if (editingEvent) {
+      const { error } = await supabase
+        .from("calendar_events")
+        .update(payload)
+        .eq("id", editingEvent.id);
+      if (!error) {
+        setEditingEvent(null);
+      }
     } else {
-      console.error("Insert Error:", error);
+      const { error } = await supabase.from("calendar_events").insert(payload);
+      if (error) {
+        console.error("Insert Error:", error);
+        return;
+      }
+    }
+
+    fetchEvents();
+    setModalOpen(false);
+    setFormData({ title: "", start: "", end: "", description: "", recurrence: "" });
+  }
+
+  async function handleDelete() {
+    if (editingEvent) {
+      await supabase.from("calendar_events").delete().eq("id", editingEvent.id);
+      setEditingEvent(null);
+      setModalOpen(false);
+      fetchEvents();
     }
   }
 
@@ -79,14 +114,19 @@ export default function CalendarPage() {
         startAccessor="start"
         endAccessor="end"
         style={{ height: 500 }}
+        selectable
+        onSelectEvent={handleSelectEvent}
       />
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={modalOpen} onOpenChange={(v) => {
+        if (!v) setEditingEvent(null);
+        setModalOpen(v);
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Event</DialogTitle>
+            <DialogTitle>{editingEvent ? "Edit Event" : "Add New Event"}</DialogTitle>
             <DialogDescription>
-              Fill in the form below to create a new calendar event.
+              {editingEvent ? "Update the event details." : "Fill in the form below to create a new calendar event."}
             </DialogDescription>
           </DialogHeader>
 
@@ -144,11 +184,22 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          <DialogFooter className="pt-4">
-            <Button variant="outline" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit}>Save Event</Button>
+          <DialogFooter className="pt-4 flex justify-between items-center">
+            <div>
+              {editingEvent && (
+                <Button variant="destructive" onClick={handleDelete}>
+                  Delete
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit}>
+                {editingEvent ? "Update Event" : "Save Event"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
