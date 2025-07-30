@@ -1,159 +1,165 @@
 import { useEffect, useState } from "react";
-import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
+import {
+  Calendar as BigCalendar,
+  momentLocalizer,
+  Views,
+} from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useSession } from "@supabase/auth-helpers-react";
+import { formatISO } from "date-fns";
 
 const localizer = momentLocalizer(moment);
 
 export default function CalendarPage() {
   const [events, setEvents] = useState([]);
-  const [newEvent, setNewEvent] = useState({
+  const [form, setForm] = useState({
+    id: null,
     title: "",
     description: "",
-    date: "",
-    recurrence: "", // daily, weekly, monthly
+    start: "",
+    end: "",
   });
+  const [isEdit, setIsEdit] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  const session = useSession();
-
-  const fetchEvents = async () => {
-    const { data, error } = await supabase
-      .from("calendar_events")
-      .select("*")
-      .order("start", { ascending: true });
-
-    if (error) {
-      console.error("Fetch error:", error);
-      toast.error("Failed to load events");
-    } else {
-      const formatted = data.map((event) => ({
-        ...event,
-        start: new Date(event.start),
-        end: new Date(event.end),
-        allDay: true,
-      }));
-      setEvents(formatted);
-    }
-  };
-
+  // ✅ Fetch events from Supabase
   useEffect(() => {
     fetchEvents();
   }, []);
 
-  const handleAddEvent = async () => {
-    const { title, description, date, recurrence } = newEvent;
-
-    if (!title || !date) {
-      toast.warning("Title and date are required");
+  async function fetchEvents() {
+    const { data, error } = await supabase.from("calendar_events").select("*");
+    if (error) {
+      toast.error("Failed to load events");
       return;
     }
 
-    const user = session?.user;
-    if (!user) {
-      toast.error("User not authenticated");
+    const mapped = data.map((event) => ({
+      id: event.id,
+      title: event.title,
+      start: new Date(event.date),
+      end: new Date(event.date),
+    }));
+
+    setEvents(mapped);
+  }
+
+  function handleSelectSlot({ start }) {
+    setForm({
+      id: null,
+      title: "",
+      description: "",
+      start: formatISO(start),
+      end: formatISO(start),
+    });
+    setIsEdit(false);
+    setOpen(true);
+  }
+
+  function handleSelectEvent(event) {
+    setForm({
+      id: event.id,
+      title: event.title,
+      description: event.description || "",
+      start: formatISO(event.start),
+      end: formatISO(event.end),
+    });
+    setIsEdit(true);
+    setOpen(true);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    if (!form.title || !form.start) {
+      toast.error("Title and Date are required");
       return;
     }
 
-    const startDate = new Date(date);
-    const endDate = new Date(date);
+    const payload = {
+      title: form.title,
+      description: form.description,
+      date: form.start,
+    };
 
-    const { error } = await supabase.from("calendar_events").insert([
-      {
-        title,
-        description,
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
-        recurrence: recurrence || null,
-        user_id: user.id,
-      },
-    ]);
+    let result;
+
+    if (isEdit && form.id) {
+      result = await supabase
+        .from("calendar_events")
+        .update(payload)
+        .eq("id", form.id);
+    } else {
+      result = await supabase.from("calendar_events").insert(payload);
+    }
+
+    const { error } = result;
 
     if (error) {
-      console.error("Insert error:", error);
       toast.error("Failed to save event");
     } else {
-      toast.success("Event created");
-      setNewEvent({ title: "", description: "", date: "", recurrence: "" });
+      toast.success("Event saved");
+      setOpen(false);
       fetchEvents();
     }
-  };
+  }
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">📅 Calendar</h1>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>Add Event</Button>
-          </DialogTrigger>
-          <DialogContent aria-describedby="event-dialog-desc">
-            <p id="event-dialog-desc" className="sr-only">
-              Fill out this form to create a new calendar event
-            </p>
-            <DialogHeader>
-              <DialogTitle>Add New Event</DialogTitle>
-            </DialogHeader>
-            <Input
-              placeholder="Event Title"
-              value={newEvent.title}
-              onChange={(e) =>
-                setNewEvent({ ...newEvent, title: e.target.value })
-              }
-            />
-            <Textarea
-              placeholder="Description"
-              value={newEvent.description}
-              onChange={(e) =>
-                setNewEvent({ ...newEvent, description: e.target.value })
-              }
-            />
-            <Input
-              type="date"
-              value={newEvent.date}
-              onChange={(e) =>
-                setNewEvent({ ...newEvent, date: e.target.value })
-              }
-            />
-            <select
-              value={newEvent.recurrence}
-              onChange={(e) =>
-                setNewEvent({ ...newEvent, recurrence: e.target.value })
-              }
-              className="border rounded-md px-2 py-1 text-sm"
-            >
-              <option value="">No Recurrence</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-            <Button onClick={handleAddEvent} className="w-full mt-2">
-              Save Event
-            </Button>
-          </DialogContent>
-        </Dialog>
-      </div>
-
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4">📅 Calendar</h1>
       <BigCalendar
         localizer={localizer}
         events={events}
         startAccessor="start"
         endAccessor="end"
+        selectable
         style={{ height: 600 }}
-        popup
+        onSelectSlot={handleSelectSlot}
+        onSelectEvent={handleSelectEvent}
+        views={["month", "week", "day"] as Views[]}
       />
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button className="hidden">Open</Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-md">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              type="text"
+              placeholder="Title"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              required
+            />
+            <Textarea
+              placeholder="Description"
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+            />
+            <Input
+              type="datetime-local"
+              value={form.start?.slice(0, 16)}
+              onChange={(e) => setForm({ ...form, start: e.target.value })}
+              required
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Event</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
