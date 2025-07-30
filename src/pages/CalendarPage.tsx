@@ -73,7 +73,7 @@ export default function CalendarPage() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -85,24 +85,25 @@ export default function CalendarPage() {
       return;
     }
 
- const { error } = await supabase.from("calendar_events").insert({
-  title: form.title,
-  start: new Date(form.start),
-  end: new Date(form.end),
-  recurrence: form.recurrence,
-  description: form.description,
-  email: userEmail,
-});
+    const { error } = await supabase.from("calendar_events").insert({
+      title: form.title,
+      start: new Date(form.start),
+      end: new Date(form.end),
+      recurrence: form.recurrence,
+      description: form.description,
+      email: userEmail,
+    });
 
-if (error) {
-  console.error("Insert Error:", error); // ⬅️ Add this
-  toast.error("Failed to save event");
-} else {
-  toast.success("Event saved successfully");
-  setShowModal(false);
-  setForm({ title: "", start: "", end: "", recurrence: "", description: "" });
-  fetchEvents();
-});
+    if (error) {
+      console.error("Insert Error:", error);
+      toast.error("Failed to save event");
+    } else {
+      toast.success("Event saved successfully");
+      setShowModal(false);
+      setForm({ title: "", start: "", end: "", recurrence: "", description: "" });
+      fetchEvents();
+    }
+  };
 
   return (
     <div className="p-4">
@@ -159,12 +160,18 @@ if (error) {
             </div>
 
             <div>
-              <Label>Recurrence (e.g., daily, weekly)</Label>
-              <Input
+              <Label>Recurrence</Label>
+              <select
                 name="recurrence"
                 value={form.recurrence}
                 onChange={handleInputChange}
-              />
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">None</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
             </div>
 
             <div>
