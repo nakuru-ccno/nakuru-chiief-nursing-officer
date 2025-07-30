@@ -7,7 +7,13 @@ import {
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -75,7 +81,6 @@ function AddEventDialog({ onEventAdded }: { onEventAdded: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [start, setStart] = useState<string>("");
-  const [end, setEnd] = useState<string>("");
   const [recurrence, setRecurrence] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -83,10 +88,8 @@ function AddEventDialog({ onEventAdded }: { onEventAdded: () => void }) {
 
   useEffect(() => {
     const now = new Date();
-    const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
     const toDatetimeLocal = (dt: Date) => dt.toISOString().slice(0, 16);
     setStart(toDatetimeLocal(now));
-    setEnd(toDatetimeLocal(inOneHour));
   }, [open]);
 
   const resetForm = () => {
@@ -97,21 +100,22 @@ function AddEventDialog({ onEventAdded }: { onEventAdded: () => void }) {
   };
 
   const handleSubmit = async () => {
-    if (!title || !start || !end || !session?.user?.email) {
-      toast.error("All fields are required.");
+    if (!title || !start || !session?.user?.email) {
+      toast.error("Please fill in all fields.");
       return;
     }
 
-    const { error } = await supabase
-      .from("calendar_events")
-      .insert({
-        title,
-        description,
-        start_time: new Date(start).toISOString(),
-        end_time: new Date(end).toISOString(),
-        email: session.user.email,
-        recurrence: recurrence || null,
-      });
+    const startTime = new Date(start);
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // +1 hour
+
+    const { error } = await supabase.from("calendar_events").insert({
+      title,
+      description,
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+      email: session.user.email,
+      recurrence: recurrence || null,
+    });
 
     if (error) {
       console.error("Insert Error:", error);
@@ -152,13 +156,6 @@ function AddEventDialog({ onEventAdded }: { onEventAdded: () => void }) {
           type="datetime-local"
           value={start}
           onChange={(e) => setStart(e.target.value)}
-        />
-
-        <label className="text-sm mt-2">End Time</label>
-        <Input
-          type="datetime-local"
-          value={end}
-          onChange={(e) => setEnd(e.target.value)}
         />
 
         <label className="text-sm mt-2">Recurrence</label>
