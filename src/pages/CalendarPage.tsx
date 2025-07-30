@@ -102,7 +102,7 @@ if (error) {
   setShowModal(false);
   setForm({ title: "", start: "", end: "", recurrence: "", description: "" });
   fetchEvents();
-}
+});
 
   return (
     <div className="p-4">
