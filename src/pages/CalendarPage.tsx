@@ -1,247 +1,163 @@
-import React, { useEffect, useState } from "react";
-import { Calendar as BigCalendar, Event as CalendarEvent } from "react-big-calendar";
+import { useEffect, useState } from "react";
+import { Calendar as BigCalendar, momentLocalizer, Views } from "react-big-calendar";
+import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { localizer } from "@/lib/calendarUtils";
 import { supabase } from "@/integrations/supabase/client";
-import { formatISO, format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import "@/components/ui/calendar.css";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { formatISO } from "date-fns";
 
-type Event = {
-  id?: string;
-  title: string;
-  description?: string;
-  start: Date;
-  end: Date;
-  repeat?: "none" | "daily" | "weekly" | "monthly";
-};
+const localizer = momentLocalizer(moment);
 
-const CalendarPage = () => {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [showModal, setShowModal] = useState(false);
-  const [newEvent, setNewEvent] = useState<Event>({
+const recurrenceOptions = ["None", "Daily", "Weekly", "Monthly"];
+
+export default function CalendarPage() {
+  const [events, setEvents] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({
     title: "",
     description: "",
     start: new Date(),
     end: new Date(),
-    repeat: "none",
+    recurrence: "None",
   });
-  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    const fetchUserAndEvents = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData.user) setUserEmail(userData.user.email || "");
-
-      const { data, error } = await supabase.from("events").select("*");
-      if (error) return console.error(error);
-
-      const formatted = data.map((e) => ({
-        ...e,
-        start: new Date(e.start_time),
-        end: new Date(e.end_time),
-      }));
-
-      setEvents(formatted);
-    };
-
-    fetchUserAndEvents();
+    fetchEvents();
   }, []);
 
-  const handleAddEvent = async () => {
-    if (!newEvent.title.trim()) {
-      toast.error("Title is required.");
-      return;
-    }
-
-    const { error } = await supabase.from("events").insert({
-      title: newEvent.title,
-      description: newEvent.description,
-      start_time: formatISO(newEvent.start),
-      end_time: formatISO(newEvent.end),
-      user_email: userEmail,
-      repeat: newEvent.repeat || "none",
-    });
-
+  async function fetchEvents() {
+    const { data, error } = await supabase.from("calendar_events").select("*");
     if (error) {
-      toast.error("Failed to save event.");
-      console.error("Insert error:", error);
-      return;
+      toast.error("Failed to load events");
+    } else {
+      const formatted = data.map((e) => ({
+        ...e,
+        start: new Date(e.start),
+        end: new Date(e.end),
+      }));
+      setEvents(formatted);
     }
+  }
 
-    toast.success("✅ Event saved and email sent!");
-
-    // Send email to user
-    const { error: fnError } = await supabase.functions.invoke("send-calendar-email", {
-      body: {
-        title: newEvent.title,
-        description: newEvent.description,
-        start: newEvent.start.toISOString(),
-        email: userEmail,
-      },
-    });
-
-    // Notify admin
-    await supabase.functions.invoke("send-calendar-email", {
-      body: {
-        title: newEvent.title,
-        description: newEvent.description,
-        start: newEvent.start.toISOString(),
-        email: "ccno@nakurucountychiefnursingofficer.site",
-        fromUser: userEmail,
-      },
-    });
-
-    if (fnError) {
-      toast.warning("Saved, but email failed.");
-      console.error("Email error:", fnError.message);
-    }
-
-    setShowModal(false);
-    setNewEvent({
+  const handleSelectSlot = ({ start, end }) => {
+    setForm({
       title: "",
       description: "",
-      start: new Date(),
-      end: new Date(),
-      repeat: "none",
+      start,
+      end,
+      recurrence: "None",
     });
-
-    // Refresh UI
-    setEvents((prev) => [
-      ...prev,
-      {
-        title: newEvent.title,
-        description: newEvent.description,
-        start: newEvent.start,
-        end: newEvent.end,
-      },
-    ]);
+    setModalOpen(true);
   };
 
-  const handleTimeChange = (type: "start" | "end", timeString: string) => {
-    const [hour, minute] = timeString.split(":").map(Number);
-    const newDate = new Date(newEvent[type]);
-    newDate.setHours(hour, minute);
-    setNewEvent({ ...newEvent, [type]: newDate });
+  const handleSubmit = async () => {
+    const event = {
+      title: form.title,
+      description: form.description,
+      start: formatISO(form.start),
+      end: formatISO(form.end),
+      recurrence: form.recurrence,
+    };
+
+    const { error } = await supabase.from("calendar_events").insert([event]);
+    if (error) {
+      toast.error("Failed to save event");
+    } else {
+      toast.success("Event added");
+      setModalOpen(false);
+      fetchEvents();
+    }
+  };
+
+  const renderRecurringLabel = (event) => {
+    if (!event.recurrence || event.recurrence === "None") return "";
+    return `🔁 ${event.recurrence}`;
   };
 
   return (
-    <div className="p-4 dark:bg-black dark:text-white min-h-screen">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">🗓 Event Calendar</h2>
-        <button
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-          onClick={() => setShowModal(true)}
-        >
-          ➕ Add Event
-        </button>
-      </div>
-
-      {/* Calendar */}
+    <div className="p-4">
+      <h2 className="text-xl font-semibold mb-4">Event Calendar</h2>
       <BigCalendar
         localizer={localizer}
         events={events}
         startAccessor="start"
         endAccessor="end"
-        style={{ height: 500 }}
+        style={{ height: 600 }}
+        selectable
+        views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+        onSelectSlot={handleSelectSlot}
+        components={{
+          event: ({ event }) => (
+            <span>
+              {event.title} {renderRecurringLabel(event)}
+            </span>
+          ),
+        }}
       />
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 dark:text-white p-6 rounded-xl shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-2">Create New Event</h3>
-            <input
-              className="w-full border p-2 rounded dark:bg-gray-800 mb-2"
-              placeholder="Title"
-              value={newEvent.title}
-              onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-            />
-            <textarea
-              className="w-full border p-2 rounded dark:bg-gray-800 mb-2"
-              placeholder="Description"
-              value={newEvent.description}
-              onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-            />
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-xl max-h-screen overflow-y-auto">
+          <div className="space-y-4 p-2">
+            <h3 className="text-lg font-semibold">Add Event</h3>
 
-            {/* Repeat Dropdown */}
-            <div className="mb-2">
-              <label className="block text-sm font-medium">Repeat</label>
+            <div>
+              <label className="block mb-1">Title</label>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1">Description</label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1">Start</label>
+              <Input
+                type="datetime-local"
+                value={moment(form.start).format("YYYY-MM-DDTHH:mm")}
+                onChange={(e) => setForm({ ...form, start: new Date(e.target.value) })}
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1">End</label>
+              <Input
+                type="datetime-local"
+                value={moment(form.end).format("YYYY-MM-DDTHH:mm")}
+                onChange={(e) => setForm({ ...form, end: new Date(e.target.value) })}
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1">Repeat</label>
               <select
-                className="w-full border p-2 rounded dark:bg-gray-800"
-                value={newEvent.repeat || "none"}
-                onChange={(e) =>
-                  setNewEvent((prev) => ({
-                    ...prev,
-                    repeat: e.target.value as "none" | "daily" | "weekly" | "monthly",
-                  }))
-                }
+                className="w-full border rounded p-2"
+                value={form.recurrence}
+                onChange={(e) => setForm({ ...form, recurrence: e.target.value })}
               >
-                <option value="none">No Repeat</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
+                {recurrenceOptions.map((opt) => (
+                  <option key={opt}>{opt}</option>
+                ))}
               </select>
             </div>
 
-            {/* Start Date */}
-            <div className="mb-2">
-              <label className="block text-sm font-medium">Start Date</label>
-              <Calendar
-                mode="single"
-                selected={newEvent.start}
-                onSelect={(date) =>
-                  date && setNewEvent((prev) => ({ ...prev, start: date }))
-                }
-              />
-              <input
-                type="time"
-                className="w-full border p-2 mt-1 rounded dark:bg-gray-800"
-                value={format(newEvent.start, "HH:mm")}
-                onChange={(e) => handleTimeChange("start", e.target.value)}
-              />
-            </div>
-
-            {/* End Date */}
-            <div className="mb-2">
-              <label className="block text-sm font-medium">End Date</label>
-              <Calendar
-                mode="single"
-                selected={newEvent.end}
-                onSelect={(date) =>
-                  date && setNewEvent((prev) => ({ ...prev, end: date }))
-                }
-              />
-              <input
-                type="time"
-                className="w-full border p-2 mt-1 rounded dark:bg-gray-800"
-                value={format(newEvent.end, "HH:mm")}
-                onChange={(e) => handleTimeChange("end", e.target.value)}
-              />
-            </div>
-
-            {/* Buttons */}
-            <div className="flex justify-between mt-4">
-              <button
-                className="bg-gray-500 text-white px-4 py-2 rounded"
-                onClick={() => setShowModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                onClick={handleAddEvent}
-              >
-                Save
-              </button>
+            <div className="flex justify-end pt-4">
+              <Button onClick={handleSubmit}>Save Event</Button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
-
-export default CalendarPage;
+}
