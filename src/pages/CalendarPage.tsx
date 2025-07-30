@@ -109,8 +109,18 @@ const CalendarPage = () => {
 
   return (
     <div className="p-4 dark:bg-black dark:text-white min-h-screen">
-      <h2 className="text-xl font-bold mb-4">🗓 Event Calendar</h2>
+      {/* Header and Add Event Button */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">🗓 Event Calendar</h2>
+        <button
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          onClick={() => setShowModal(true)}
+        >
+          ➕ Add Event
+        </button>
+      </div>
 
+      {/* Calendar */}
       <BigCalendar
         localizer={localizer}
         events={events}
@@ -119,13 +129,7 @@ const CalendarPage = () => {
         style={{ height: 500 }}
       />
 
-      <button
-        className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-        onClick={() => setShowModal(true)}
-      >
-        ➕ Add Event
-      </button>
-
+      {/* Add Event Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 dark:text-white p-6 rounded-xl shadow-lg max-w-md w-full space-y-4">
