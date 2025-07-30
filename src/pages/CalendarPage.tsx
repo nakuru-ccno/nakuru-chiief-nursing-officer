@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Calendar as BigCalendar,
-  momentLocalizer,
-  Event as RBCEvent,
-} from "react-big-calendar";
+import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,159 +9,123 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/hooks/useSession";
-import { toast } from "sonner";
 
 const localizer = momentLocalizer(moment);
 
-interface CalendarEvent extends RBCEvent {
-  id: string;
-  email: string;
-  description?: string;
-  recurrence?: string;
-}
-
 export default function CalendarPage() {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({
+  const { session } = useSession();
+  const [events, setEvents] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
     title: "",
     start: "",
     end: "",
-    recurrence: "",
     description: "",
+    recurrence: "",
   });
-
-  const { user } = useSession();
-  const userEmail = user?.email || "";
 
   useEffect(() => {
     fetchEvents();
   }, []);
 
-  const fetchEvents = async () => {
+  async function fetchEvents() {
     const { data, error } = await supabase.from("calendar_events").select("*");
-    if (error) {
-      toast.error("Failed to fetch events");
-    } else {
-      const parsed = data.map((event) => ({
-        ...event,
-        start: new Date(event.start),
-        end: new Date(event.end),
-      }));
-      setEvents(parsed);
+    if (!error && data) {
+      setEvents(
+        data.map((event) => ({
+          ...event,
+          start: new Date(event.start),
+          end: new Date(event.end),
+        }))
+      );
     }
-  };
+  }
 
-  const handleSelectSlot = (slotInfo: any) => {
-    setForm({
-      title: "",
-      start: moment(slotInfo.start).format("YYYY-MM-DDTHH:mm"),
-      end: moment(slotInfo.end).format("YYYY-MM-DDTHH:mm"),
-      recurrence: "",
-      description: "",
-    });
-    setShowModal(true);
-  };
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async () => {
-    if (!form.title || !form.start || !form.end) {
-      toast.error("Title, start, and end are required");
-      return;
-    }
-
+  async function handleSubmit() {
+    if (!formData.title || !formData.start || !formData.end) return;
     const { error } = await supabase.from("calendar_events").insert({
-      title: form.title,
-      start: new Date(form.start),
-      end: new Date(form.end),
-      recurrence: form.recurrence,
-      description: form.description,
-      email: userEmail,
+      title: formData.title,
+      start: formData.start,
+      end: formData.end,
+      description: formData.description,
+      recurrence: formData.recurrence,
+      email: session?.user?.email,
     });
-
-    if (error) {
-      console.error("Insert Error:", error);
-      toast.error("Failed to save event");
-    } else {
-      toast.success("Event saved successfully");
-      setShowModal(false);
-      setForm({ title: "", start: "", end: "", recurrence: "", description: "" });
+    if (!error) {
       fetchEvents();
+      setModalOpen(false);
+      setFormData({ title: "", start: "", end: "", description: "", recurrence: "" });
+    } else {
+      console.error("Insert Error:", error);
     }
-  };
+  }
 
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Calendar</h1>
-
+      <Button className="mb-4" onClick={() => setModalOpen(true)}>
+        Add Event
+      </Button>
       <BigCalendar
         localizer={localizer}
         events={events}
         startAccessor="start"
         endAccessor="end"
-        style={{ height: 600 }}
-        selectable
-        onSelectSlot={handleSelectSlot}
+        style={{ height: 500 }}
       />
 
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-md">
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Event</DialogTitle>
+            <DialogDescription>
+              Fill in the form below to create a new calendar event.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
               <Label>Event Title</Label>
               <Input
-                name="title"
-                value={form.title}
-                onChange={handleInputChange}
-                required
+                placeholder="Event Title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Start</Label>
-                <Input
-                  type="datetime-local"
-                  name="start"
-                  value={form.start}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div>
-                <Label>End</Label>
-                <Input
-                  type="datetime-local"
-                  name="end"
-                  value={form.end}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
+            <div>
+              <Label>Start</Label>
+              <Input
+                type="datetime-local"
+                value={formData.start}
+                onChange={(e) => setFormData({ ...formData, start: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <Label>End</Label>
+              <Input
+                type="datetime-local"
+                value={formData.end}
+                onChange={(e) => setFormData({ ...formData, end: e.target.value })}
+              />
             </div>
 
             <div>
               <Label>Recurrence</Label>
               <select
-                name="recurrence"
-                value={form.recurrence}
-                onChange={handleInputChange}
-                className="w-full border rounded-md px-3 py-2 text-sm"
+                className="w-full border rounded-md px-3 py-2"
+                value={formData.recurrence}
+                onChange={(e) =>
+                  setFormData({ ...formData, recurrence: e.target.value })
+                }
               >
                 <option value="">None</option>
                 <option value="daily">Daily</option>
@@ -177,19 +137,19 @@ export default function CalendarPage() {
             <div>
               <Label>Description</Label>
               <Textarea
-                name="description"
-                value={form.description}
-                onChange={handleInputChange}
+                placeholder="Event description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowModal(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit}>Save Event</Button>
-            </div>
           </div>
+
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit}>Save Event</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
