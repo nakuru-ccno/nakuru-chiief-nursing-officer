@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+
 import {
   Dialog,
   DialogContent,
@@ -13,7 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 
 const localizer = momentLocalizer(moment);
@@ -28,33 +29,6 @@ export default function CalendarPage() {
 
   const session = useSession();
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
-
-  const fetchEvents = async () => {
-    const { data, error } = await supabase.from("calendar_events").select("*");
-
-    if (error) {
-      toast.error("Failed to fetch events");
-      console.error("Fetch error:", error.message);
-      return;
-    }
-
-    const formatted = data.map((event) => {
-      const startDate = new Date(event.start_time);
-      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour
-
-      return {
-        title: event.title,
-        start: startDate,
-        end: endDate,
-      };
-    });
-
-    setEvents(formatted);
-  };
-
   const resetForm = () => {
     setTitle("");
     setDescription("");
@@ -62,9 +36,30 @@ export default function CalendarPage() {
     setRecurrence("");
   };
 
+  const fetchEvents = async () => {
+    const { data, error } = await supabase
+      .from("calendar_events")
+      .select("*");
+
+    if (error) {
+      console.error("Fetch error:", error);
+      toast.error("Failed to fetch events.");
+      return;
+    }
+
+    const mapped = data.map((event) => ({
+      id: event.id,
+      title: event.title,
+      start: new Date(event.start_time),
+      allDay: false,
+    }));
+
+    setEvents(mapped);
+  };
+
   const handleSubmit = async () => {
     if (!title || !start || !session?.user?.email) {
-      toast.error("Please fill all required fields.");
+      toast.error("Event title, start time, and your login email are required.");
       return;
     }
 
@@ -93,18 +88,23 @@ export default function CalendarPage() {
     fetchEvents();
   };
 
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Calendar</h2>
-
+      <div className="mb-4 flex justify-between items-center">
+        <h1 className="text-2xl font-bold">📅 Calendar</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>Add Event</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogTitle>Add Calendar Event</DialogTitle>
-            <DialogDescription>Enter event details below.</DialogDescription>
+            <DialogDescription>
+              Enter event details below.
+            </DialogDescription>
 
             <Input
               placeholder="Event Title"
@@ -141,7 +141,7 @@ export default function CalendarPage() {
         localizer={localizer}
         events={events}
         startAccessor="start"
-        endAccessor="end"
+        endAccessor="start"
         style={{ height: 600 }}
       />
     </div>
