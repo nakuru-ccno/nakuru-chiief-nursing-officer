@@ -1,20 +1,77 @@
-
 import { useEffect, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  Calendar as BigCalendar,
+  momentLocalizer,
+  Views,
+} from "react-big-calendar";
+import moment from "moment";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 
-export default function AddEventDialog({ onEventAdded }: { onEventAdded: () => void }) {
+const localizer = momentLocalizer(moment);
+
+export default function CalendarPage() {
+  const [events, setEvents] = useState([]);
+  const [refreshFlag, setRefreshFlag] = useState(false);
+
+  const session = useSession();
+
+  const fetchEvents = async () => {
+    const { data, error } = await supabase
+      .from("calendar_events")
+      .select("*")
+      .eq("email", session?.user?.email);
+
+    if (error) {
+      console.error("Fetch error:", error);
+      toast.error("Failed to load events");
+    } else {
+      const parsedEvents = data.map((event: any) => ({
+        ...event,
+        start: new Date(event.start_time),
+        end: new Date(event.end_time),
+        title: event.title,
+      }));
+      setEvents(parsedEvents);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.user?.email) fetchEvents();
+  }, [session, refreshFlag]);
+
+  const handleEventAdded = () => {
+    setRefreshFlag(!refreshFlag);
+  };
+
+  return (
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">📅 Calendar</h2>
+        <AddEventDialog onEventAdded={handleEventAdded} />
+      </div>
+
+      <BigCalendar
+        localizer={localizer}
+        events={events}
+        startAccessor="start"
+        endAccessor="end"
+        style={{ height: 600 }}
+        views={[Views.MONTH, Views.WEEK, Views.DAY]}
+      />
+    </div>
+  );
+}
+
+function AddEventDialog({ onEventAdded }: { onEventAdded: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [start, setStart] = useState<string>("");
@@ -24,12 +81,10 @@ export default function AddEventDialog({ onEventAdded }: { onEventAdded: () => v
 
   const session = useSession();
 
-  // Auto-fill with current datetime
   useEffect(() => {
     const now = new Date();
     const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
-    const toDatetimeLocal = (dt: Date) =>
-      dt.toISOString().slice(0, 16); // yyyy-MM-ddTHH:mm
+    const toDatetimeLocal = (dt: Date) => dt.toISOString().slice(0, 16);
     setStart(toDatetimeLocal(now));
     setEnd(toDatetimeLocal(inOneHour));
   }, [open]);
@@ -48,7 +103,7 @@ export default function AddEventDialog({ onEventAdded }: { onEventAdded: () => v
     }
 
     const { error } = await supabase
-      .from("public.calendar_events") // Ensure correct schema
+      .from("calendar_events")
       .insert({
         title,
         description,
