@@ -14,6 +14,7 @@ type Event = {
   description?: string;
   start: Date;
   end: Date;
+  repeat?: "none" | "daily" | "weekly" | "monthly";
 };
 
 const CalendarPage = () => {
@@ -24,6 +25,7 @@ const CalendarPage = () => {
     description: "",
     start: new Date(),
     end: new Date(),
+    repeat: "none",
   });
   const [userEmail, setUserEmail] = useState("");
 
@@ -48,12 +50,18 @@ const CalendarPage = () => {
   }, []);
 
   const handleAddEvent = async () => {
+    if (!newEvent.title.trim()) {
+      toast.error("Title is required.");
+      return;
+    }
+
     const { error } = await supabase.from("events").insert({
       title: newEvent.title,
       description: newEvent.description,
       start_time: formatISO(newEvent.start),
       end_time: formatISO(newEvent.end),
       user_email: userEmail,
+      repeat: newEvent.repeat || "none",
     });
 
     if (error) {
@@ -64,7 +72,7 @@ const CalendarPage = () => {
 
     toast.success("✅ Event saved and email sent!");
 
-    // 🔔 Send email to user
+    // Send email to user
     const { error: fnError } = await supabase.functions.invoke("send-calendar-email", {
       body: {
         title: newEvent.title,
@@ -74,7 +82,7 @@ const CalendarPage = () => {
       },
     });
 
-    // 🔔 Optional: Notify admin
+    // Notify admin
     await supabase.functions.invoke("send-calendar-email", {
       body: {
         title: newEvent.title,
@@ -96,8 +104,19 @@ const CalendarPage = () => {
       description: "",
       start: new Date(),
       end: new Date(),
+      repeat: "none",
     });
-    setTimeout(() => window.location.reload(), 800); // refresh calendar
+
+    // Refresh UI
+    setEvents((prev) => [
+      ...prev,
+      {
+        title: newEvent.title,
+        description: newEvent.description,
+        start: newEvent.start,
+        end: newEvent.end,
+      },
+    ]);
   };
 
   const handleTimeChange = (type: "start" | "end", timeString: string) => {
@@ -109,7 +128,7 @@ const CalendarPage = () => {
 
   return (
     <div className="p-4 dark:bg-black dark:text-white min-h-screen">
-      {/* Header and Add Event Button */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">🗓 Event Calendar</h2>
         <button
@@ -129,30 +148,53 @@ const CalendarPage = () => {
         style={{ height: 500 }}
       />
 
-      {/* Add Event Modal */}
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 dark:text-white p-6 rounded-xl shadow-lg max-w-md w-full space-y-4">
-            <h3 className="text-lg font-semibold">Create New Event</h3>
+          <div className="bg-white dark:bg-gray-900 dark:text-white p-6 rounded-xl shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-2">Create New Event</h3>
             <input
-              className="w-full border p-2 rounded dark:bg-gray-800"
+              className="w-full border p-2 rounded dark:bg-gray-800 mb-2"
               placeholder="Title"
               value={newEvent.title}
               onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
             />
             <textarea
-              className="w-full border p-2 rounded dark:bg-gray-800"
+              className="w-full border p-2 rounded dark:bg-gray-800 mb-2"
               placeholder="Description"
               value={newEvent.description}
               onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
             />
 
-            <div>
+            {/* Repeat Dropdown */}
+            <div className="mb-2">
+              <label className="block text-sm font-medium">Repeat</label>
+              <select
+                className="w-full border p-2 rounded dark:bg-gray-800"
+                value={newEvent.repeat || "none"}
+                onChange={(e) =>
+                  setNewEvent((prev) => ({
+                    ...prev,
+                    repeat: e.target.value as "none" | "daily" | "weekly" | "monthly",
+                  }))
+                }
+              >
+                <option value="none">No Repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+
+            {/* Start Date */}
+            <div className="mb-2">
               <label className="block text-sm font-medium">Start Date</label>
               <Calendar
                 mode="single"
                 selected={newEvent.start}
-                onSelect={(date) => date && setNewEvent((prev) => ({ ...prev, start: date }))}
+                onSelect={(date) =>
+                  date && setNewEvent((prev) => ({ ...prev, start: date }))
+                }
               />
               <input
                 type="time"
@@ -162,12 +204,15 @@ const CalendarPage = () => {
               />
             </div>
 
-            <div>
+            {/* End Date */}
+            <div className="mb-2">
               <label className="block text-sm font-medium">End Date</label>
               <Calendar
                 mode="single"
                 selected={newEvent.end}
-                onSelect={(date) => date && setNewEvent((prev) => ({ ...prev, end: date }))}
+                onSelect={(date) =>
+                  date && setNewEvent((prev) => ({ ...prev, end: date }))
+                }
               />
               <input
                 type="time"
@@ -177,6 +222,7 @@ const CalendarPage = () => {
               />
             </div>
 
+            {/* Buttons */}
             <div className="flex justify-between mt-4">
               <button
                 className="bg-gray-500 text-white px-4 py-2 rounded"
