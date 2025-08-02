@@ -10,6 +10,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -22,6 +31,7 @@ const localizer = momentLocalizer(moment);
 const CalendarPage = () => {
   const [events, setEvents] = useState([]);
   const [open, setOpen] = useState(false);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [start, setStart] = useState("");
@@ -74,12 +84,12 @@ const CalendarPage = () => {
           toast.error("Event added but email notification failed.");
         } else {
           console.log('Email sent successfully:', response.data);
-          toast.success("Event added successfully! Email notification sent.");
         }
       }
 
       resetForm();
       setOpen(false);
+      setSuccessDialogOpen(true);
     } catch (error) {
       console.error('Error adding event:', error);
       toast.error("Failed to add event. Please try again.");
@@ -130,6 +140,25 @@ const CalendarPage = () => {
         endAccessor="start"
         style={{ height: 600 }}
       />
+
+      <AlertDialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>✅ Event Added Successfully!</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your calendar event has been created and you will receive a reminder email 1 hour before the event.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => {
+              setSuccessDialogOpen(false);
+              window.location.href = '/calendar';
+            }}>
+              Continue to Agenda
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
