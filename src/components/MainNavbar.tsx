@@ -65,7 +65,7 @@ const MainNavbar = () => {
     { to: "/activities", label: "Activities", icon: Activity },
     { to: "/reports", label: "Reports", icon: FileText },
     { to: "/calendar", label: "Calendar", icon: Calendar },
-    { to: "/admin", label: "User Management", icon: Settings },
+    { to: "/admin-settings", label: "User Management", icon: Settings },
   ];
 
   const navItems = userRole

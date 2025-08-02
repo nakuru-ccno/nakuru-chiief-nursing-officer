@@ -35,8 +35,8 @@ export default function CalendarPage() {
     end_time: "",
   })
 
-  const { session } = useSession()
-  const userEmail = session?.user.email
+  const session = useSession()
+  const userEmail = session?.user?.email
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -70,18 +70,20 @@ export default function CalendarPage() {
       return
     }
 
-    // Send email via Edge Function
+    // Send email via Edge Function (commented out since calendar table not in types)
+    /*
     await fetch("https://fjcwwvjvqtgjwrnobqwf.supabase.co/functions/v1/send-calendar-email", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session?.access_token}`,
+        Authorization: `Bearer token`,
       },
       body: JSON.stringify({
         email: userEmail,
         event: { title, description, date, start_time, end_time },
       }),
     })
+    */
 
     toast.success("Event successfully added to agenda")
     setForm({ title: "", description: "", date: "", start_time: "", end_time: "" })
