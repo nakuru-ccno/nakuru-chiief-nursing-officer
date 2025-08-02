@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/useSession";
+import { supabase } from "@/integrations/supabase/client";
 
 const localizer = momentLocalizer(moment);
 
@@ -41,18 +42,48 @@ const CalendarPage = () => {
       return;
     }
 
-    // For now, just add to local state since calendar_events table is not in types
-    const newEvent = {
-      id: Date.now().toString(),
-      title,
-      start: new Date(start),
-      allDay: false,
-    };
+    try {
+      // Add to local state first for immediate UI feedback
+      const newEvent = {
+        id: Date.now().toString(),
+        title,
+        start: new Date(start),
+        allDay: false,
+      };
 
-    setEvents(prev => [...prev, newEvent]);
-    toast.success("Event added successfully!");
-    resetForm();
-    setOpen(false);
+      setEvents(prev => [...prev, newEvent]);
+
+      // Send email via Edge Function
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user?.email) {
+        const response = await supabase.functions.invoke('send-calendar-email', {
+          body: {
+            email: userData.user.email,
+            event: { 
+              title, 
+              description, 
+              date: start.split('T')[0], // Extract date part
+              start_time: start.split('T')[1], // Extract time part
+              end_time: start.split('T')[1] // Use same time for end (can be modified)
+            },
+          },
+        });
+
+        if (response.error) {
+          console.error('Error sending email:', response.error);
+          toast.error("Event added but email notification failed.");
+        } else {
+          console.log('Email sent successfully:', response.data);
+          toast.success("Event added successfully! Email notification sent.");
+        }
+      }
+
+      resetForm();
+      setOpen(false);
+    } catch (error) {
+      console.error('Error adding event:', error);
+      toast.error("Failed to add event. Please try again.");
+    }
   };
 
   return (

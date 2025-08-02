@@ -294,3 +294,9 @@ backend = "postgres"
 
 [functions.admin-update-user]
 verify_jwt = true
+
+[functions.send-calendar-email]
+verify_jwt = true
+
+[functions.send-reminder-emails]
+verify_jwt = false
