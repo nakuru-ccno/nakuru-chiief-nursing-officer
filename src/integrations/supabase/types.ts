@@ -173,6 +173,36 @@ export type Database = {
         }
         Relationships: []
       }
+      email_notifications: {
+        Row: {
+          email: string
+          id: string
+          notification_type: string
+          sent_at: string | null
+          status: string | null
+          template_data: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          email: string
+          id?: string
+          notification_type: string
+          sent_at?: string | null
+          status?: string | null
+          template_data?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          email?: string
+          id?: string
+          notification_type?: string
+          sent_at?: string | null
+          status?: string | null
+          template_data?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       email_queue: {
         Row: {
           created_at: string | null
