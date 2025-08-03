@@ -125,7 +125,7 @@ const CalendarPage = () => {
       // Show success immediately
       toast.success("Event added successfully!");
       
-      // Send email via Edge Function (don't wait for it)
+      // Send email notification via Edge Function (don't wait for it)
       supabase.functions.invoke('send-calendar-email', {
         body: {
           email: userData.user.email,
@@ -137,6 +137,12 @@ const CalendarPage = () => {
             end_time: endTime.split('T')[1]
           },
         },
+      }).then(response => {
+        if (response.error) {
+          console.error('Error sending email:', response.error);
+        } else {
+          console.log('Email notification sent successfully');
+        }
       }).catch(error => {
         console.error('Error sending email:', error);
       });
