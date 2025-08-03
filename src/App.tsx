@@ -115,6 +115,7 @@ const App = () => {
                   <Route path="/activities" element={<Activities />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/calendar" element={<CalendarPage />} />
+                  <Route path="/user-management" element={<Admin />} />
                 </Route>
               </Route>
 

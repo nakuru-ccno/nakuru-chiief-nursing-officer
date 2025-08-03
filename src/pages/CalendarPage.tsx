@@ -88,8 +88,8 @@ const CalendarPage = () => {
   };
 
   const handleSubmit = async () => {
-    if (!title || !start || !session?.user?.email) {
-      toast.error("Event title, start time, and your login email are required.");
+    if (!title || !start) {
+      toast.error("Event title and start time are required.");
       return;
     }
 
@@ -102,7 +102,7 @@ const CalendarPage = () => {
 
       const endTime = end || start;
       
-      // Save to database
+      // Save to database immediately
       const { data: dbEvent, error: dbError } = await supabase
         .from('calendar_events')
         .insert({
@@ -122,8 +122,11 @@ const CalendarPage = () => {
         return;
       }
 
-      // Send email via Edge Function
-      const response = await supabase.functions.invoke('send-calendar-email', {
+      // Show success immediately
+      toast.success("Event added successfully!");
+      
+      // Send email via Edge Function (don't wait for it)
+      supabase.functions.invoke('send-calendar-email', {
         body: {
           email: userData.user.email,
           event: { 
@@ -134,19 +137,15 @@ const CalendarPage = () => {
             end_time: endTime.split('T')[1]
           },
         },
+      }).catch(error => {
+        console.error('Error sending email:', error);
       });
-
-      if (response.error) {
-        console.error('Error sending email:', response.error);
-        toast.error("Event saved but email notification failed.");
-      }
 
       // Reload events from database
       await loadEvents();
       
       resetForm();
       setOpen(false);
-      setSuccessDialogOpen(true);
     } catch (error) {
       console.error('Error adding event:', error);
       toast.error("Failed to add event. Please try again.");
