@@ -235,43 +235,73 @@ const CalendarPage = () => {
           <DialogTrigger asChild>
             <Button>Add Event</Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogTitle>Add Calendar Event</DialogTitle>
-            <DialogDescription>
-              Enter event details below.
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogTitle className="text-xl font-semibold text-gray-900">Add Calendar Event</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Create a new event for your calendar. Fill in the details below.
             </DialogDescription>
 
-            <Input
-              placeholder="Event Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
+            <div className="space-y-6 mt-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Event Title *</label>
+                <Input
+                  placeholder="Enter event title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
 
-            <Textarea
-              placeholder="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Description</label>
+                <Textarea
+                  placeholder="Add event description (optional)"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 min-h-[80px]"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Start Time</label>
-              <Input
-                type="datetime-local"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Start Time *</label>
+                  <Input
+                    type="datetime-local"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">End Time</label>
+                  <Input
+                    type="datetime-local"
+                    value={end}
+                    onChange={(e) => setEnd(e.target.value)}
+                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-500">Leave empty to use start time</p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setOpen(false)}
+                  className="px-6"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSubmit}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                  disabled={!title || !start}
+                >
+                  Add Event
+                </Button>
+              </div>
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">End Time (Optional)</label>
-              <Input
-                type="datetime-local"
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-              />
-            </div>
-
-            <Button onClick={handleSubmit}>Add Event</Button>
           </DialogContent>
         </Dialog>
       </div>

@@ -144,12 +144,35 @@ const Activities = () => {
       setShowForm(false);
       setShowSuccess(true);
       
+      // Send email notification via Edge Function (don't wait for it)
+      supabase.functions.invoke('activity-notification', {
+        body: {
+          activity: {
+            title: data.title,
+            type: data.type,
+            date: data.date,
+            duration: data.duration,
+            facility: data.facility,
+            description: data.description,
+            submitted_by: data.submitted_by
+          }
+        },
+      }).then(response => {
+        if (response.error) {
+          console.error('❌ Error sending activity notification:', response.error);
+        } else {
+          console.log('✅ Activity notification sent successfully');
+        }
+      }).catch(error => {
+        console.error('❌ Error sending activity notification:', error);
+      });
+      
       // Refetch activities to update the list
       await refetch();
       
       toast({ 
         title: "Success!", 
-        description: "Activity logged successfully." 
+        description: "Activity logged successfully. Email notification sent!" 
       });
     } catch (err: any) {
       console.error('❌ Activities - Error in handleActivitySubmitted:', err);
