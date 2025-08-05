@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import MainNavbar from "@/components/MainNavbar";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -145,12 +144,35 @@ const Activities = () => {
       setShowForm(false);
       setShowSuccess(true);
       
+      // Send email notification via Edge Function (don't wait for it)
+      supabase.functions.invoke('activity-notification', {
+        body: {
+          activity: {
+            title: data.title,
+            type: data.type,
+            date: data.date,
+            duration: data.duration,
+            facility: data.facility,
+            description: data.description,
+            submitted_by: data.submitted_by
+          }
+        },
+      }).then(response => {
+        if (response.error) {
+          console.error('❌ Error sending activity notification:', response.error);
+        } else {
+          console.log('✅ Activity notification sent successfully');
+        }
+      }).catch(error => {
+        console.error('❌ Error sending activity notification:', error);
+      });
+      
       // Refetch activities to update the list
       await refetch();
       
       toast({ 
         title: "Success!", 
-        description: "Activity logged successfully." 
+        description: "Activity logged successfully. Email notification sent!" 
       });
     } catch (err: any) {
       console.error('❌ Activities - Error in handleActivitySubmitted:', err);
@@ -176,7 +198,6 @@ const Activities = () => {
   if (showForm) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <MainNavbar />
         <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <ActivityForm
             activityTypes={activityTypes}
@@ -191,7 +212,6 @@ const Activities = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <MainNavbar />
       <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 rounded-3xl p-8 mb-8 text-white shadow-2xl">

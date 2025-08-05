@@ -1,7 +1,5 @@
 
 import React, { useState, useEffect, useCallback } from "react";
-import MainNavbar from "@/components/MainNavbar";
-import CountyHeader from "@/components/CountyHeader";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -202,8 +200,6 @@ export default function Reports() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <CountyHeader />
-        <MainNavbar />
         <div className="max-w-7xl mx-auto p-8">
           <div className="text-center py-8 text-gray-500">
             <p>Loading reports...</p>
@@ -215,9 +211,6 @@ export default function Reports() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <CountyHeader />
-      <MainNavbar />
-      
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="mb-8">
