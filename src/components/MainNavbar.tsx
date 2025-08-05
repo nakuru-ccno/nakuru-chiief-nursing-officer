@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Activity, FileText, LogOut, Settings, Calendar } from "lucide-react";
+import { Home, Activity, FileText, LogOut, Settings, Calendar, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const MainNavbar = () => {
@@ -57,6 +57,7 @@ const MainNavbar = () => {
     { to: "/activities", label: "Daily Activities", icon: Activity },
     { to: "/reports", label: "Reports", icon: FileText },
     { to: "/calendar", label: "Calendar", icon: Calendar },
+    { to: "/profile", label: "My Profile", icon: User },
   ];
 
   // Navigation for admins
@@ -65,6 +66,7 @@ const MainNavbar = () => {
     { to: "/activities", label: "Activities", icon: Activity },
     { to: "/reports", label: "Reports", icon: FileText },
     { to: "/calendar", label: "Calendar", icon: Calendar },
+    { to: "/profile", label: "My Profile", icon: User },
     { to: "/admin-settings", label: "User Management", icon: Settings },
   ];
 

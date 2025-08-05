@@ -31,6 +31,7 @@ import Activities from "./pages/Activities";
 import Reports from "./pages/Reports";
 import LoginCallback from "./pages/LoginCallback";
 import CalendarPage from "./pages/CalendarPage";
+import Profile from "./pages/Profile";
 
 // 🔐 Protected Route Logic
 function ProtectedRoute() {
@@ -115,6 +116,7 @@ const App = () => {
                   <Route path="/activities" element={<Activities />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/calendar" element={<CalendarPage />} />
+                  <Route path="/profile" element={<Profile />} />
                   <Route path="/user-management" element={<Admin />} />
                 </Route>
               </Route>
