@@ -94,11 +94,22 @@ const CalendarPage = () => {
     }
 
     try {
+      // Check authentication first
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("You must be logged in to create calendar events.");
+        console.error('No active session found');
+        return;
+      }
+
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user?.email) {
         toast.error("User email not found");
+        console.error('No user email found');
         return;
       }
+
+      console.log('Creating event with user ID:', userData.user.id, 'email:', userData.user.email);
 
       const endTime = end || start;
       
@@ -118,7 +129,7 @@ const CalendarPage = () => {
 
       if (dbError) {
         console.error('Database error:', dbError);
-        toast.error("Failed to save event to database.");
+        toast.error(`Failed to save event: ${dbError.message}`);
         return;
       }
 
