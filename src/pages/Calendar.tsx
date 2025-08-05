@@ -1,125 +1,194 @@
-// src/pages/CalendarPage.tsx
+// src/pages/Calendar.tsx
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { createClient } from "@supabase/supabase-js"
+import { supabase } from "@/integrations/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import { useSession } from "@/hooks/useSession" // your auth hook
-
-const supabase = createClient(
-  "https://fjcwwvjvqtgjwrnobqwf.supabase.co",
-  "YOUR_PUBLIC_ANON_KEY" // replace with your key
-)
+import { useSession } from "@/hooks/useSession"
 
 type Event = {
   id: string
   title: string
   description?: string
-  date: string
-  start_time: string
-  end_time: string
+  start: string
+  end: string
+  email: string
+  user_id: string
+  created_at: string
 }
 
-export default function CalendarPage() {
+export default function Calendar() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
     title: "",
     description: "",
-    date: "",
-    start_time: "",
-    end_time: "",
+    start: "",
+    end: "",
   })
 
-  const session = useSession()
-  const userEmail = session?.user?.email
+  const { user } = useSession()
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      const { data, error } = await supabase
-        .from("calendar")
-        .select("*")
-        .order("date", { ascending: true })
+    if (user) {
+      fetchEvents()
+    }
+  }, [user])
 
-      if (error) console.error(error)
-      else setEvents(data as Event[])
+  const fetchEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .eq('user_id', user?.id)
+        .order("start", { ascending: true })
+
+      if (error) {
+        console.error('Error fetching events:', error)
+        toast.error('Failed to load events')
+      } else {
+        setEvents(data as Event[])
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Failed to load events')
+    } finally {
       setLoading(false)
     }
-
-    fetchEvents()
-  }, [])
+  }
 
   const handleAddEvent = async () => {
-    const { title, description, date, start_time, end_time } = form
-    if (!title || !date || !start_time || !end_time) {
+    const { title, description, start, end } = form
+    if (!title || !start || !end) {
       toast.error("Please fill in all required fields")
       return
     }
 
-    const { data, error } = await supabase
-      .from("calendar")
-      .insert([{ title, description, date, start_time, end_time }])
-
-    if (error) {
-      console.error(error)
-      toast.error("Failed to add event")
+    if (!user) {
+      toast.error("You must be logged in to create events")
       return
     }
 
-    // Send email via Edge Function (commented out since calendar table not in types)
-    /*
-    await fetch("https://fjcwwvjvqtgjwrnobqwf.supabase.co/functions/v1/send-calendar-email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer token`,
-      },
-      body: JSON.stringify({
-        email: userEmail,
-        event: { title, description, date, start_time, end_time },
-      }),
-    })
-    */
+    try {
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .insert([{ 
+          title, 
+          description, 
+          start, 
+          end,
+          email: user.email,
+          user_id: user.id
+        }])
+        .select()
 
-    toast.success("Event successfully added to agenda")
-    setForm({ title: "", description: "", date: "", start_time: "", end_time: "" })
-    setOpen(false)
-    setEvents(prev => [...prev, { id: "", ...form }])
+      if (error) {
+        console.error('Database error:', error)
+        toast.error(`Failed to add event: ${error.message}`)
+        return
+      }
+
+      // Send email notification
+      try {
+        await supabase.functions.invoke('send-calendar-email', {
+          body: {
+            email: user.email,
+            event: { 
+              title, 
+              description, 
+              date: start.split('T')[0],
+              start_time: start.split('T')[1],
+              end_time: end.split('T')[1]
+            },
+          },
+        })
+      } catch (emailError) {
+        console.error('Email error:', emailError)
+        // Don't show error to user since event was saved successfully
+      }
+
+      toast.success("Event successfully added!")
+      setForm({ title: "", description: "", start: "", end: "" })
+      setOpen(false)
+      await fetchEvents() // Reload events
+    } catch (error) {
+      console.error('Error adding event:', error)
+      toast.error("Failed to add event")
+    }
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-10">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-blue-700 mb-4">📅 Calendar</h1>
+          <p className="text-gray-600">Please log in to view your calendar events.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-blue-700">📅 Upcoming Events</h1>
+        <h1 className="text-3xl font-bold text-blue-700">📅 Calendar Events</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>Add Event</Button>
           </DialogTrigger>
           <DialogContent className="grid gap-4">
-            <Input placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
-            <Textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-            <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-            <div className="flex gap-2">
-              <Input type="time" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} />
-              <Input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} />
+            <h2 className="text-xl font-semibold">Add New Event</h2>
+            <Input 
+              placeholder="Event Title" 
+              value={form.title} 
+              onChange={e => setForm({ ...form, title: e.target.value })} 
+            />
+            <Textarea 
+              placeholder="Description (optional)" 
+              value={form.description} 
+              onChange={e => setForm({ ...form, description: e.target.value })} 
+            />
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Start Date & Time</label>
+              <Input 
+                type="datetime-local" 
+                value={form.start} 
+                onChange={e => setForm({ ...form, start: e.target.value })} 
+              />
             </div>
-            <Button onClick={handleAddEvent}>Save Event</Button>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">End Date & Time</label>
+              <Input 
+                type="datetime-local" 
+                value={form.end} 
+                onChange={e => setForm({ ...form, end: e.target.value })} 
+              />
+            </div>
+            <Button onClick={handleAddEvent} disabled={!form.title || !form.start || !form.end}>
+              Save Event
+            </Button>
           </DialogContent>
         </Dialog>
       </div>
 
       {loading ? (
-        <p className="text-center text-gray-500">Loading...</p>
+        <p className="text-center text-gray-500">Loading events...</p>
       ) : events.length === 0 ? (
-        <p className="text-center text-gray-500">No events available.</p>
+        <div className="text-center py-8">
+          <p className="text-gray-500 mb-4">No events found.</p>
+          <Button onClick={() => setOpen(true)}>Create Your First Event</Button>
+        </div>
       ) : (
         <div className="grid gap-6">
           {events.map(event => {
-            const isPast = new Date(event.date) < new Date()
+            const startDate = new Date(event.start)
+            const endDate = new Date(event.end)
+            const isPast = startDate < new Date()
+            
             return (
               <div
                 key={event.id}
@@ -129,7 +198,7 @@ export default function CalendarPage() {
               >
                 <h2 className="text-xl font-semibold text-blue-800 mb-2">{event.title}</h2>
                 <p className="text-gray-600">
-                  {format(new Date(event.date), "EEEE, MMMM d, yyyy")} — {event.start_time} to {event.end_time}
+                  {format(startDate, "EEEE, MMMM d, yyyy")} — {format(startDate, "h:mm a")} to {format(endDate, "h:mm a")}
                 </p>
                 {event.description && <p className="mt-2 text-gray-700">{event.description}</p>}
               </div>
